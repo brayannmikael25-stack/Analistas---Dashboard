@@ -725,23 +725,59 @@ function injectDesignSystemStyles() {
 }
 injectDesignSystemStyles();
 
+// Helper para calcular o dia útil de vencimento tributário (se cair em sábado ou domingo, antecipa para sexta-feira)
+function getAdjustedTaxDueDate(targetDay, year = new Date().getFullYear(), month = new Date().getMonth()) {
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+  const effectiveTargetDay = Math.min(targetDay, lastDayOfMonth);
+  const dueDate = new Date(year, month, effectiveTargetDay);
+
+  const dayOfWeek = dueDate.getDay(); // 0 = Domingo, 6 = Sábado
+  let adjustedDay = effectiveTargetDay;
+  let antecipado = false;
+
+  if (dayOfWeek === 0) { // Domingo -> antecipa 2 dias (sexta)
+    adjustedDay = effectiveTargetDay - 2;
+    antecipado = true;
+  } else if (dayOfWeek === 6) { // Sábado -> antecipa 1 dia (sexta)
+    adjustedDay = effectiveTargetDay - 1;
+    antecipado = true;
+  }
+
+  return {
+    originalDay: effectiveTargetDay,
+    adjustedDay,
+    antecipado,
+    dueDate: new Date(year, month, adjustedDay)
+  };
+}
+
 // ---------------- HELPERS: SEMÁFORO DE PRAZOS, WHATSAPP E RELATÓRIO ----------------
-function getDeadlineBadge(diaVencimento = 25) {
+function getDeadlineBadge(diaVencimento = 25, year = new Date().getFullYear(), month = new Date().getMonth()) {
   const now = new Date();
   const currentDay = now.getDate();
-  const daysLeft = diaVencimento - currentDay;
+
+  // Ajuste para dias úteis (impostos vencem na sexta-feira se o dia cair no fim de semana)
+  const dueInfo = getAdjustedTaxDueDate(diaVencimento, year, month);
+  const effectiveDay = dueInfo.adjustedDay;
+  const daysLeft = effectiveDay - currentDay;
+
+  const badgeSuffix = dueInfo.antecipado ? ` (Útil: Dia ${effectiveDay})` : '';
 
   if (daysLeft < 0) {
-    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
-      🚨 Vencido (Dia ${diaVencimento})
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse" title="Vencimento antecipado para dia útil (Sexta)">
+      🚨 Vencido (Dia ${effectiveDay})
+    </span>`;
+  } else if (daysLeft === 0) {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/40 animate-pulse" title="Vence hoje!">
+      ⚠️ VENCE HOJE (Dia ${effectiveDay})
     </span>`;
   } else if (daysLeft <= 3) {
-    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
-      ⚠️ Vence em ${daysLeft === 0 ? 'HOJE' : daysLeft + ' dias'}
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30" title="${dueInfo.antecipado ? 'Antecipado para sexta-feira anterior' : ''}">
+      ⚠️ Vence em ${daysLeft} dias${badgeSuffix}
     </span>`;
   } else {
-    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-      ⏳ ${daysLeft} dias restantes
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" title="${dueInfo.antecipado ? 'Antecipado para sexta-feira anterior' : ''}">
+      ⏳ ${daysLeft} dias restantes (Dia ${effectiveDay})
     </span>`;
   }
 }
@@ -1057,8 +1093,8 @@ function render() {
                   </div>
                   <div class="mt-3 space-y-2.5 max-h-72 overflow-y-auto">
                     <div class="p-3 rounded-xl text-xs border bg-amber-500/10 border-amber-500/30 text-amber-500">
-                      <div class="font-bold mb-1">⚠️ Prazo Padrão: Vencimento dia 25</div>
-                      <div>Certifique-se de que os DARFs de PIS, COFINS e IRPJ/CSLL foram transmitidos até o dia 25.</div>
+                      <div class="font-bold mb-1">⚠️ Prazo Tributário: Dias Úteis (Antecipação p/ Sexta)</div>
+                      <div>DARFs federais que caem em sábado ou domingo devem ser recolhidos na sexta-feira anterior útil. Limite do dia 25 neste mês: <strong>Dia ${getAdjustedTaxDueDate(25).adjustedDay}</strong>.</div>
                     </div>
                     <div class="p-3 rounded-xl text-xs border bg-blue-500/10 border-blue-500/30 text-blue-500">
                       <div class="font-bold mb-1">ℹ️ Fechamento Mensal</div>
@@ -1592,7 +1628,7 @@ function renderDashboardTab(companies) {
             </div>
           </div>
           <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1">📅 Dia 25</span>
+            <span class="flex items-center gap-1">📅 Dia ${getAdjustedTaxDueDate(25).adjustedDay}${getAdjustedTaxDueDate(25).antecipado ? ' (Útil)' : ''}</span>
             ${getDeadlineBadge(25)}
           </div>
         </div>
@@ -1628,8 +1664,8 @@ function renderDashboardTab(companies) {
             </div>
           </div>
           <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1">📅 Comp. ${currentComp.monthlyComp}</span>
-            ${getDeadlineBadge(30)}
+            <span class="flex items-center gap-1">📅 Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)</span>
+            ${getDeadlineBadge(31)}
           </div>
         </div>
 
@@ -1664,7 +1700,7 @@ function renderDashboardTab(companies) {
             </div>
           </div>
           <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1">📅 ${currentComp.quarterComp}</span>
+            <span class="flex items-center gap-1">📅 Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)</span>
             ${getDeadlineBadge(31)}
           </div>
         </div>
@@ -2463,7 +2499,7 @@ function renderPisCofinsTab(companies) {
       <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-medium flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span class="text-base">⚠️</span>
-          <span><strong>Atenção ao Prazo Legal:</strong> DARF deve ser transmitido e pago até o dia 25 do mês subsequente.</span>
+          <span><strong>Prazo Legal:</strong> DARF dia 25 (ou <strong>sexta-feira anterior</strong> se cair em sábado/domingo). Limite útil deste mês: <strong>Dia ${getAdjustedTaxDueDate(25).adjustedDay}</strong>.</span>
         </div>
         <div>
           ${getDeadlineBadge(25)}
@@ -2643,7 +2679,7 @@ function renderIrpjTrimTab(companies) {
       <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-medium flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span class="text-base">📅</span>
-          <span><strong>Vencimento Trimestral:</strong> Transmissão e pagamento no último dia útil do mês subsequente ao trimestre.</span>
+          <span><strong>Vencimento Trimestral:</strong> Transmissão e pagamento no último dia útil (se cair em sábado/domingo, antecipa para sexta-feira). Limite útil: <strong>Dia ${getAdjustedTaxDueDate(31).adjustedDay}</strong>.</span>
         </div>
         <div>
           ${getDeadlineBadge(31)}
@@ -2836,10 +2872,10 @@ function renderIrpjMensalTab(companies) {
       <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-medium flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span class="text-base">📅</span>
-          <span><strong>Vencimento Mensal:</strong> Último dia útil do mês subsequente ao período apurado.</span>
+          <span><strong>Vencimento Mensal:</strong> Último dia útil do mês subsequente (se cair em sábado/domingo, antecipa para sexta-feira). Limite útil: <strong>Dia ${getAdjustedTaxDueDate(31).adjustedDay}</strong>.</span>
         </div>
         <div>
-          ${getDeadlineBadge(30)}
+          ${getDeadlineBadge(31)}
         </div>
       </div>
 
