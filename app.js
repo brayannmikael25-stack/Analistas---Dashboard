@@ -154,6 +154,12 @@ const state = {
     grupo: 'todos',
     segmento: 'todos'
   },
+  // Filtro Rápido Global por Analista ("Meu Painel")
+  selectedAnalista: 'todos',
+  // Seleção Múltipla para Ações em Massa (Batch Actions)
+  selectedPisIds: [],
+  selectedMensalIds: [],
+  selectedTrimIds: [],
   // URL do Backend / API de sincronização (configurável pelo usuário)
   backendUrl: localStorage.getItem('control_backend_url') || '',
   syncStatus: 'idle', // 'idle' | 'syncing' | 'saved' | 'error'
@@ -696,9 +702,58 @@ function injectDesignSystemStyles() {
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(140, 150, 170, 0.45);
     }
+    /* Estilos de Impressão Executiva (PDF) */
+    @media print {
+      body { background: #FFFFFF !important; color: #000000 !important; }
+      .panze-sidebar, .panze-topbar, button, select, input, label[for], #sync-indicator, .no-print {
+        display: none !important;
+      }
+      .panze-card {
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: none !important;
+        background: #FFFFFF !important;
+        page-break-inside: avoid;
+        margin-bottom: 16px;
+      }
+      #main-content {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+      }
+    }
   `;
 }
 injectDesignSystemStyles();
+
+// ---------------- HELPERS: SEMÁFORO DE PRAZOS, WHATSAPP E RELATÓRIO ----------------
+function getDeadlineBadge(diaVencimento = 25) {
+  const now = new Date();
+  const currentDay = now.getDate();
+  const daysLeft = diaVencimento - currentDay;
+
+  if (daysLeft < 0) {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
+      🚨 Vencido (Dia ${diaVencimento})
+    </span>`;
+  } else if (daysLeft <= 3) {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+      ⚠️ Vence em ${daysLeft === 0 ? 'HOJE' : daysLeft + ' dias'}
+    </span>`;
+  } else {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+      ⏳ ${daysLeft} dias restantes
+    </span>`;
+  }
+}
+
+function openWhatsAppMessage(empresaNome, tributoTipo, competencia) {
+  const mensagem = `Olá, equipe da *${empresaNome}*!%0A%0AInformamos que a apuração contábil/fiscal de *${tributoTipo}* referente à competência *${competencia}* foi concluída pela *Control Contabilidade*.%0A%0A📄 A guia DARF correspondente está disponível para liquidação.%0AQualquer dúvida estamos à inteira disposição!%0A%0A_Atenciosamente,_%0A*Equipe Control Contabilidade*`;
+  window.open(`https://api.whatsapp.com/send?text=${mensagem}`, '_blank');
+}
+
+function triggerExecutiveReport() {
+  window.print();
+}
 
 // ---------------- EXIBIÇÃO: NOME EM NEGRITO E GRUPO LOGO ABAIXO NORMAL ----------------
 function renderCompanyCell(c) {
@@ -836,8 +891,9 @@ function render() {
     return;
   }
 
-  // Filtragem de empresas por busca global
+  // Filtragem de empresas por busca global e por Analista ("Meu Painel")
   const filtered = state.companies.filter(c => {
+    if (state.selectedAnalista !== 'todos' && c.colaborador !== state.selectedAnalista) return false;
     if (!state.globalSearch.trim()) return true;
     const q = state.globalSearch.toLowerCase();
     return (c.nome && c.nome.toLowerCase().includes(q)) ||
@@ -1474,122 +1530,185 @@ function renderDashboardTab(companies) {
           </div>
         </div>
 
-        <!-- Botões de Período (Mensal e Trimestral) Alinhados na Mesma Linha -->
+        <!-- Seletor de Analista ("Meu Painel") e Ações -->
         <div class="flex items-center gap-2 shrink-0">
-          <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 shadow-xs" title="Apuração Mensal: cobrada sempre referente ao mês anterior">
-            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-            Mensal: <strong class="ml-0.5">${currentComp.monthlyComp}</strong>
-          </span>
-          <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 shadow-xs" title="Apuração Trimestral: entregue no mês subsequente ao encerramento">
-            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-            Trimestral: <strong class="ml-0.5">${currentComp.quarterComp}</strong>
-          </span>
+          <!-- Filtro Rápido Meu Painel -->
+          <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 dark:bg-[#1A1A22] border border-gray-200/80 dark:border-gray-800 shadow-xs">
+            <span class="text-gray-400">👤 Analista:</span>
+            <select
+              onchange="state.selectedAnalista = this.value; render();"
+              class="bg-transparent text-xs font-bold text-gray-900 dark:text-white focus:outline-none cursor-pointer"
+            >
+              <option value="todos" ${state.selectedAnalista === 'todos' ? 'selected' : ''} class="bg-[#15151A] text-white">Todos</option>
+              ${Array.from(new Set(state.companies.map(c => c.colaborador).filter(Boolean))).sort().map(a => `
+                <option value="${a}" ${state.selectedAnalista === a ? 'selected' : ''} class="bg-[#15151A] text-white">${a}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <!-- Botão Gerar Relatório Executivo -->
+          <button
+            onclick="triggerExecutiveReport()"
+            class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition flex items-center gap-1.5"
+            title="Gerar Relatório de Fechamento em PDF / Impressão para Diretoria"
+          >
+            <span>📄</span>
+            <span class="hidden md:inline">Relatório Executivo</span>
+          </button>
         </div>
       </div>
 
-      <!-- 4 CARTÕES SUPERIORES DE INDICADORES (ESTILO PANZE STUDIO COM ÍCONES COLORIDOS EM FUNDO PASTEL) -->
+      <!-- 4 CARTÕES SUPERIORES DE INDICADORES COM BARRAS DE PROGRESSO E SEMÁFORO DE VENCIMENTO -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         <!-- Card 1: PIS / COFINS -->
         <div onclick="switchTab('piscofins')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div class="flex items-start justify-between">
-            <div class="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg font-bold shadow-xs">
-              📄
+          <div>
+            <div class="flex items-start justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg font-bold shadow-xs">
+                📄
+              </div>
+              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+                Ver PIS/COFINS →
+              </span>
             </div>
-            <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
-              Ver PIS/COFINS →
-            </span>
-          </div>
-          <div class="mt-4">
-            <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</div>
-            <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">PIS / COFINS</div>
-            <div class="flex items-baseline gap-2 mt-2">
-              <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingPis}</span>
-              <span class="text-xs text-gray-400 font-medium">de ${realCompanies.length} empresas</span>
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclPis === realCompanies.length && realCompanies.length > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}">
+                  ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}% Concluído
+                </span>
+              </div>
+              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">PIS / COFINS</div>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingPis}</span>
+                <span class="text-xs text-gray-400 font-medium">de ${realCompanies.length} empresas</span>
+              </div>
+              
+              <!-- Barra de Progresso Visual -->
+              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
+                <div class="bg-purple-500 h-full rounded-full transition-all duration-500" style="width: ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}%"></div>
+              </div>
             </div>
           </div>
-          <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center gap-1.5">
-            <span class="text-amber-500 font-bold">●</span> Vencimento dia 25
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
+            <span class="flex items-center gap-1">📅 Dia 25</span>
+            ${getDeadlineBadge(25)}
           </div>
         </div>
 
         <!-- Card 2: IRPJ/CSLL Mensal -->
         <div onclick="switchTab('irpj_mensal')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div class="flex items-start justify-between">
-            <div class="w-11 h-11 rounded-2xl bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-lg font-bold shadow-xs">
-              🧮
+          <div>
+            <div class="flex items-start justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-lg font-bold shadow-xs">
+                🧮
+              </div>
+              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+                Ver Mensal →
+              </span>
             </div>
-            <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
-              Ver Mensal →
-            </span>
-          </div>
-          <div class="mt-4">
-            <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</div>
-            <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Mensal</div>
-            <div class="flex items-baseline gap-2 mt-2">
-              <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingMensal}</span>
-              <span class="text-xs text-gray-400 font-medium">de ${mensalCompanies.length} empresas</span>
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclMensal === mensalCompanies.length && mensalCompanies.length > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-cyan-500/15 text-cyan-400'}">
+                  ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}% Concluído
+                </span>
+              </div>
+              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Mensal</div>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingMensal}</span>
+                <span class="text-xs text-gray-400 font-medium">de ${mensalCompanies.length} empresas</span>
+              </div>
+              
+              <!-- Barra de Progresso Visual -->
+              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
+                <div class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}%"></div>
+              </div>
             </div>
           </div>
-          <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center gap-1.5">
-            <span class="text-blue-500 font-bold">●</span> Comp. ${currentComp.monthlyComp}
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
+            <span class="flex items-center gap-1">📅 Comp. ${currentComp.monthlyComp}</span>
+            ${getDeadlineBadge(30)}
           </div>
         </div>
 
         <!-- Card 3: IRPJ/CSLL Trimestral -->
         <div onclick="switchTab('irpj_trim')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div class="flex items-start justify-between">
-            <div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg font-bold shadow-xs">
-              📑
+          <div>
+            <div class="flex items-start justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg font-bold shadow-xs">
+                📑
+              </div>
+              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+                Ver Trimestral →
+              </span>
             </div>
-            <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
-              Ver Trimestral →
-            </span>
-          </div>
-          <div class="mt-4">
-            <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</div>
-            <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Trimestral</div>
-            <div class="flex items-baseline gap-2 mt-2">
-              <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingTrim}</span>
-              <span class="text-xs text-gray-400 font-medium">de ${trimCompanies.length} empresas</span>
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclTrim === trimCompanies.length && trimCompanies.length > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}">
+                  ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}% Concluído
+                </span>
+              </div>
+              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Trimestral</div>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingTrim}</span>
+                <span class="text-xs text-gray-400 font-medium">de ${trimCompanies.length} empresas</span>
+              </div>
+              
+              <!-- Barra de Progresso Visual -->
+              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
+                <div class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}%"></div>
+              </div>
             </div>
           </div>
-          <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center gap-1.5">
-            <span class="text-amber-500 font-bold">●</span> ${currentComp.quarterComp}
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
+            <span class="flex items-center gap-1">📅 ${currentComp.quarterComp}</span>
+            ${getDeadlineBadge(31)}
           </div>
         </div>
 
         <!-- Card 4: Fechamentos Contábeis -->
         <div onclick="switchTab('fechamentos')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div class="flex items-start justify-between">
-            <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg font-bold shadow-xs">
-              📈
+          <div>
+            <div class="flex items-start justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg font-bold shadow-xs">
+                📈
+              </div>
+              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+                Ver Fechamentos →
+              </span>
             </div>
-            <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
-              Ver Fechamentos →
-            </span>
-          </div>
-          <div class="mt-4">
-            <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Eficiência Geral</div>
-            <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">Fechamentos</div>
-            <div class="flex items-center gap-3 mt-2">
-              <div>
-                <span class="text-xl font-black text-emerald-500">${Math.round((emDia/tot)*100)}%</span>
-                <span class="block text-[9px] uppercase font-bold text-gray-400">Em Dia</span>
+            <div class="mt-4">
+              <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Eficiência Geral</div>
+              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">Fechamentos</div>
+              <div class="flex items-center gap-3 mt-2">
+                <div onclick="event.stopPropagation(); navigateToFechamentoFilter('em_dia')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-emerald-500/10" title="Ver empresas em dia">
+                  <span class="text-xl font-black text-emerald-500">${Math.round((emDia/tot)*100)}%</span>
+                  <span class="block text-[9px] uppercase font-bold text-gray-400">Em Dia</span>
+                </div>
+                <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
+                <div onclick="event.stopPropagation(); navigateToFechamentoFilter('atencao')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-amber-500/10" title="Ver empresas em atenção (1-2m)">
+                  <span class="text-xl font-black text-amber-500">${Math.round((atencao/tot)*100)}%</span>
+                  <span class="block text-[9px] uppercase font-bold text-gray-400">Atenção</span>
+                </div>
+                <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
+                <div onclick="event.stopPropagation(); navigateToFechamentoFilter('critico')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-rose-500/10" title="Ver empresas em estado crítico (>2m)">
+                  <span class="text-xl font-black text-rose-500/90 dark:text-rose-400">${Math.round((critico/tot)*100)}%</span>
+                  <span class="block text-[9px] uppercase font-bold text-gray-400">Crítico</span>
+                </div>
               </div>
-              <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
-              <div>
-                <span class="text-xl font-black text-amber-500">${Math.round((atencao/tot)*100)}%</span>
-                <span class="block text-[9px] uppercase font-bold text-gray-400">Atenção</span>
-              </div>
-              <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
-              <div>
-                <span class="text-xl font-black text-rose-500/90 dark:text-rose-400">${Math.round((critico/tot)*100)}%</span>
-                <span class="block text-[9px] uppercase font-bold text-gray-400">Crítico</span>
+
+              <!-- Barra de Progresso Tripla -->
+              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3 flex">
+                <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${Math.round((emDia/tot)*100)}%"></div>
+                <div class="bg-amber-500 h-full transition-all duration-500" style="width: ${Math.round((atencao/tot)*100)}%"></div>
+                <div class="bg-rose-500 h-full transition-all duration-500" style="width: ${Math.round((critico/tot)*100)}%"></div>
               </div>
             </div>
           </div>
-          <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
             ✓ ${companies.length} empresas monitoradas
           </div>
         </div>
@@ -1603,12 +1722,15 @@ function renderDashboardTab(companies) {
         <div class="panze-card lg:col-span-2 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Empresas por Colaborador Responsável</h3>
-              <p class="text-xs text-gray-400 mt-0.5">Distribuição da carteira de clientes entre os analistas</p>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Empresas por Colaborador Responsável</h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-0.5">Clique em qualquer barra para abrir as empresas atribuídas ao colaborador</p>
             </div>
-            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200/50 dark:border-blue-500/20">
-              Carga Operacional →
-            </span>
+            <button onclick="navigateToEmpresasFilter('responsavel', 'todos')" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200/50 dark:border-blue-500/20 hover:opacity-80 transition cursor-pointer">
+              Ver Carteiras →
+            </button>
           </div>
           <div class="h-64 relative w-full"><canvas id="chartColab"></canvas></div>
         </div>
@@ -1616,8 +1738,11 @@ function renderDashboardTab(companies) {
         <div class="panze-card flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Segmentos de Atuação</h3>
-              <p class="text-xs text-gray-400 mt-0.5">Participação por nicho econômico</p>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Segmentos de Atuação</h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-0.5">Clique em uma fatia para filtrar as empresas do segmento</p>
             </div>
           </div>
           <div class="h-64 relative w-full"><canvas id="chartSegment"></canvas></div>
@@ -1629,10 +1754,13 @@ function renderDashboardTab(companies) {
         <div class="panze-card flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Status dos Fechamentos Mensais</h3>
-              <p class="text-xs text-gray-400 mt-0.5">Pontualidade contábil e meses em atraso</p>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Status dos Fechamentos Mensais</h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Atalho ↗</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-0.5">Clique em <em>Crítico</em>, <em>Atenção</em> ou <em>Em Dia</em> para abrir a lista filtrada</p>
             </div>
-            <span class="text-xs font-semibold text-emerald-500">Ideal: Mês Anterior</span>
+            <button onclick="navigateToTab('fechamentos')" class="text-xs font-semibold text-emerald-500 hover:underline cursor-pointer">Ideal: Mês Anterior →</button>
           </div>
           <div class="h-56 relative w-full"><canvas id="chartFechamento"></canvas></div>
         </div>
@@ -1640,8 +1768,11 @@ function renderDashboardTab(companies) {
         <div class="panze-card flex flex-col justify-between">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Classificação por Classe de Empresa</h3>
-              <p class="text-xs text-gray-400 mt-0.5">Classes A até E segundo porte e complexidade</p>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Classificação por Classe de Empresa</h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-0.5">Clique em uma classe (A até E) para ver as empresas correspondentes</p>
             </div>
           </div>
           <div class="h-56 relative w-full"><canvas id="chartClass"></canvas></div>
@@ -1651,9 +1782,12 @@ function renderDashboardTab(companies) {
       <!-- Linha 3: PIS/COFINS (1/3), IRPJ Mensal (1/3) e IRPJ Trimestral (1/3) - Perfeitamente Simétricos -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <div class="panze-card flex flex-col justify-between">
+        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-purple-500/40 transition" onclick="navigateToTab('piscofins')" title="Clique para abrir apuração PIS / COFINS">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-sm text-gray-900 dark:text-white">PIS / COFINS</h3>
+            <div class="flex items-center gap-1.5">
+              <h3 class="font-bold text-sm text-gray-900 dark:text-white">PIS / COFINS</h3>
+              <span class="text-[9px] font-bold text-purple-400">↗</span>
+            </div>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400">
               ${state.selPisComp}
             </span>
@@ -1664,9 +1798,12 @@ function renderDashboardTab(companies) {
           </div>
         </div>
 
-        <div class="panze-card flex flex-col justify-between">
+        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-cyan-500/40 transition" onclick="navigateToTab('irpj_mensal')" title="Clique para abrir apuração IRPJ / CSLL Mensal">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-sm text-gray-900 dark:text-white">IRPJ / CSLL Mensal</h3>
+            <div class="flex items-center gap-1.5">
+              <h3 class="font-bold text-sm text-gray-900 dark:text-white">IRPJ / CSLL Mensal</h3>
+              <span class="text-[9px] font-bold text-cyan-400">↗</span>
+            </div>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400">
               ${state.selIrpjMes}
             </span>
@@ -1677,9 +1814,12 @@ function renderDashboardTab(companies) {
           </div>
         </div>
 
-        <div class="panze-card flex flex-col justify-between">
+        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-amber-500/40 transition" onclick="navigateToTab('irpj_trim')" title="Clique para abrir apuração IRPJ / CSLL Trimestral">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-sm text-gray-900 dark:text-white">IRPJ / CSLL Trimestral</h3>
+            <div class="flex items-center gap-1.5">
+              <h3 class="font-bold text-sm text-gray-900 dark:text-white">IRPJ / CSLL Trimestral</h3>
+              <span class="text-[9px] font-bold text-amber-400">↗</span>
+            </div>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
               ${state.selTrim}
             </span>
@@ -1696,8 +1836,11 @@ function renderDashboardTab(companies) {
       <div class="panze-card">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Gestão e Produtividade em Tarefas</h3>
-            <p class="text-xs text-gray-400 mt-0.5">Pendências internas e prazos de obrigações acessórias</p>
+            <div class="flex items-center gap-2">
+              <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Gestão e Produtividade em Tarefas</h3>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5">Clique nas barras ou no botão para ir direto às tarefas da equipe</p>
           </div>
           <button onclick="switchTab('tarefas')" class="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline transition">
             Ver Todas (${state.tasks.length}) →
@@ -1740,6 +1883,7 @@ function renderCharts(companies) {
     companies.forEach(c => { colabMap[c.colaborador || 'Outro'] = (colabMap[c.colaborador || 'Outro'] || 0) + 1; });
     const el1 = document.getElementById('chartColab');
     if (el1) {
+      el1.style.cursor = 'pointer';
       state.charts.c1 = new Chart(el1, {
         type: 'bar',
         data: {
@@ -1757,6 +1901,15 @@ function renderCharts(companies) {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          onClick: (evt, elements) => {
+            if (elements && elements.length > 0) {
+              const idx = elements[0].index;
+              const colabNome = Object.keys(colabMap)[idx];
+              if (colabNome) {
+                navigateToEmpresasFilter('responsavel', colabNome);
+              }
+            }
+          },
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -1767,7 +1920,10 @@ function renderCharts(companies) {
               borderWidth: 1,
               padding: 12,
               cornerRadius: 10,
-              titleFont: { weight: 'bold' }
+              titleFont: { weight: 'bold' },
+              callbacks: {
+                afterBody: () => '👉 Clique para filtrar empresas deste responsável'
+              }
             }
           },
           scales: {
@@ -1787,6 +1943,7 @@ function renderCharts(companies) {
     companies.forEach(c => { segMap[c.segmento || 'Outros'] = (segMap[c.segmento || 'Outros'] || 0) + 1; });
     const el2 = document.getElementById('chartSegment');
     if (el2) {
+      el2.style.cursor = 'pointer';
       state.charts.c2 = new Chart(el2, {
         type: 'doughnut',
         data: {
@@ -1802,10 +1959,24 @@ function renderCharts(companies) {
           responsive: true,
           maintainAspectRatio: false,
           cutout: '70%',
+          onClick: (evt, elements) => {
+            if (elements && elements.length > 0) {
+              const idx = elements[0].index;
+              const segNome = Object.keys(segMap)[idx];
+              if (segNome) {
+                navigateToEmpresasFilter('segmento', segNome);
+              }
+            }
+          },
           plugins: {
             legend: {
               position: 'right',
               labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 11, weight: '500' }, padding: 12 }
+            },
+            tooltip: {
+              callbacks: {
+                afterBody: () => '👉 Clique para filtrar empresas deste segmento'
+              }
             }
           }
         }
@@ -1826,6 +1997,7 @@ function renderCharts(companies) {
     });
     const el3 = document.getElementById('chartFechamento');
     if (el3) {
+      el3.style.cursor = 'pointer';
       state.charts.c3 = new Chart(el3, {
         type: 'bar',
         data: {
@@ -1841,7 +2013,24 @@ function renderCharts(companies) {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          onClick: (evt, elements) => {
+            if (elements && elements.length > 0) {
+              const idx = elements[0].index;
+              const statusKeys = ['em_dia', 'atencao', 'critico'];
+              const chosen = statusKeys[idx];
+              if (chosen) {
+                navigateToFechamentoFilter(chosen);
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                afterBody: () => '👉 Clique para ver lista de fechamentos deste status'
+              }
+            }
+          },
           scales: {
             x: { ticks: { color: textColor, font: { family: 'Rethink Sans', size: 11 } }, grid: { display: false } },
             y: { ticks: { color: textColor, precision: 0, font: { family: 'Rethink Sans' } }, grid: { color: gridColor, drawBorder: false } }
@@ -1863,6 +2052,7 @@ function renderCharts(companies) {
     });
     const el4 = document.getElementById('chartClass');
     if (el4) {
+      el4.style.cursor = 'pointer';
       state.charts.c4 = new Chart(el4, {
         type: 'doughnut',
         data: {
@@ -1878,8 +2068,23 @@ function renderCharts(companies) {
           responsive: true,
           maintainAspectRatio: false,
           cutout: '68%',
+          onClick: (evt, elements) => {
+            if (elements && elements.length > 0) {
+              const idx = elements[0].index;
+              const label = Object.keys(clsMap)[idx]; // ex: "Classe A"
+              const classLetter = label.replace('Classe ', '').trim();
+              if (classLetter) {
+                navigateToEmpresasFilter('classe', classLetter);
+              }
+            }
+          },
           plugins: {
-            legend: { position: 'right', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 12 }, padding: 12 } }
+            legend: { position: 'right', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 12 }, padding: 12 } },
+            tooltip: {
+              callbacks: {
+                afterBody: () => '👉 Clique para filtrar empresas desta classe'
+              }
+            }
           }
         }
       });
@@ -1898,6 +2103,7 @@ function renderCharts(companies) {
     });
     const el5 = document.getElementById('chartPis');
     if (el5) {
+      el5.style.cursor = 'pointer';
       state.charts.c5 = new Chart(el5, {
         type: 'doughnut',
         data: {
@@ -1913,7 +2119,17 @@ function renderCharts(companies) {
           responsive: true,
           maintainAspectRatio: false,
           cutout: '72%',
-          plugins: { legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 11 } } } }
+          onClick: () => {
+            navigateToTab('piscofins');
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 11 } } },
+            tooltip: {
+              callbacks: {
+                afterBody: () => '👉 Clique para abrir tela de PIS / COFINS'
+              }
+            }
+          }
         }
       });
     }
@@ -1946,6 +2162,7 @@ function renderCharts(companies) {
     // IRPJ/CSLL Mensal
     const el6Mensal = document.getElementById('chartIrpjMensal');
     if (el6Mensal) {
+      el6Mensal.style.cursor = 'pointer';
       state.charts.c6_mensal = new Chart(el6Mensal, {
         type: 'doughnut',
         data: {
@@ -1961,8 +2178,16 @@ function renderCharts(companies) {
           responsive: true,
           maintainAspectRatio: false,
           cutout: '72%',
+          onClick: () => {
+            navigateToTab('irpj_mensal');
+          },
           plugins: {
-            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 11 } } }
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 11 } } },
+            tooltip: {
+              callbacks: {
+                afterBody: () => '👉 Clique para abrir tela de IRPJ Mensal'
+              }
+            }
           }
         }
       });
@@ -1971,6 +2196,7 @@ function renderCharts(companies) {
     // IRPJ/CSLL Trimestral
     const el6Trim = document.getElementById('chartIrpjTrim');
     if (el6Trim) {
+      el6Trim.style.cursor = 'pointer';
       state.charts.c6_trim = new Chart(el6Trim, {
         type: 'doughnut',
         data: {
@@ -1986,8 +2212,16 @@ function renderCharts(companies) {
           responsive: true,
           maintainAspectRatio: false,
           cutout: '72%',
+          onClick: () => {
+            navigateToTab('irpj_trim');
+          },
           plugins: {
-            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 11 } } }
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { family: 'Rethink Sans', size: 11 } } },
+            tooltip: {
+              callbacks: {
+                afterBody: () => '👉 Clique para abrir tela de IRPJ Trimestral'
+              }
+            }
           }
         }
       });
@@ -2002,6 +2236,7 @@ function renderCharts(companies) {
     const conc = state.tasks.filter(t => t.concluida).length;
     const el7 = document.getElementById('chartTasks');
     if (el7 && state.tasks.length > 0) {
+      el7.style.cursor = 'pointer';
       state.charts.c7 = new Chart(el7, {
         type: 'bar',
         data: {
@@ -2019,7 +2254,21 @@ function renderCharts(companies) {
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          onClick: (evt, elements) => {
+            if (elements && elements.length > 0) {
+              const idx = elements[0].index;
+              const filter = idx === 0 ? 'ativas' : 'concluidas';
+              navigateToTab('tarefas', filter);
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                afterBody: () => '👉 Clique para ir direto para as tarefas deste status'
+              }
+            }
+          },
           scales: {
             x: { ticks: { color: textColor, precision: 0, font: { family: 'Rethink Sans' } }, grid: { color: gridColor, drawBorder: false } },
             y: { ticks: { color: textColor, font: { family: 'Rethink Sans', weight: 'bold' } }, grid: { display: false } }
@@ -2065,6 +2314,22 @@ function renderFechamentosTab(companies) {
           `).join('')}
         </div>
       </div>
+
+      ${state.fechamentoFilter !== 'all' ? `
+        <div class="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between text-xs text-blue-500 font-semibold animate-fadeIn">
+          <div class="flex items-center gap-2">
+            <span>⚡</span>
+            <span>Exibindo apenas empresas com status <strong>${
+              state.fechamentoFilter === 'critico' ? '🔴 Crítico (>2 meses)' :
+              state.fechamentoFilter === 'atencao' ? '🟡 Atenção (1-2 meses)' :
+              '🟢 Em Dia (Ideal)'
+            }</strong> (${list.length} de ${companies.length} empresas)</span>
+          </div>
+          <button onclick="setFechamentoFilter('all')" class="underline hover:text-white text-xs font-bold">
+            Ver Todas
+          </button>
+        </div>
+      ` : ''}
 
       <div class="panze-card !p-0 overflow-hidden">
         <div class="overflow-x-auto">
@@ -2118,9 +2383,59 @@ function renderFechamentosTab(companies) {
   `;
 }
 
+// Funções de Ações em Massa (Batch Actions) PIS/COFINS
+function toggleSelectAllPis(checked, listIds) {
+  if (checked) {
+    state.selectedPisIds = Array.from(new Set([...state.selectedPisIds, ...listIds]));
+  } else {
+    state.selectedPisIds = state.selectedPisIds.filter(id => !listIds.includes(id));
+  }
+  render();
+}
+
+function toggleSelectPisItem(id, checked) {
+  if (checked) {
+    if (!state.selectedPisIds.includes(id)) state.selectedPisIds.push(id);
+  } else {
+    state.selectedPisIds = state.selectedPisIds.filter(x => x !== id);
+  }
+  render();
+}
+
+function batchUpdatePisDarf(enviado) {
+  if (!state.selectedPisIds.length) return alert('Selecione ao menos uma empresa.');
+  state.selectedPisIds.forEach(id => {
+    const key = `${id}_${state.selPisComp}`;
+    state.pisCofinsData[key] = state.pisCofinsData[key] || { status: 'Pendente', darfEnviado: false };
+    state.pisCofinsData[key].darfEnviado = enviado;
+    if (enviado && state.pisCofinsData[key].status === 'Pendente') {
+      state.pisCofinsData[key].status = 'Concluída';
+    }
+  });
+  state.selectedPisIds = [];
+  saveStorage();
+  render();
+}
+
+function batchUpdatePisStatus(status) {
+  if (!state.selectedPisIds.length) return alert('Selecione ao menos uma empresa.');
+  state.selectedPisIds.forEach(id => {
+    const key = `${id}_${state.selPisComp}`;
+    state.pisCofinsData[key] = state.pisCofinsData[key] || { status: 'Pendente', darfEnviado: false };
+    state.pisCofinsData[key].status = status;
+    if (status === 'Concluída') state.pisCofinsData[key].darfEnviado = true;
+  });
+  state.selectedPisIds = [];
+  saveStorage();
+  render();
+}
+
 // ---------------- PIS / COFINS TAB ----------------
 function renderPisCofinsTab(companies) {
   const realCos = companies.filter(c => normalizeRegime(c.regime).includes('Lucro Real'));
+  const cosIds = realCos.map(c => c.id);
+  const allSelected = cosIds.length > 0 && cosIds.every(id => state.selectedPisIds.includes(id));
+  const someSelected = state.selectedPisIds.length > 0;
 
   return `
     <div class="space-y-6">
@@ -2144,73 +2459,169 @@ function renderPisCofinsTab(companies) {
         </div>
       </div>
 
-      <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-medium flex items-center gap-2">
-        <span class="text-base">⚠️</span>
-        <span><strong>Atenção ao Prazo Legal:</strong> O DARF deve ser transmitido e pago até o dia 25 do mês subsequente (antecipando se dia não útil).</span>
+      <!-- Barra de Aviso com Semáforo de Vencimento -->
+      <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-medium flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">⚠️</span>
+          <span><strong>Atenção ao Prazo Legal:</strong> DARF deve ser transmitido e pago até o dia 25 do mês subsequente.</span>
+        </div>
+        <div>
+          ${getDeadlineBadge(25)}
+        </div>
       </div>
+
+      <!-- BARRA DE AÇÕES EM MASSA (BATCH ACTIONS) -->
+      ${someSelected ? `
+        <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+          <div class="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400">
+            <span>✓</span>
+            <span><strong>${state.selectedPisIds.length}</strong> empresa(s) selecionada(s)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="batchUpdatePisDarf(true)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs flex items-center gap-1">
+              ✓ Marcar DARF Enviado (Lote)
+            </button>
+            <button onclick="batchUpdatePisStatus('Concluída')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition shadow-xs">
+              Marcar Concluídas
+            </button>
+            <button onclick="state.selectedPisIds = []; render();" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-white transition">
+              Desmarcar Todas
+            </button>
+          </div>
+        </div>
+      ` : ''}
 
       <div class="panze-card !p-0 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm border-collapse">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
-              <th class="py-4 px-6">Empresa & CNPJ</th>
-              <th class="py-4 px-4">Regime</th>
-              <th class="py-4 px-4">Responsável</th>
-              <th class="py-4 px-4">Situação</th>
-              <th class="py-4 px-6 text-center">DARF Enviado?</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
-            ${realCos.map(c => {
-              const rec = state.pisCofinsData[`${c.id}_${state.selPisComp}`] || { status: 'Pendente', darfEnviado: false };
-              return `
-                <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
-                  <td class="py-4 px-6">
-                    ${renderCompanyCell(c)}
-                  </td>
-                  <td class="py-4 px-4">${getRegimeBadge(c.regime)}</td>
-                  <td class="py-4 px-4 text-xs font-medium text-gray-600 dark:text-gray-300">${c.colaborador}</td>
-                  <td class="py-4 px-4">
-                    <select
-                      onchange="updatePisStatus(${c.id}, this.value)"
-                      class="px-3 py-1.5 rounded-full text-xs font-bold border focus:outline-none transition cursor-pointer ${
-                        rec.status === 'Concluída' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                        rec.status === 'Análise' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
-                        rec.status === 'Isenta' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
-                        'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                      }"
-                    >
-                      <option value="Pendente" ${rec.status === 'Pendente' ? 'selected' : ''} class="bg-[#15151A] text-white">🔴 Pendente</option>
-                      <option value="Análise" ${rec.status === 'Análise' ? 'selected' : ''} class="bg-[#15151A] text-white">🟡 Análise</option>
-                      <option value="Concluída" ${rec.status === 'Concluída' ? 'selected' : ''} class="bg-[#15151A] text-white">🟢 Concluída</option>
-                      <option value="Isenta" ${rec.status === 'Isenta' ? 'selected' : ''} class="bg-[#15151A] text-white">🟣 Isenta</option>
-                    </select>
-                  </td>
-                  <td class="py-4 px-6 text-center">
-                    <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                <th class="py-4 px-4 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    ${allSelected ? 'checked' : ''}
+                    onchange="toggleSelectAllPis(this.checked, ${JSON.stringify(cosIds)})"
+                    class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    title="Selecionar todas para ações em massa"
+                  />
+                </th>
+                <th class="py-4 px-6">Empresa & CNPJ</th>
+                <th class="py-4 px-4">Regime</th>
+                <th class="py-4 px-4">Responsável</th>
+                <th class="py-4 px-4">Situação</th>
+                <th class="py-4 px-6 text-center">DARF Enviado?</th>
+                <th class="py-4 px-4 text-center">Aviso</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
+              ${realCos.map(c => {
+                const rec = state.pisCofinsData[`${c.id}_${state.selPisComp}`] || { status: 'Pendente', darfEnviado: false };
+                const isSelected = state.selectedPisIds.includes(c.id);
+                return `
+                  <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition ${isSelected ? 'bg-blue-50/40 dark:bg-blue-500/5' : ''}">
+                    <td class="py-4 px-4 text-center">
                       <input
                         type="checkbox"
-                        ${rec.darfEnviado ? 'checked' : ''}
-                        onchange="togglePisDarf(${c.id}, this.checked)"
-                        class="w-5 h-5 rounded-md text-[#ECBD56] focus:ring-[#ECBD56]"
+                        ${isSelected ? 'checked' : ''}
+                        onchange="toggleSelectPisItem(${c.id}, this.checked)"
+                        class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                       />
-                      <span class="text-xs font-semibold text-gray-300">${rec.darfEnviado ? 'Enviado' : 'Não enviado'}</span>
-                    </label>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
+                    </td>
+                    <td class="py-4 px-6">
+                      ${renderCompanyCell(c)}
+                    </td>
+                    <td class="py-4 px-4">${getRegimeBadge(c.regime)}</td>
+                    <td class="py-4 px-4 text-xs font-medium text-gray-600 dark:text-gray-300">${c.colaborador}</td>
+                    <td class="py-4 px-4">
+                      <select
+                        onchange="updatePisStatus(${c.id}, this.value)"
+                        class="px-3 py-1.5 rounded-full text-xs font-bold border focus:outline-none transition cursor-pointer ${
+                          rec.status === 'Concluída' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                          rec.status === 'Análise' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                          rec.status === 'Isenta' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
+                          'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                        }"
+                      >
+                        <option value="Pendente" ${rec.status === 'Pendente' ? 'selected' : ''} class="bg-[#15151A] text-white">🔴 Pendente</option>
+                        <option value="Análise" ${rec.status === 'Análise' ? 'selected' : ''} class="bg-[#15151A] text-white">🟡 Análise</option>
+                        <option value="Concluída" ${rec.status === 'Concluída' ? 'selected' : ''} class="bg-[#15151A] text-white">🟢 Concluída</option>
+                        <option value="Isenta" ${rec.status === 'Isenta' ? 'selected' : ''} class="bg-[#15151A] text-white">🟣 Isenta</option>
+                      </select>
+                    </td>
+                    <td class="py-4 px-6 text-center">
+                      <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          ${rec.darfEnviado ? 'checked' : ''}
+                          onchange="togglePisDarf(${c.id}, this.checked)"
+                          class="w-5 h-5 rounded-md text-[#ECBD56] focus:ring-[#ECBD56]"
+                        />
+                        <span class="text-xs font-semibold text-gray-300">${rec.darfEnviado ? 'Enviado' : 'Não enviado'}</span>
+                      </label>
+                    </td>
+                    <td class="py-4 px-4 text-center">
+                      <button
+                        onclick="openWhatsAppMessage('${c.nome.replace(/'/g, "\\'")}', 'PIS/COFINS', '${state.selPisComp}')"
+                        class="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 transition shadow-xs text-xs"
+                        title="Enviar mensagem WhatsApp ao cliente"
+                      >
+                        💬 WhatsApp
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   `;
 }
 
+// Funções de Ações em Massa (Batch Actions) IRPJ Trimestral
+function toggleSelectAllTrim(checked, listIds) {
+  if (checked) {
+    state.selectedTrimIds = Array.from(new Set([...state.selectedTrimIds, ...listIds]));
+  } else {
+    state.selectedTrimIds = state.selectedTrimIds.filter(id => !listIds.includes(id));
+  }
+  render();
+}
+
+function toggleSelectTrimItem(id, checked) {
+  if (checked) {
+    if (!state.selectedTrimIds.includes(id)) state.selectedTrimIds.push(id);
+  } else {
+    state.selectedTrimIds = state.selectedTrimIds.filter(x => x !== id);
+  }
+  render();
+}
+
+function batchUpdateTrimDarf(darfPaga) {
+  if (!state.selectedTrimIds.length) return alert('Selecione ao menos uma empresa.');
+  state.selectedTrimIds.forEach(id => {
+    const key = `${id}_${state.selTrim}`;
+    state.irpjTrimData[key] = state.irpjTrimData[key] || { prejuizo: false, quotaUnica: true, darfUnica: false, p1: false, p2: false, p3: false };
+    if (state.irpjTrimData[key].quotaUnica) {
+      state.irpjTrimData[key].darfUnica = darfPaga;
+    } else {
+      state.irpjTrimData[key].p1 = darfPaga;
+      state.irpjTrimData[key].p2 = darfPaga;
+      state.irpjTrimData[key].p3 = darfPaga;
+    }
+  });
+  state.selectedTrimIds = [];
+  saveStorage();
+  render();
+}
+
 // ---------------- IRPJ TRIMESTRAL TAB ----------------
 function renderIrpjTrimTab(companies) {
   const trimCos = companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Trimestral');
+  const trimIds = trimCos.map(c => c.id);
+  const allTrimSelected = trimIds.length > 0 && trimIds.every(id => state.selectedTrimIds.includes(id));
+  const someTrimSelected = state.selectedTrimIds.length > 0;
 
   return `
     <div class="space-y-6">
@@ -2228,23 +2639,71 @@ function renderIrpjTrimTab(companies) {
         </div>
       </div>
 
+      <!-- Barra de Aviso com Semáforo de Vencimento -->
+      <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-medium flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">📅</span>
+          <span><strong>Vencimento Trimestral:</strong> Transmissão e pagamento no último dia útil do mês subsequente ao trimestre.</span>
+        </div>
+        <div>
+          ${getDeadlineBadge(31)}
+        </div>
+      </div>
+
+      <!-- BARRA DE AÇÕES EM MASSA (BATCH ACTIONS) TRIMESTRAL -->
+      ${someTrimSelected ? `
+        <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+          <div class="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400">
+            <span>✓</span>
+            <span><strong>${state.selectedTrimIds.length}</strong> empresa(s) selecionada(s)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="batchUpdateTrimDarf(true)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs flex items-center gap-1">
+              ✓ Marcar Quotas/DARFs Pagas (Lote)
+            </button>
+            <button onclick="state.selectedTrimIds = []; render();" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-white transition">
+              Desmarcar Todas
+            </button>
+          </div>
+        </div>
+      ` : ''}
+
       <div class="panze-card !p-0 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm border-collapse">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
+                <th class="py-4 px-4 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    ${allTrimSelected ? 'checked' : ''}
+                    onchange="toggleSelectAllTrim(this.checked, ${JSON.stringify(trimIds)})"
+                    class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    title="Selecionar todas para ações em massa"
+                  />
+                </th>
                 <th class="py-4 px-6">Empresa & CNPJ</th>
                 <th class="py-4 px-4">Responsável</th>
                 <th class="py-4 px-4">Prejuízo Fiscal?</th>
                 <th class="py-4 px-4">Modalidade de Pagamento</th>
                 <th class="py-4 px-6 text-center">Status / DARFs</th>
+                <th class="py-4 px-4 text-center">Aviso</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
             ${trimCos.map(c => {
               const rec = state.irpjTrimData[`${c.id}_${state.selTrim}`] || { prejuizo: false, quotaUnica: true, darfUnica: false, p1: false, p2: false, p3: false };
+              const isSelected = state.selectedTrimIds.includes(c.id);
               return `
-                <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
+                <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition ${isSelected ? 'bg-blue-50/40 dark:bg-blue-500/5' : ''}">
+                  <td class="py-4 px-4 text-center">
+                    <input
+                      type="checkbox"
+                      ${isSelected ? 'checked' : ''}
+                      onchange="toggleSelectTrimItem(${c.id}, this.checked)"
+                      class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </td>
                   <td class="py-4 px-6">
                     ${renderCompanyCell(c)}
                   </td>
@@ -2299,6 +2758,15 @@ function renderIrpjTrimTab(companies) {
                       </div>
                     `}
                   </td>
+                  <td class="py-4 px-4 text-center">
+                    <button
+                      onclick="openWhatsAppMessage('${c.nome.replace(/'/g, "\\'")}', 'IRPJ/CSLL Trimestral', '${state.selTrim}')"
+                      class="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 transition shadow-xs text-xs"
+                      title="Enviar mensagem WhatsApp ao cliente"
+                    >
+                      💬 WhatsApp
+                    </button>
+                  </td>
                 </tr>
               `;
             }).join('')}
@@ -2310,9 +2778,43 @@ function renderIrpjTrimTab(companies) {
   `;
 }
 
+// Funções de Ações em Massa (Batch Actions) IRPJ Mensal
+function toggleSelectAllMensal(checked, listIds) {
+  if (checked) {
+    state.selectedMensalIds = Array.from(new Set([...state.selectedMensalIds, ...listIds]));
+  } else {
+    state.selectedMensalIds = state.selectedMensalIds.filter(id => !listIds.includes(id));
+  }
+  render();
+}
+
+function toggleSelectMensalItem(id, checked) {
+  if (checked) {
+    if (!state.selectedMensalIds.includes(id)) state.selectedMensalIds.push(id);
+  } else {
+    state.selectedMensalIds = state.selectedMensalIds.filter(x => x !== id);
+  }
+  render();
+}
+
+function batchUpdateMensalStatus(status) {
+  if (!state.selectedMensalIds.length) return alert('Selecione ao menos uma empresa.');
+  state.selectedMensalIds.forEach(id => {
+    const key = `${id}_${state.selIrpjMes}`;
+    state.irpjMensalData[key] = state.irpjMensalData[key] || { status: 'Pendente', prejuizo: false };
+    state.irpjMensalData[key].status = status;
+  });
+  state.selectedMensalIds = [];
+  saveStorage();
+  render();
+}
+
 // ---------------- IRPJ MENSAL TAB ----------------
 function renderIrpjMensalTab(companies) {
   const mensalCos = companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Mensal');
+  const mensalIds = mensalCos.map(c => c.id);
+  const allMensalSelected = mensalIds.length > 0 && mensalIds.every(id => state.selectedMensalIds.includes(id));
+  const someMensalSelected = state.selectedMensalIds.length > 0;
 
   return `
     <div class="space-y-6">
@@ -2330,23 +2832,74 @@ function renderIrpjMensalTab(companies) {
         </div>
       </div>
 
+      <!-- Barra de Aviso com Semáforo de Vencimento -->
+      <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-400 text-xs font-medium flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">📅</span>
+          <span><strong>Vencimento Mensal:</strong> Último dia útil do mês subsequente ao período apurado.</span>
+        </div>
+        <div>
+          ${getDeadlineBadge(30)}
+        </div>
+      </div>
+
+      <!-- BARRA DE AÇÕES EM MASSA (BATCH ACTIONS) MENSAL -->
+      ${someMensalSelected ? `
+        <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+          <div class="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400">
+            <span>✓</span>
+            <span><strong>${state.selectedMensalIds.length}</strong> empresa(s) selecionada(s)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="batchUpdateMensalStatus('Concluída')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs flex items-center gap-1">
+              ✓ Marcar Concluídas (Lote)
+            </button>
+            <button onclick="batchUpdateMensalStatus('Análise')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition shadow-xs">
+              Mover p/ Análise
+            </button>
+            <button onclick="state.selectedMensalIds = []; render();" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-white transition">
+              Desmarcar Todas
+            </button>
+          </div>
+        </div>
+      ` : ''}
+
       <div class="panze-card !p-0 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm border-collapse">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
+                <th class="py-4 px-4 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    ${allMensalSelected ? 'checked' : ''}
+                    onchange="toggleSelectAllMensal(this.checked, ${JSON.stringify(mensalIds)})"
+                    class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    title="Selecionar todas para ações em massa"
+                  />
+                </th>
                 <th class="py-4 px-6">Empresa & CNPJ</th>
                 <th class="py-4 px-4">Responsável</th>
                 <th class="py-4 px-4">Prejuízo Fiscal?</th>
                 <th class="py-4 px-4">Situação</th>
                 <th class="py-4 px-6 text-center">Status Final</th>
+                <th class="py-4 px-4 text-center">Aviso</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
             ${mensalCos.map(c => {
               const rec = state.irpjMensalData[`${c.id}_${state.selIrpjMes}`] || { status: 'Pendente', prejuizo: false };
+              const isSelected = state.selectedMensalIds.includes(c.id);
               return `
-                <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
+                <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition ${isSelected ? 'bg-blue-50/40 dark:bg-blue-500/5' : ''}">
+                  <td class="py-4 px-4 text-center">
+                    <input
+                      type="checkbox"
+                      ${isSelected ? 'checked' : ''}
+                      onchange="toggleSelectMensalItem(${c.id}, this.checked)"
+                      class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </td>
                   <td class="py-4 px-6">
                     ${renderCompanyCell(c)}
                   </td>
@@ -2386,6 +2939,15 @@ function renderIrpjMensalTab(companies) {
                     }">
                       ${rec.status === 'Concluída' || rec.prejuizo ? 'Concluído' : 'Pendente'}
                     </span>
+                  </td>
+                  <td class="py-4 px-4 text-center">
+                    <button
+                      onclick="openWhatsAppMessage('${c.nome.replace(/'/g, "\\'")}', 'IRPJ/CSLL Mensal', '${state.selIrpjMes}')"
+                      class="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 transition shadow-xs text-xs"
+                      title="Enviar mensagem WhatsApp ao cliente"
+                    >
+                      💬 WhatsApp
+                    </button>
                   </td>
                 </tr>
               `;
@@ -2682,6 +3244,11 @@ function renderEmpresasTab(companies) {
 
         <div class="text-[11px] text-gray-400 pt-1 flex items-center justify-between">
           <span>Exibindo <strong>${fList.length}</strong> de <strong>${state.companies.length}</strong> empresas</span>
+          ${Object.values(state.crudFilters).some(v => v !== 'todos') ? `
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 font-bold text-[10px]">
+              ⚡ Filtrado via Atalho de Gráfico &bull; <button onclick="clearCrudFilters()" class="underline hover:text-white">Remover Filtro</button>
+            </span>
+          ` : ''}
         </div>
       </div>
 
@@ -3364,6 +3931,44 @@ window.clearCrudFilters = () => {
     segmento: 'todos'
   };
   render();
+};
+
+// ---------------- SISTEMA DE ATALHOS / NAVEGAÇÃO INTERATIVA DE GRÁFICOS ----------------
+window.navigateToEmpresasFilter = (filterKey, filterValue) => {
+  state.crudFilters = {
+    responsavel: 'todos',
+    regime: 'todos',
+    classe: 'todos',
+    grupo: 'todos',
+    segmento: 'todos'
+  };
+  state.selectedAnalista = 'todos';
+  state.crudFilters[filterKey] = filterValue;
+  state.activeTab = 'empresas';
+  render();
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 50);
+};
+
+window.navigateToFechamentoFilter = (statusKey) => {
+  state.fechamentoFilter = statusKey;
+  state.activeTab = 'fechamentos';
+  render();
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 50);
+};
+
+window.navigateToTab = (tabName, optFilter) => {
+  if (optFilter && tabName === 'tarefas') {
+    state.taskFilter = optFilter;
+  }
+  state.activeTab = tabName;
+  render();
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 50);
 };
 
 // ---------------- FUNÇÕES DE BACKUP E SINCRONIZAÇÃO ENTRE DISPOSITIVOS ----------------
