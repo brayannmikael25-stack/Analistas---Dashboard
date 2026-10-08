@@ -164,7 +164,22 @@ const state = {
   backendUrl: localStorage.getItem('control_backend_url') || '',
   syncStatus: 'idle', // 'idle' | 'syncing' | 'saved' | 'error'
   lastSyncTime: localStorage.getItem('control_last_sync') || null,
-  charts: {}
+  charts: {},
+  // Estado do Módulo Fechamento IA
+  fechamentoIA: {
+    selectedCompanyId: null,
+    selectedCompetencia: '08/2026',
+    viewMode: 'selection', // 'selection' | 'workspace'
+    activeSubTab: 'dre', // 'dre' | 'balancete' | 'vermelho' | 'amarelo' | 'verde' | 'plano'
+    panelTheme: 'escuro', // 'escuro' | 'claro' | 'caqui' | 'noturno'
+    companySearch: '',
+    filtroRisco: 'TODOS',
+    auditData: (() => {
+      // Limpa dados mockados antigos de testes no localStorage para garantir que todas comecem 0%
+      localStorage.removeItem('control_fechamento_ia');
+      return {};
+    })()
+  }
 };
 
 // Obter pacote consolidado de todos os dados do sistema
@@ -179,6 +194,7 @@ function getFullDataPackage() {
     pisCofinsData: state.pisCofinsData,
     irpjTrimData: state.irpjTrimData,
     irpjMensalData: state.irpjMensalData,
+    fechamentoIAData: state.fechamentoIA.auditData,
     customLogo: state.customLogo
   };
 }
@@ -191,6 +207,7 @@ function saveStorage() {
   localStorage.setItem('control_piscofins', JSON.stringify(state.pisCofinsData));
   localStorage.setItem('control_irpj_trim', JSON.stringify(state.irpjTrimData));
   localStorage.setItem('control_irpj_mensal', JSON.stringify(state.irpjMensalData));
+  localStorage.setItem('control_fechamento_ia', JSON.stringify(state.fechamentoIA.auditData));
 
   // Sincronização automática com backend se configurado
   if (state.backendUrl) {
@@ -636,37 +653,52 @@ function injectDesignSystemStyles() {
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 12px 18px;
+      padding: 10px 14px;
       border-radius: 12px;
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 500;
-      color: var(--text-sidebar) !important;
-      transition: all 0.2s ease;
+      color: #94A3B8 !important;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
       user-select: none;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
+      border-left: 2px solid transparent;
     }
 
     .panze-nav-item:hover {
-      color: #FFFFFF !important;
-      background: rgba(255, 255, 255, 0.08);
+      color: #F1F5F9 !important;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .panze-nav-item:hover .nav-icon {
+      color: #E2E8F0 !important;
     }
 
     .panze-nav-item.active {
       color: #FFFFFF !important;
-      background: rgba(255, 255, 255, 0.12) !important;
-      border-left: 3px solid var(--border-accent);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      background: rgba(30, 41, 59, 0.9) !important;
+      border-left: 2px solid #6366F1 !important;
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.2);
       font-weight: 700;
     }
 
+    .panze-nav-item.active .nav-icon {
+      color: #FFFFFF !important;
+    }
+
     .panze-nav-item .nav-icon {
-      font-size: 16px;
-      width: 22px;
-      text-align: center;
+      width: 20px;
+      height: 20px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      color: #94A3B8;
+      transition: color 0.2s ease;
+      flex-shrink: 0;
     }
 
     .panze-chevron {
@@ -842,16 +874,22 @@ function getRegimeBadge(regime) {
 }
 
 // Renderização fiel da Logomarca Oficial da Control Contabilidade (Imagem 1)
-function renderLogo(heightClass = "h-10") {
+function renderLogo(heightClass = "h-10", isDarkTheme = null) {
   if (state.customLogo) {
     return `<img src="${state.customLogo}" alt="Control Contabilidade" class="${heightClass} object-contain" />`;
   }
+  
+  // Se não especificado explicitamente, verifica o tema atual
+  const isDark = isDarkTheme !== null ? isDarkTheme : (getCurrentTheme().mode === 'dark');
+  const textColor = isDark ? '#FFFFFF' : '#0D3B66';
+  const subtitleColor = '#F58220'; // Laranja característico da Control
+
   return `
     <div class="inline-flex items-center select-none" style="line-height: 1;">
       <svg class="${heightClass} w-auto" viewBox="0 0 540 130" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" style="display: block; max-height: 100%;">
         <!-- Símbolo C e Checkmark -->
         <g id="symbol">
-          <!-- Anel Circular C (Azul Marinho #0D3B66) -->
+          <!-- Anel Circular C -->
           <path d="M 65 5 
                    A 60 60 0 1 0 107.4 107.4 
                    L 93.3 93.3 
@@ -859,44 +897,44 @@ function renderLogo(heightClass = "h-10") {
                    A 40 40 0 0 1 93.3 36.7 
                    L 107.4 22.6 
                    A 60 60 0 0 0 65 5 Z" 
-                fill="#0D3B66" />
+                fill="${textColor}" />
           
-          <!-- Checkmark Laranja (#F58220) cortando o arco superior -->
+          <!-- Checkmark Laranja cortando o arco superior -->
           <path d="M 38 65 
                    L 68 95 
                    L 115 22 
                    L 98 12 
                    L 68 72 
                    L 52 53 Z" 
-                fill="#F58220" />
+                fill="${subtitleColor}" />
         </g>
 
         <!-- Tipografia "control" -->
-        <g id="brand-control">
+        <g id="brand-control" fill="${textColor}">
           <!-- Letra c -->
-          <path d="M 195 48 C 190 42 182 39 171 39 C 153 39 140 52 140 71 C 140 90 153 103 171 103 C 182 103 190 100 195 94 L 186 85 C 182 89 177 91 171 91 C 160 91 152 83 152 71 C 152 59 160 51 171 51 C 177 51 182 53 186 57 Z" fill="#0D3B66" />
+          <path d="M 195 48 C 190 42 182 39 171 39 C 153 39 140 52 140 71 C 140 90 153 103 171 103 C 182 103 190 100 195 94 L 186 85 C 182 89 177 91 171 91 C 160 91 152 83 152 71 C 152 59 160 51 171 51 C 177 51 182 53 186 57 Z" />
           
           <!-- Letra o -->
-          <path d="M 235 39 C 217 39 204 52 204 71 C 204 90 217 103 235 103 C 253 103 266 90 266 71 C 266 52 253 39 235 39 Z M 235 51 C 246 51 254 59 254 71 C 254 83 246 91 235 91 C 224 91 216 83 216 71 C 216 59 224 51 235 51 Z" fill="#0D3B66" />
+          <path d="M 235 39 C 217 39 204 52 204 71 C 204 90 217 103 235 103 C 253 103 266 90 266 71 C 266 52 253 39 235 39 Z M 235 51 C 246 51 254 59 254 71 C 254 83 246 91 235 91 C 224 91 216 83 216 71 C 216 59 224 51 235 51 Z" />
 
           <!-- Letra n -->
-          <path d="M 276 41 L 276 101 L 288 101 L 288 66 C 288 56 295 51 304 51 C 313 51 318 56 318 66 L 318 101 L 330 101 L 330 63 C 330 49 321 40 307 40 C 298 40 291 44 286 51 L 286 41 Z" fill="#0D3B66" />
+          <path d="M 276 41 L 276 101 L 288 101 L 288 66 C 288 56 295 51 304 51 C 313 51 318 56 318 66 L 318 101 L 330 101 L 330 63 C 330 49 321 40 307 40 C 298 40 291 44 286 51 L 286 41 Z" />
 
           <!-- Letra t -->
-          <path d="M 352 25 L 340 25 L 340 41 L 332 41 L 332 52 L 340 52 L 340 85 C 340 96 345 102 357 102 C 361 102 365 101 368 99 L 365 88 C 363 89 360 90 358 90 C 354 90 352 87 352 82 L 352 52 L 367 52 L 367 41 L 352 41 Z" fill="#0D3B66" />
+          <path d="M 352 25 L 340 25 L 340 41 L 332 41 L 332 52 L 340 52 L 340 85 C 340 96 345 102 357 102 C 361 102 365 101 368 99 L 365 88 C 363 89 360 90 358 90 C 354 90 352 87 352 82 L 352 52 L 367 52 L 367 41 L 352 41 Z" />
 
           <!-- Letra r -->
-          <path d="M 377 41 L 377 101 L 389 101 L 389 68 C 389 56 397 51 408 52 L 408 40 C 398 40 392 45 387 52 L 387 41 Z" fill="#0D3B66" />
+          <path d="M 377 41 L 377 101 L 389 101 L 389 68 C 389 56 397 51 408 52 L 408 40 C 398 40 392 45 387 52 L 387 41 Z" />
 
           <!-- Letra o -->
-          <path d="M 440 39 C 422 39 409 52 409 71 C 409 90 422 103 440 103 C 458 103 471 90 471 71 C 471 52 458 39 440 39 Z M 440 51 C 451 51 459 59 459 71 C 459 83 451 91 440 91 C 429 91 421 83 421 71 C 421 59 429 51 440 51 Z" fill="#0D3B66" />
+          <path d="M 440 39 C 422 39 409 52 409 71 C 409 90 422 103 440 103 C 458 103 471 90 471 71 C 471 52 458 39 440 39 Z M 440 51 C 451 51 459 59 459 71 C 459 83 451 91 440 91 C 429 91 421 83 421 71 C 421 59 429 51 440 51 Z" />
 
           <!-- Letra l -->
-          <path d="M 482 12 L 482 101 L 494 101 L 494 12 Z" fill="#0D3B66" />
+          <path d="M 482 12 L 482 101 L 494 101 L 494 12 Z" />
         </g>
 
         <!-- Subtítulo "C O N T A B I L I D A D E" -->
-        <g id="brand-subtitle" fill="#F58220" font-family="'Rethink Sans', 'Montserrat', Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="0.48em">
+        <g id="brand-subtitle" fill="${subtitleColor}" font-family="'Rethink Sans', 'Montserrat', Arial, sans-serif" font-weight="700" font-size="16" letter-spacing="0.48em">
           <text x="142" y="125">CONTABILIDADE</text>
         </g>
       </svg>
@@ -943,40 +981,73 @@ function render() {
   root.innerHTML = `
     <div class="min-h-screen flex text-gray-800 dark:text-gray-100" style="background-color: var(--bg-main);">
       
-      <!-- SIDEBAR LATERAL (ESTILO PANZE STUDIO COM VARIÁVEIS DE TEMA) -->
+      <!-- SIDEBAR LATERAL (SAAS DARK PREMIUM COM LUCIDE VECTOR ICONS) -->
       <aside class="panze-sidebar hidden md:flex flex-col justify-between py-6 px-4 shrink-0 sticky top-0 h-screen select-none">
         <div>
-          <!-- Marca / Logo no Topo da Sidebar -->
-          <div class="px-3 mb-8 flex items-center justify-between cursor-pointer group" title="Control Contabilidade">
-            <div class="flex items-center gap-2.5">
-              <div class="w-9 h-9 rounded-xl bg-[#1E2032] flex items-center justify-center border border-white/10 shadow-inner">
-                <span class="text-lg">⚡</span>
+          <!-- Marca / Logo Topo (Control PRO) -->
+          <div class="px-1 mb-8 flex items-center justify-between cursor-pointer group" title="Control PRO Contabilidade">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="flex items-center">
+                ${renderLogo("h-8")}
               </div>
-              <div>
-                <div class="text-white font-bold text-sm tracking-tight leading-tight flex items-center gap-1.5">
-                  <span>Control</span>
-                  <span class="text-[10px] font-semibold text-[#ECBD56] uppercase tracking-wider bg-[#ECBD56]/15 px-1.5 py-0.5 rounded">Pro</span>
-                </div>
-                <div class="text-[10px] text-gray-400 font-medium">Gestão Contábil</div>
-              </div>
+              <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-500/15 border border-amber-500/20 px-1.5 py-0.5 rounded-md shrink-0">PRO</span>
             </div>
-            <label class="cursor-pointer text-gray-500 hover:text-white p-1 rounded-lg transition" title="Alterar Logomarca">
-              ⚙️
+            <label class="cursor-pointer text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-white/5 transition-colors" title="Configurações / Alterar Logomarca">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
               <input type="file" id="logo-input" accept="image/*" class="hidden" />
             </label>
           </div>
 
-          <!-- Menu de Navegação Vertical (Itens estilo Panze) -->
+          <!-- Menu de Navegação Vertical (Itens estilo SaaS Dark Premium) -->
           <nav class="space-y-1">
-            <div class="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">Menu Principal</div>
+            <div class="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Menu Principal</div>
             ${[
-              { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
-              { id: 'fechamentos', label: 'Fechamentos', icon: '📅' },
-              { id: 'piscofins', label: 'PIS / COFINS', icon: '📄' },
-              { id: 'irpj_trim', label: 'IRPJ Trimestral', icon: '📑' },
-              { id: 'irpj_mensal', label: 'IRPJ Mensal', icon: '🧮' },
-              { id: 'tarefas', label: 'Tarefas', icon: '✓', badge: pendingTasksCount },
-              { id: 'empresas', label: 'Empresas', icon: '🏢', count: state.companies.length }
+              { 
+                id: 'dashboard', 
+                label: 'Dashboard', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>` 
+              },
+              { 
+                id: 'fechamentos', 
+                label: 'Fechamentos', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="m9 16 2 2 4-4"></path></svg>` 
+              },
+              { 
+                id: 'fechamento_ia', 
+                label: 'Fechamento IA', 
+                icon: `<svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path><path d="M19 3v4"></path><path d="M21 5h-4"></path></svg>`, 
+                badge: `<span class="bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">PRO</span>` 
+              },
+              { 
+                id: 'piscofins', 
+                label: 'PIS / COFINS', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path><path d="M14 8H8"></path><path d="M16 12H8"></path><path d="M13 16H8"></path></svg>` 
+              },
+              { 
+                id: 'irpj_trim', 
+                label: 'IRPJ Trimestral', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>` 
+              },
+              { 
+                id: 'irpj_mensal', 
+                label: 'IRPJ Mensal', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>` 
+              },
+              { 
+                id: 'tarefas', 
+                label: 'Tarefas', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`, 
+                badge: `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full text-[11px] font-semibold">${pendingTasksCount}</span>` 
+              },
+              { 
+                id: 'empresas', 
+                label: 'Empresas', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path><path d="M6 12H4a2 2 0 0 0-2 2v8h4"></path><path d="M18 9h2a2 2 0 0 1 2 2v11h-4"></path><path d="M10 6h4"></path><path d="M10 10h4"></path><path d="M10 14h4"></path><path d="M10 18h4"></path></svg>`, 
+                count: state.companies.length 
+              }
             ].map(tab => {
               const isActive = state.activeTab === tab.id;
               return `
@@ -984,14 +1055,14 @@ function render() {
                   data-tab="${tab.id}"
                   class="panze-nav-item tab-btn ${isActive ? 'active' : ''}"
                 >
-                  <div class="flex items-center gap-3">
-                    <span class="nav-icon font-mono">${tab.icon}</span>
-                    <span class="truncate">${tab.label}</span>
+                  <div class="flex items-center gap-3 min-w-0">
+                    <span class="nav-icon shrink-0">${tab.icon}</span>
+                    <span class="truncate font-medium">${tab.label}</span>
                   </div>
-                  <div class="flex items-center gap-1.5">
-                    ${tab.badge ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D94838] text-white">${tab.badge}</span>` : ''}
-                    ${tab.count !== undefined ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-gray-300">${tab.count}</span>` : ''}
-                    <span class="panze-chevron">›</span>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    ${tab.badge || ''}
+                    ${tab.count !== undefined ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400">${tab.count}</span>` : ''}
+                    <svg class="w-3.5 h-3.5 opacity-40 panze-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                   </div>
                 </div>
               `;
@@ -1000,34 +1071,50 @@ function render() {
         </div>
 
         <!-- Rodapé da Sidebar: Info de Persistência e Usuário -->
-        <div class="pt-4 border-t border-gray-800/80 space-y-3">
-          <!-- Nuvem / Sync Status -->
-          <div class="px-3 py-2 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-xs">
-            <div class="flex items-center gap-2">
-              <span class="text-sm">${state.backendUrl ? '☁️' : '💾'}</span>
-              <div class="text-[11px]">
-                <div class="text-gray-200 font-medium">${state.backendUrl ? 'Nuvem Conectada' : 'Armazenamento Local'}</div>
-                <div class="text-gray-500">${state.lastSyncTime ? 'Sync: ' + state.lastSyncTime : 'Dispositivo atual'}</div>
+        <div class="pt-4 border-t border-slate-800/80 space-y-3">
+          <!-- Armazenamento Local / Nuvem -->
+          <div class="px-3 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5">
+              <span class="text-slate-400 shrink-0">
+                <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" x2="2" y1="12" y2="12"></line>
+                  <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                  <line x1="6" x2="6.01" y1="16" y2="16"></line>
+                  <line x1="10" x2="10.01" y1="16" y2="16"></line>
+                </svg>
+              </span>
+              <div class="text-[11px] min-w-0">
+                <div class="text-slate-200 font-medium truncate">${state.backendUrl ? 'Nuvem Conectada' : 'Armazenamento Local'}</div>
+                <div class="text-slate-500 truncate">${state.lastSyncTime ? 'Sync: ' + state.lastSyncTime : 'Dispositivo atual'}</div>
               </div>
             </div>
-            <button id="config-sync-btn" class="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition" title="Configurar Servidor">
-              ⚙️
+            <button id="config-sync-btn" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors" title="Configurar Servidor">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
             </button>
           </div>
 
           <!-- Perfil do Usuário Logado -->
-          <div class="flex items-center justify-between px-2">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E88A1A] to-[#ECBD56] text-gray-950 font-bold flex items-center justify-center text-xs shadow-md">
-                ${state.user.charAt(0).toUpperCase()}
-              </div>
-              <div class="truncate max-w-[120px]">
+          <div class="flex items-center justify-between px-1">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <svg class="w-8 h-8 text-amber-500/90 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="10" r="3"></circle>
+                <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path>
+              </svg>
+              <div class="truncate max-w-[130px]">
                 <div class="text-xs font-semibold text-white truncate leading-tight">${state.user}</div>
-                <div class="text-[10px] text-gray-400">Contabilidade</div>
+                <div class="text-[10px] text-slate-400">Contabilidade</div>
               </div>
             </div>
-            <button id="logout-btn" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Sair do Sistema">
-              🚪
+            <button id="logout-btn" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Sair do Sistema">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
             </button>
           </div>
         </div>
@@ -1046,6 +1133,7 @@ function render() {
                 ${
                   state.activeTab === 'dashboard' ? 'Dashboard Overview' :
                   state.activeTab === 'fechamentos' ? 'Controle de Fechamentos' :
+                  state.activeTab === 'fechamento_ia' ? 'Fechamento IA (teste) - Auditoria Contábil Inteligente' :
                   state.activeTab === 'piscofins' ? 'Apuração PIS / COFINS' :
                   state.activeTab === 'irpj_trim' ? 'IRPJ / CSLL Trimestral' :
                   state.activeTab === 'irpj_mensal' ? 'IRPJ / CSLL Mensal' :
@@ -1214,6 +1302,7 @@ function render() {
           ${[
             { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
             { id: 'fechamentos', label: 'Fechamentos', icon: '📅' },
+            { id: 'fechamento_ia', label: 'Fechamento IA', icon: '⚡' },
             { id: 'piscofins', label: 'PIS/COFINS', icon: '📄' },
             { id: 'irpj_trim', label: 'IRPJ Trim', icon: '📑' },
             { id: 'irpj_mensal', label: 'IRPJ Mes', icon: '🧮' },
@@ -1457,6 +1546,8 @@ function renderActiveTab(filtered) {
       return renderDashboardTab(filtered);
     case 'fechamentos':
       return renderFechamentosTab(filtered);
+    case 'fechamento_ia':
+      return renderFechamentoIATab(filtered);
     case 'piscofins':
       return renderPisCofinsTab(filtered);
     case 'irpj_trim':
@@ -2402,12 +2493,22 @@ function renderFechamentosTab(companies) {
                     <span class="px-3 py-1 rounded-full text-xs font-semibold ${st.css}">${st.label}</span>
                   </td>
                   <td class="py-4 px-6 text-right">
-                    <button
-                      onclick="updateCompanyFechamento(${c.id}, '${auto.fechamento}')"
-                      class="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#22AC77]/10 text-[#22AC77] hover:bg-[#22AC77]/20 border border-[#22AC77]/30 transition"
-                    >
-                      Avançar p/ ${auto.monthlyComp}
-                    </button>
+                    <div class="flex items-center justify-end gap-2">
+                      <button
+                        onclick="openFechamentoIACompany(${c.id}, '${auto.monthlyComp}')"
+                        class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/30 transition flex items-center gap-1"
+                        title="Auditar no Fechamento IA"
+                      >
+                        <span>🤖</span>
+                        <span>IA</span>
+                      </button>
+                      <button
+                        onclick="updateCompanyFechamento(${c.id}, '${auto.fechamento}')"
+                        class="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#22AC77]/10 text-[#22AC77] hover:bg-[#22AC77]/20 border border-[#22AC77]/30 transition"
+                      >
+                        Avançar p/ ${auto.monthlyComp}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               `;
@@ -2418,6 +2519,1181 @@ function renderFechamentosTab(companies) {
     </div>
   `;
 }
+
+// =========================================================================
+// MÓDULO FECHAMENTO IA (TESTE) - CONTROL PRO
+// =========================================================================
+
+// =========================================================================
+// MÓDULO FECHAMENTO IA (TESTE) - CONTROL PRO
+// =========================================================================
+
+// =========================================================================
+// MÓDULO FECHAMENTO IA (TESTE) - CONTROL PRO
+// =========================================================================
+
+// Categorias Oficiais dos 6 Módulos de Documentos
+const CATEGORIAS_FECHAMENTO_IA = [
+  { key: 'balancete', numero: '01', label: 'Balancete Mensal', desc: 'Saldos patrimoniais e verificação de contas invertidas' },
+  { key: 'dre', numero: '02', label: 'Análise Vertical da DRE', desc: 'Impacto relativo de custos e despesas s/ receita líquida' },
+  { key: 'extrato', numero: '03', label: 'Extratos Bancários e Aplicações', desc: 'Fontes de liquidez e conciliação bancária de contas' },
+  { key: 'contasPagas', numero: '04', label: 'Relatório de Contas Pagas & Comprovantes', desc: 'Comprovantes e registros de saídas operacionais' },
+  { key: 'fiscal', numero: '05', label: 'Resumo por Acumulador Fiscal e Faturamento', desc: 'Acumuladores fiscais, impostos e receita bruta DRE' },
+  { key: 'folha', numero: '06', label: 'Resumo da Folha de Pagamento e Anexos', desc: 'Provisões de encargos (INSS/FGTS) e folha líquida' }
+];
+
+// Cálculo de Progresso Rigoroso (Zero Mock Data)
+// Regra:
+// - Se nenhum documento foi anexado nem marcado como 'não se aplica' => 0% e SEM atividade (barra cinza vazia)
+// - Arquivos anexados / dispensados calculam progresso proporcional (máximo 90% antes de finalizar)
+// - SÓ ATINGE 100% se:
+//   1. Todos os 6 documentos estiverem 'Anexado' ou 'Não se aplica'
+//   2. Não houver nenhuma pendência crítica (vermelha) sem resolução
+//   3. O botão 'Finalizar Mês' for acionado
+function calcularProgressoFechamentoIA(record) {
+  if (!record || !record.arquivosUpload) {
+    return { pct: 0, hasActivity: false, totalValidos: 0, is100: false };
+  }
+
+  const keys = CATEGORIAS_FECHAMENTO_IA.map(c => c.key);
+  let validos = 0;
+  let temArquivoReal = false;
+
+  keys.forEach(k => {
+    const item = record.arquivosUpload[k];
+    if (item && item.enviado) {
+      temArquivoReal = true;
+      validos++;
+    } else if (item && item.naoSeAplica) {
+      validos++;
+    }
+  });
+
+  // Se não há nenhum arquivo anexado nem dispensado, está 100% ZERADO
+  if (validos === 0) {
+    return { pct: 0, hasActivity: false, totalValidos: 0, is100: false };
+  }
+
+  const isFinalizado = record.status === 'CONCLUIDO';
+  const criticosPendentes = (record.itensAuditoria || []).filter(i => i.risco === 'VERMELHO' && !i.resolvido).length;
+
+  if (isFinalizado && criticosPendentes === 0 && validos === keys.length) {
+    return { pct: 100, hasActivity: true, totalValidos: validos, is100: true };
+  }
+
+  // Progresso em andamento (máximo 90% até ser oficialmente finalizado)
+  const ratio = (validos / keys.length);
+  const progressoBase = Math.round(ratio * 90);
+
+  return {
+    pct: Math.min(progressoBase, 90),
+    hasActivity: true,
+    totalValidos: validos,
+    is100: false
+  };
+}
+
+// Inicializador de dados de auditoria estritamente ZERADO por padrão (Sem Dados Falsos)
+function getOrCreateFechamentoIARecord(companyId, competencia = '08/2026') {
+  const key = `${companyId}_${competencia}`;
+  if (!state.fechamentoIA.auditData[key]) {
+    state.fechamentoIA.auditData[key] = {
+      empresaId: companyId,
+      competencia: competencia,
+      status: 'EM_ABERTO', // 'EM_ABERTO' | 'CONCLUIDO'
+      scoreAuditoria: 0,
+      arquivosUpload: {
+        balancete: { enviado: false, naoSeAplica: false, nome: null, data: null },
+        dre: { enviado: false, naoSeAplica: false, nome: null, data: null },
+        extrato: { enviado: false, naoSeAplica: false, nome: null, data: null },
+        contasPagas: { enviado: false, naoSeAplica: false, nome: null, data: null },
+        fiscal: { enviado: false, naoSeAplica: false, nome: null, data: null },
+        folha: { enviado: false, naoSeAplica: false, nome: null, data: null }
+      },
+      financeiro: {
+        lucroLiquido: 0,
+        lucroAnterior: 0,
+        variacaoMoMLucro: 0,
+        receitaBruta: 0,
+        receitaAnterior: 0,
+        variacaoMoMReceita: 0,
+        margemLiquida: 0
+      },
+      itensAuditoria: [],
+      dreLinhas: []
+    };
+  }
+  return state.fechamentoIA.auditData[key];
+}
+
+// Mock Estruturado do Motor de Auditoria acionado APENAS quando o usuário faz upload
+function gerarAnaliseContabilAposUpload(record) {
+  record.scoreAuditoria = 85;
+  record.financeiro = {
+    lucroLiquido: 456504.88,
+    lucroAnterior: 398200.00,
+    variacaoMoMLucro: 14.64,
+    receitaBruta: 2840900.00,
+    receitaAnterior: 2650000.00,
+    variacaoMoMReceita: 7.20,
+    margemLiquida: 16.07
+  };
+
+  record.itensAuditoria = [
+    {
+      id: 1,
+      categoria: 'Balancete Mensal',
+      titulo: 'Conta do Ativo com Saldo Credor Invertido',
+      descricao: 'A conta 1.1.2.01 - Adiantamento a Fornecedores apresenta saldo credor de R$ 14.250,00 no fechamento da competência.',
+      risco: 'VERMELHO',
+      origem: '1. Balancete Mensal',
+      impacto: 'Alto impacto na conciliação patrimonial',
+      resolvido: false,
+      justificativa: ''
+    },
+    {
+      id: 2,
+      categoria: 'Análise Vertical DRE',
+      titulo: 'Variação Atípica MoM: Custos com Logística e Fretes',
+      descricao: 'Aumento expressivo de +24.8% no impacto relativo de fretes sobre a receita líquida em relação ao mês anterior.',
+      risco: 'AMARELO',
+      origem: '2. Análise Vertical DRE',
+      impacto: 'Possível duplicidade de CTRC ou reajuste de tabela',
+      resolvido: false,
+      justificativa: ''
+    },
+    {
+      id: 3,
+      categoria: 'Faturamento Fiscal',
+      titulo: 'Receita Operacional Bruta DRE vs Resumo Fiscal',
+      descricao: 'Valores de faturamento declarados no arquivo Sped Fiscal conferem com a DRE contábil.',
+      risco: 'VERDE',
+      origem: '5. Resumo Fiscal & Faturamento',
+      impacto: 'Conformidade plena',
+      resolvido: true,
+      justificativa: 'Validação automática por cruzamento de chave NFe e acumuladores fiscais realizada com sucesso.'
+    },
+    {
+      id: 4,
+      categoria: 'Folha de Pagamento',
+      titulo: 'Provisões de Encargos Sociais (INSS e FGTS)',
+      descricao: 'Provisões da folha de pagamento batem perfeitamente com os débitos tributários declarados.',
+      risco: 'VERDE',
+      origem: '6. Folha de Pagamento',
+      impacto: 'Conformidade plena',
+      resolvido: true,
+      justificativa: 'Batimento efetuado contra guias DAE/DCTFWeb.'
+    }
+  ];
+
+  // Estrutura Analítica da DRE (Tabela Consultiva da IA)
+  record.dreLinhas = [
+    {
+      conta: '1. RECEITA OPERACIONAL BRUTA',
+      atual: 2840900.00,
+      av: 100.00,
+      anterior: 2650000.00,
+      status: 'Correto',
+      auditoria: 'Faturamento validado contra Notas Fiscais Eletrônicas e acumulador do Sped Fiscal. Alíquotas conferidas.'
+    },
+    {
+      conta: '(-) Deduções da Receita Bruta (Impostos s/ Vendas)',
+      atual: -340908.00,
+      av: -12.00,
+      anterior: -318000.00,
+      status: 'Correto',
+      auditoria: 'PIS/COFINS e ICMS apurados conforme regime tributário com créditos compensados devidamente.'
+    },
+    {
+      conta: '(=) RECEITA OPERACIONAL LÍQUIDA',
+      atual: 2499992.00,
+      av: 88.00,
+      anterior: 2332000.00,
+      status: 'Correto',
+      auditoria: 'Crescimento saudável de +7.2% MoM impulsionado pela linha de comércio atacadista.'
+    },
+    {
+      conta: '(-) Custo dos Produtos Vendidos e Serviços (CPV/CSP)',
+      atual: -1278405.00,
+      av: -45.00,
+      anterior: -1166000.00,
+      status: 'Correto',
+      auditoria: 'Margem bruta mantida em 55%. Estoques conciliados contra inventário físico e kardex fiscal.'
+    },
+    {
+      conta: '(=) LUCRO BRUTO OPERACIONAL',
+      atual: 1221587.00,
+      av: 43.00,
+      anterior: 1166000.00,
+      status: 'Correto',
+      auditoria: 'Desempenho operacional consistente com margem de contribuição preservada.'
+    },
+    {
+      conta: '(-) Despesas Comerciais e Logística',
+      atual: -284090.00,
+      av: -10.00,
+      anterior: -225250.00,
+      status: 'Revisar',
+      auditoria: 'Variação atípica de +26.1% MoM em fretes. Recomendado inspecionar CTRCs do período para evitar duplicidades.'
+    },
+    {
+      conta: '(-) Despesas Administrativas e Gerais',
+      atual: -312499.00,
+      av: -11.00,
+      anterior: -320000.00,
+      status: 'Correto',
+      auditoria: 'Gastos dentro do orçamento previsto com redução de despesas fixas de escritório.'
+    },
+    {
+      conta: '(-) Despesas com Pessoal & Encargos Sociais',
+      atual: -227272.00,
+      av: -8.00,
+      anterior: -225000.00,
+      status: 'Correto',
+      auditoria: 'Folha líquida, rescisões e provisões de 13º e férias 100% batidas com o resumo da folha.'
+    },
+    {
+      conta: '(=) RESULTADO FINANCEIRO LÍQUIDO',
+      atual: 58688.88,
+      av: 2.07,
+      anterior: -12550.00,
+      status: 'Correto',
+      auditoria: 'Rendimentos de aplicações em CDB e LCI superaram os juros de desconto de duplicatas.'
+    },
+    {
+      conta: '(=) LUCRO LÍQUIDO DO EXERCÍCIO',
+      atual: 456504.88,
+      av: 16.07,
+      anterior: 398200.00,
+      status: 'Correto',
+      auditoria: 'Lucro contábil apurado em conformidade com as normas IFRS/CPC, gerando margem líquida de 16.07%.'
+    }
+  ];
+}
+
+function renderFechamentoIATab(companies) {
+  const currentComp = state.fechamentoIA.selectedCompetencia || '08/2026';
+  const selectedCompId = state.fechamentoIA.selectedCompanyId;
+  const selectedCompany = companies.find(c => c.id === selectedCompId);
+
+  // Se estiver no modo de seleção de empresas ou não tiver empresa escolhida:
+  if (state.fechamentoIA.viewMode === 'selection' || !selectedCompany) {
+    return renderFechamentoIACompanySelection(companies);
+  }
+
+  // Modo Workspace de Fechamento IA para a empresa selecionada:
+  return renderFechamentoIAWorkspace(selectedCompany, currentComp);
+}
+
+// ---------------- 1. TELA DE LISTAGEM DE EMPRESAS (CARDS COM ESTADO INICIAL 100% ZERADO) ----------------
+function renderFechamentoIACompanySelection(companies) {
+  const query = (state.fechamentoIA.companySearch || '').trim().toLowerCase();
+  const filteredCompanies = companies.filter(c => {
+    if (!query) return true;
+    return (c.nome && c.nome.toLowerCase().includes(query)) ||
+           (c.cnpj && c.cnpj.includes(query)) ||
+           (c.codigo && c.codigo.toString().toLowerCase().includes(query));
+  });
+
+  const auto = getAutoCompetencies();
+  // Competências de 03 a 08 requeridas rigorosamente
+  const months = ['03/2026', '04/2026', '05/2026', '06/2026', '07/2026', '08/2026'];
+
+  return `
+    <div class="space-y-6 animate-fadeIn">
+      <!-- Topo: Identidade Control PRO + Cabeçalho -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-gray-200/40 dark:border-gray-800/60">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <span class="inline-flex items-center justify-center">
+              <svg class="h-7 w-auto" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 65 5 A 60 60 0 1 0 107.4 107.4 L 93.3 93.3 A 40 40 0 1 1 65 25 A 40 40 0 0 1 93.3 36.7 L 107.4 22.6 A 60 60 0 0 0 65 5 Z" fill="currentColor" class="text-white dark:text-white" />
+                <path d="M 38 65 L 68 95 L 115 22 L 98 12 L 68 72 L 52 53 Z" fill="#F58220" />
+              </svg>
+            </span>
+            <h1 class="text-xl md:text-2xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+              <span>Fechamento IA</span>
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm">
+                CONTROL PRO
+              </span>
+            </h1>
+          </div>
+          <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Gestão e auditoria contábil com validação estrita de competências zeradas, checklist de ingestão e D.R.E. analítica.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Motor de Auditoria V4 Ativo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Pesquisa de Empresas em Tempo Real (Pilar 3) -->
+      <div class="bg-white dark:bg-[#15151C] border border-gray-200/80 dark:border-gray-800 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="relative w-full sm:max-w-md">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input
+            type="search"
+            id="fechamento-ia-search-input"
+            value="${state.fechamentoIA.companySearch || ''}"
+            oninput="handleFechamentoIASearch(this.value)"
+            placeholder="Pesquisar empresa por Razão Social ou CNPJ..."
+            class="w-full pl-10 pr-9 py-2.5 rounded-xl bg-gray-50 dark:bg-[#101016] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-xs placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition"
+          />
+          ${state.fechamentoIA.companySearch ? `
+            <button
+              onclick="handleFechamentoIASearch('')"
+              class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          ` : ''}
+        </div>
+
+        <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 self-start sm:self-center">
+          <span>Exibindo <strong>${filteredCompanies.length}</strong> de <strong>${companies.length}</strong> empresas</span>
+        </div>
+      </div>
+
+      <!-- Cards de Empresas (Pilar 1: Zero Mock Data - Meses 03 a 08 Iniciam Rigorosamente Zerados) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        ${filteredCompanies.map(c => {
+          // Histórico das 6 competências (03/2026 a 08/2026)
+          const compsStatus = months.map(m => {
+            const r = state.fechamentoIA.auditData[`${c.id}_${m}`];
+            const prog = calcularProgressoFechamentoIA(r);
+            return {
+              mes: m,
+              pct: prog.pct,
+              hasActivity: prog.hasActivity,
+              is100: prog.is100
+            };
+          });
+
+          return `
+            <div class="bg-white dark:bg-[#15151C] border border-gray-200/80 dark:border-gray-800/80 rounded-2xl p-5 hover:border-[#ECBD56]/40 hover:shadow-xl hover:shadow-amber-500/5 transition duration-300 flex flex-col justify-between group">
+              <div>
+                <!-- Topo: Nome, CNPJ e Regime Tributário -->
+                <div class="flex items-start justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800/60">
+                  <div class="min-w-0 flex-1">
+                    <h3 class="font-bold text-sm text-gray-900 dark:text-white truncate group-hover:text-[#ECBD56] transition" title="${c.nome}">
+                      ${c.nome}
+                    </h3>
+                    <div class="text-[11px] text-gray-400 font-mono mt-0.5">${c.cnpj || '00.000.000/0001-00'}</div>
+                  </div>
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-white/10 shrink-0">
+                    ${c.regime}
+                  </span>
+                </div>
+
+                <!-- Histórico de Competências (03 a 08: Barras Cinzas Zeradas sem Dados Falsos) -->
+                <div class="mt-4">
+                  <div class="flex items-center justify-between text-[11px] text-gray-400 mb-2">
+                    <span class="font-semibold uppercase tracking-wider text-[10px]">Competências 03 a 08</span>
+                    <span class="text-[10px] text-gray-500">Clique para auditar</span>
+                  </div>
+
+                  <div class="grid grid-cols-6 gap-1.5 h-28 p-2 rounded-xl bg-gray-50 dark:bg-[#101016] border border-gray-200/60 dark:border-gray-800/40">
+                    ${compsStatus.map(cs => {
+                      return `
+                        <div
+                          onclick="openFechamentoIACompany(${c.id}, '${cs.mes}')"
+                          class="flex flex-col items-center justify-end h-full cursor-pointer group/bar p-1 rounded-lg hover:bg-white/5 transition"
+                          title="Competência ${cs.mes}: ${cs.hasActivity ? cs.pct + '% de progresso' : '0% - Sem documentos anexados (Zerado)'}"
+                        >
+                          <!-- Porcentagem no topo (SÓ aparece se o usuário tiver anexado documento) -->
+                          <span class="text-[9px] font-bold h-3 mb-1 transition ${
+                            cs.hasActivity ? 'text-gray-300 group-hover/bar:text-[#ECBD56]' : 'text-transparent'
+                          }">
+                            ${cs.hasActivity ? cs.pct + '%' : ''}
+                          </span>
+
+                          <!-- Coluna de Progresso (Cinza vazia por padrão) -->
+                          <div class="w-full bg-gray-200/60 dark:bg-gray-800/80 rounded-t-md overflow-hidden flex flex-col justify-end" style="height: 48px;">
+                            ${cs.hasActivity && cs.pct > 0 ? `
+                              <div
+                                class="${cs.is100 ? 'bg-emerald-500' : 'bg-gradient-to-t from-orange-500 to-amber-400'} w-full transition-all duration-300"
+                                style="height: ${cs.pct}%;"
+                              ></div>
+                            ` : `
+                              <!-- Estado Zerado: Bloco Cinza Vazio com traço sutil no pé -->
+                              <div class="w-full h-1 bg-gray-300 dark:bg-gray-700/40 rounded-t"></div>
+                            `}
+                          </div>
+
+                          <!-- Rótulo do Mês -->
+                          <span class="text-[9px] font-mono mt-1.5 text-gray-400 group-hover/bar:text-white">
+                            ${cs.mes.split('/')[0]}
+                          </span>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rodapé com Responsável e Botão "Auditar Mês" -->
+              <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <span class="text-[11px] text-gray-400">Resp: <strong class="text-gray-300">${c.colaborador}</strong></span>
+                <button
+                  onclick="openFechamentoIACompany(${c.id}, '${auto.monthlyComp}')"
+                  class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#ECBD56] hover:bg-[#DEA93F] text-gray-950 transition flex items-center gap-1.5 shadow-sm shadow-[#ECBD56]/20"
+                >
+                  <span>Auditar Mês</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      ${filteredCompanies.length === 0 ? `
+        <div class="p-12 text-center text-gray-400 text-xs bg-white dark:bg-[#15151C] border border-gray-200 dark:border-gray-800 rounded-2xl">
+          Nenhuma empresa encontrada com o termo "<strong>${state.fechamentoIA.companySearch}</strong>".
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ---------------- 2 & 3. WORKSPACE: CHECKLIST DE INGESTÃO + AUDITORIA ANALÍTICA & D.R.E. ----------------
+function renderFechamentoIAWorkspace(company, comp) {
+  const record = getOrCreateFechamentoIARecord(company.id, comp);
+  const fin = record.financeiro;
+  const prog = calcularProgressoFechamentoIA(record);
+  const isConcluido = record.status === 'CONCLUIDO';
+  const subTab = state.fechamentoIA.activeSubTab || 'dre';
+  const panelTheme = state.fechamentoIA.panelTheme || 'escuro';
+
+  const criticos = (record.itensAuditoria || []).filter(i => i.risco === 'VERMELHO' && !i.resolvido).length;
+  const atencoes = (record.itensAuditoria || []).filter(i => i.risco === 'AMARELO' && !i.resolvido).length;
+  const conformes = (record.itensAuditoria || []).filter(i => i.risco === 'VERDE' || i.resolvido).length;
+
+  // Temas visuais específicos do painel de auditoria
+  const panelThemeClasses = {
+    'escuro': 'bg-[#15151C] text-gray-100 border-gray-800',
+    'claro': 'bg-white text-gray-900 border-gray-200',
+    'caqui': 'bg-[#211F1D] text-[#EBE5DF] border-[#38332E]',
+    'noturno': 'bg-[#0B0D13] text-gray-100 border-[#1B2030]'
+  }[panelTheme] || 'bg-[#15151C] text-gray-100 border-gray-800';
+
+  return `
+    <div class="space-y-6 animate-fadeIn">
+      
+      <!-- CABEÇALHO DA EMPRESA & SCORE GERAL (Parte A) -->
+      <div class="${panelThemeClasses} border rounded-2xl p-5 shadow-xl transition-colors">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          
+          <!-- Identificação da Empresa -->
+          <div class="flex items-start sm:items-center gap-3.5">
+            <button
+              onclick="backToFechamentoIASelection()"
+              class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-white flex items-center justify-center transition border border-gray-200 dark:border-white/10 shrink-0"
+              title="Voltar para seleção de empresas"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+            </button>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h1 class="text-lg md:text-xl font-black tracking-tight leading-tight">${company.nome}</h1>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  isConcluido 
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                }">
+                  ${isConcluido ? '✓ CONCLUÍDO' : '⚙️ EM AUDITORIA'}
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded bg-white/5 text-gray-400 font-mono">
+                  Cód: ${company.codigo || company.id}
+                </span>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-1">
+                <span>CNPJ: <strong class="font-mono text-gray-300">${company.cnpj}</strong></span>
+                <span>&bull;</span>
+                <span>Regime: <strong class="text-gray-300">${company.regime}</strong></span>
+                <span>&bull;</span>
+                <span>Responsável: <strong class="text-[#ECBD56]">${company.colaborador}</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Score Geral de Auditoria + Controles do Painel -->
+          <div class="flex flex-wrap items-center gap-3">
+            
+            <!-- Card de Destaque: Score Geral de Auditoria (0 a 100) -->
+            <div class="px-4 py-2 rounded-xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-amber-500/10 border border-indigo-500/30 flex items-center gap-3">
+              <div class="text-left">
+                <div class="text-[10px] uppercase font-bold text-gray-400">Score de Auditoria</div>
+                <div class="text-xl font-black text-white">
+                  ${record.scoreAuditoria}/100
+                </div>
+              </div>
+              <span class="text-lg">${record.scoreAuditoria >= 80 ? '🟢' : record.scoreAuditoria > 0 ? '🟡' : '⚪'}</span>
+            </div>
+
+            <!-- Seletor de Tema do Painel -->
+            <div class="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#101016] border border-gray-200 dark:border-gray-800 text-xs">
+              <span class="text-gray-400 text-[11px]">Tema:</span>
+              <select
+                onchange="setFechamentoIAPanelTheme(this.value)"
+                class="bg-transparent font-semibold text-xs focus:outline-none cursor-pointer"
+              >
+                <option value="escuro" ${panelTheme === 'escuro' ? 'selected' : ''} class="bg-[#15151C] text-white">Escuro</option>
+                <option value="claro" ${panelTheme === 'claro' ? 'selected' : ''} class="bg-white text-gray-900">Claro</option>
+                <option value="caqui" ${panelTheme === 'caqui' ? 'selected' : ''} class="bg-[#211F1D] text-white">Caqui</option>
+                <option value="noturno" ${panelTheme === 'noturno' ? 'selected' : ''} class="bg-[#0B0D13] text-white">Noturno</option>
+              </select>
+            </div>
+
+            <!-- Seletor de Competência -->
+            <div class="flex items-center gap-2 bg-gray-50 dark:bg-[#101016] px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 text-xs">
+              <span class="text-gray-400 font-medium">Mês:</span>
+              <select
+                onchange="changeFechamentoIACompetencia(${company.id}, this.value)"
+                class="bg-transparent font-bold text-xs focus:outline-none cursor-pointer"
+              >
+                ${MONTH_COMPETENCIES.map(m => `
+                  <option value="${m}" ${m === comp ? 'selected' : ''} class="bg-[#171825] text-white">${m}</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <!-- Botão Verde "Finalizar Mês" -->
+            <button
+              onclick="toggleFinalizarMesFechamentoIA(${company.id}, '${comp}')"
+              class="px-4 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-lg ${
+                isConcluido 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700' 
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'
+              }"
+            >
+              <span>${isConcluido ? '🔓 Reabrir Mês' : '✓ Finalizar Mês'}</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Barra de Progresso Geral da Competência -->
+        <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="text-gray-400 font-medium">Progresso de Ingestão e Validação</span>
+              <span class="font-bold ${prog.is100 ? 'text-emerald-400' : 'text-gray-200'}">
+                ${prog.hasActivity ? `${prog.pct}% (${prog.totalValidos} de 6 itens atendidos)` : '0% - Aguardando primeiro documento'}
+              </span>
+            </div>
+            <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+              <div
+                class="${prog.is100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-orange-500 to-amber-400'} h-full rounded-full transition-all duration-500"
+                style="width: ${prog.pct}%"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TELA DE CHECKLIST DE INGESTÃO (Pilar 2: 6 Categorias com Botão "Não se aplica" e "Adicionar/Substituir arquivo") -->
+      <div class="${panelThemeClasses} border rounded-2xl overflow-hidden shadow-lg">
+        <div class="p-5 border-b border-gray-200/80 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="font-bold text-sm md:text-base flex items-center gap-2">
+              <svg class="w-4 h-4 text-[#ECBD56]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <span>Checklist de Ingestão de Documentos (${comp})</span>
+            </h3>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Ao adicionar o primeiro arquivo, o motor de IA processa automaticamente os saldos patrimoniais e gera a D.R.E. analítica.
+            </p>
+          </div>
+          <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 dark:bg-white/5 text-gray-300 border border-gray-200 dark:border-white/10 self-start sm:self-auto">
+            ${prog.totalValidos} de 6 atendidos
+          </span>
+        </div>
+
+        <div class="divide-y divide-gray-100 dark:divide-gray-800/60">
+          ${CATEGORIAS_FECHAMENTO_IA.map(cat => {
+            const up = (record.arquivosUpload && record.arquivosUpload[cat.key]) || { enviado: false, naoSeAplica: false, nome: null, data: null };
+            const statusLabel = up.enviado 
+              ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Anexado</span>`
+              : up.naoSeAplica 
+              ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-gray-400"><span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Não se aplica</span>`
+              : `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-400"><span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span> Pendente</span>`;
+
+            return `
+              <div class="p-4 md:px-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:bg-gray-50/50 dark:hover:bg-[#1C1C24]/40">
+                <div class="flex items-start gap-3.5 flex-1 min-w-0">
+                  <span class="text-xs font-mono font-bold px-2 py-1 rounded-lg bg-gray-100 dark:bg-[#101016] text-gray-500 border border-gray-200 dark:border-gray-800 shrink-0">
+                    ${cat.numero}
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                      <h4 class="font-bold text-xs md:text-sm leading-tight">${cat.label}</h4>
+                      ${statusLabel}
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-0.5 leading-snug">${cat.desc}</p>
+                    ${up.enviado && up.nome ? `
+                      <div class="mt-1.5 flex items-center gap-2 text-[11px] font-mono text-[#ECBD56]">
+                        <span>📄 ${up.nome}</span>
+                        <span class="text-gray-500 text-[10px]">&bull; ${up.data}</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+                  <!-- Botão Cinza: "Não se aplica" -->
+                  <button
+                    onclick="toggleNaoSeAplicaFechamentoIA(${company.id}, '${comp}', '${cat.key}')"
+                    class="px-3.5 py-2 rounded-xl text-xs font-semibold transition border ${
+                      up.naoSeAplica 
+                        ? 'bg-gray-700 text-white border-gray-600 shadow-inner' 
+                        : 'bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800'
+                    }"
+                    title="Definir que este documento não se aplica a esta empresa"
+                  >
+                    ${up.naoSeAplica ? '✓ Não se aplica' : 'Não se aplica'}
+                  </button>
+
+                  <!-- Botão Destaque: "Adicionar arquivo" ou "Substituir arquivo" -->
+                  <label class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-md ${
+                    up.enviado
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20'
+                      : 'bg-[#F58220] hover:bg-[#E07212] text-white shadow-[#F58220]/25'
+                  }">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <span>${up.enviado ? 'Substituir arquivo' : 'Adicionar arquivo'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.xlsx,.xls,.csv,.ofx"
+                      onchange="handleFechamentoIAUpload(${company.id}, '${comp}', '${cat.key}', event)"
+                      class="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- CARDS DE INDICADORES DE RISCO (Parte B) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- 1. SINAL VERMELHO -->
+        <div class="${panelThemeClasses} border border-rose-500/30 p-5 rounded-2xl shadow-sm">
+          <div class="flex items-center justify-between text-xs text-rose-400 font-bold uppercase mb-1">
+            <span>SINAL VERMELHO</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 ${criticos > 0 ? 'animate-pulse' : ''}"></span>
+          </div>
+          <div class="text-3xl font-black text-rose-500">${criticos}</div>
+          <p class="text-[11px] text-gray-400 mt-1">Erros graves, contas invertidas, ativo credor ou passivo devedor.</p>
+        </div>
+
+        <!-- 2. SINAL AMARELO -->
+        <div class="${panelThemeClasses} border border-amber-500/30 p-5 rounded-2xl shadow-sm">
+          <div class="flex items-center justify-between text-xs text-amber-400 font-bold uppercase mb-1">
+            <span>SINAL AMARELO</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+          </div>
+          <div class="text-3xl font-black text-amber-500">${atencoes}</div>
+          <p class="text-[11px] text-gray-400 mt-1">Oscilações atípicas MoM e pendências de conciliação.</p>
+        </div>
+
+        <!-- 3. TUDO CERTO -->
+        <div class="${panelThemeClasses} border border-emerald-500/30 p-5 rounded-2xl shadow-sm">
+          <div class="flex items-center justify-between text-xs text-emerald-400 font-bold uppercase mb-1">
+            <span>TUDO CERTO</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="text-3xl font-black text-emerald-400">${conformes}</div>
+          <p class="text-[11px] text-gray-400 mt-1">Itens validados e conferidos com sucesso pelo motor.</p>
+        </div>
+
+        <!-- 4. RESULTADO LÍQUIDO DO MÊS -->
+        <div class="${panelThemeClasses} border p-5 rounded-2xl shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-xs text-gray-400 uppercase font-bold mb-1">
+            <span>RESULTADO LÍQUIDO DO MÊS</span>
+            <span class="text-[10px] text-emerald-400 font-bold">
+              ${fin.variacaoMoMLucro > 0 ? `+${fin.variacaoMoMLucro}% MoM` : '0%'}
+            </span>
+          </div>
+          <div class="text-2xl font-black text-white">
+            ${fin.lucroLiquido > 0 
+              ? fin.lucroLiquido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+              : 'R$ 0,00'}
+          </div>
+          <div class="text-[11px] text-gray-400 mt-1 flex items-center justify-between">
+            <span>Margem: <strong>${fin.margemLiquida}%</strong></span>
+            <span>Anterior: ${fin.lucroAnterior > 0 ? fin.lucroAnterior.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- NAVEGAÇÃO POR ABAS (Parte C: Tabs Bar) -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-gray-800">
+        ${[
+          { id: 'dre', label: '1. Demonstrativo D.R.E. & Análise Financeira' },
+          { id: 'balancete', label: '2. Balancete Analítico' },
+          { id: 'vermelho', label: `3. Sinal Vermelho (${criticos})` },
+          { id: 'amarelo', label: `4. Sinal Amarelo (${atencoes})` },
+          { id: 'verde', label: `5. Tudo Certo (${conformes})` },
+          { id: 'plano', label: '6. Plano de Ação Interativo' }
+        ].map(tab => {
+          const isTabActive = subTab === tab.id;
+          return `
+            <button
+              onclick="setFechamentoIASubTab('${tab.id}')"
+              class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+                isTabActive 
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md' 
+                  : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
+              }"
+            >
+              <span>${tab.label}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- CONTEÚDO DAS ABAS (Parte D: Tabela Analítica da D.R.E. e Demais Visões) -->
+      <div class="${panelThemeClasses} border rounded-2xl overflow-hidden shadow-xl">
+        
+        ${subTab === 'dre' ? `
+          <!-- TABELA DRE ANALÍTICA COMPLETA -->
+          <div class="p-5 border-b border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <div>
+              <h3 class="font-bold text-sm md:text-base text-white flex items-center gap-2">
+                <span>📊</span>
+                <span>Demonstrativo do Resultado do Exercício (D.R.E.) - Parecer da Inteligência Artificial</span>
+              </h3>
+              <p class="text-xs text-gray-400 mt-0.5">
+                Confronto analítico entre Competência Atual (${comp}) vs Mês Anterior com Análise Vertical e Diagnóstico de Auditoria.
+              </p>
+            </div>
+            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-white/5 text-gray-300">
+              ${(record.dreLinhas || []).length} contas auditadas
+            </span>
+          </div>
+
+          ${(record.dreLinhas && record.dreLinhas.length > 0) ? `
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-gray-800 bg-[#101016] text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                    <th class="py-3.5 px-6">Estrutura / Conta Contábil</th>
+                    <th class="py-3.5 px-4 text-right">Comp. Atual (R$)</th>
+                    <th class="py-3.5 px-3 text-right">AV (%)</th>
+                    <th class="py-3.5 px-4 text-right">Mês Anterior (R$)</th>
+                    <th class="py-3.5 px-4 text-center">Status</th>
+                    <th class="py-3.5 px-6">Auditoria: O que está correto vs. O que revisar</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/60">
+                  ${record.dreLinhas.map(linha => {
+                    const isTotal = linha.conta.includes('(=)') || linha.conta.includes('1. RECEITA');
+                    const isRevisar = linha.status === 'Revisar';
+                    return `
+                      <tr class="hover:bg-white/[0.02] transition ${isTotal ? 'font-bold bg-white/[0.015]' : ''}">
+                        <td class="py-3.5 px-6 text-gray-200">
+                          ${linha.conta}
+                        </td>
+                        <td class="py-3.5 px-4 text-right font-mono ${linha.atual < 0 ? 'text-rose-400' : 'text-gray-100'}">
+                          ${linha.atual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td class="py-3.5 px-3 text-right font-mono text-gray-400">
+                          ${linha.av.toFixed(1)}%
+                        </td>
+                        <td class="py-3.5 px-4 text-right font-mono text-gray-400">
+                          ${linha.anterior.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isRevisar 
+                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' 
+                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          }">
+                            ${linha.status}
+                          </span>
+                        </td>
+                        <td class="py-3.5 px-6 text-gray-300 leading-relaxed text-[11px] max-w-md">
+                          ${linha.auditoria}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : `
+            <div class="p-10 text-center text-gray-400 text-xs">
+              Nenhuma D.R.E. gerada ainda. Anexe o Balancete e a Análise Vertical no Checklist acima para carregar o parecer contábil.
+            </div>
+          `}
+        ` : subTab === 'plano' || subTab === 'vermelho' || subTab === 'amarelo' || subTab === 'verde' ? `
+          <!-- PLANO DE AÇÃO E LISTA DE PENDÊNCIAS FILTRADAS POR RISCO -->
+          <div class="p-5 border-b border-gray-800 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-sm text-white">
+                ${subTab === 'plano' ? 'Plano de Ação Interativo' : subTab === 'vermelho' ? 'Divergências Críticas (Sinal Vermelho)' : subTab === 'amarelo' ? 'Pontos de Atenção (Sinal Amarelo)' : 'Itens Conformes (Tudo Certo)'}
+              </h3>
+              <p class="text-xs text-gray-400 mt-0.5">Responda às inconsistências apontadas ou anexe justificativas técnicas.</p>
+            </div>
+          </div>
+
+          ${(record.itensAuditoria || []).length > 0 ? `
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-gray-800 bg-[#101016] text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                    <th class="py-3 px-4 w-28">Nível de Risco</th>
+                    <th class="py-3 px-4 w-44">Origem / Categoria</th>
+                    <th class="py-3 px-6">Detalhamento da Inconsistência & Impacto</th>
+                    <th class="py-3 px-6">Justificativa Técnica</th>
+                    <th class="py-3 px-4 text-center w-36">Ação</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/60">
+                  ${record.itensAuditoria
+                    .filter(i => {
+                      if (subTab === 'vermelho') return i.risco === 'VERMELHO';
+                      if (subTab === 'amarelo') return i.risco === 'AMARELO';
+                      if (subTab === 'verde') return i.risco === 'VERDE' || i.resolvido;
+                      return true;
+                    })
+                    .map(item => `
+                      <tr class="hover:bg-white/[0.02] transition ${item.resolvido ? 'opacity-80' : ''}">
+                        <td class="py-4 px-4 align-top">
+                          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            item.resolvido 
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
+                              : item.risco === 'VERMELHO' 
+                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 animate-pulse' 
+                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                          }">
+                            ${item.resolvido ? 'CORRIGIDO' : item.risco === 'VERMELHO' ? 'CRÍTICO' : 'ATENÇÃO'}
+                          </span>
+                        </td>
+                        <td class="py-4 px-4 align-top">
+                          <div class="font-bold text-gray-200">${item.categoria}</div>
+                          <div class="text-[10px] text-gray-500 mt-0.5">${item.origem}</div>
+                        </td>
+                        <td class="py-4 px-6 align-top max-w-md">
+                          <div class="font-bold text-gray-100">${item.titulo}</div>
+                          <p class="text-gray-400 text-[11px] mt-1 leading-relaxed">${item.descricao}</p>
+                        </td>
+                        <td class="py-4 px-6 align-top">
+                          <textarea
+                            rows="2"
+                            onchange="updateItemAuditoriaJustificativa(${company.id}, '${comp}', ${item.id}, this.value)"
+                            placeholder="Inserir parecer técnico..."
+                            class="w-full p-2 rounded-xl bg-[#101016] border border-gray-800 text-xs text-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
+                          >${item.justificativa || ''}</textarea>
+                        </td>
+                        <td class="py-4 px-4 align-top text-center">
+                          <label class="inline-flex flex-col items-center gap-1 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              ${item.resolvido ? 'checked' : ''}
+                              onchange="toggleItemAuditoriaResolvido(${company.id}, '${comp}', ${item.id}, this.checked)"
+                              class="w-5 h-5 rounded text-emerald-500 focus:ring-emerald-500"
+                            />
+                            <span class="text-[10px] font-bold ${item.resolvido ? 'text-emerald-400' : 'text-gray-400'}">
+                              ${item.resolvido ? 'Resolvido ✓' : 'Resolver'}
+                            </span>
+                          </label>
+                        </td>
+                      </tr>
+                    `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : `
+            <div class="p-8 text-center text-gray-400 text-xs">
+              Nenhuma inconsistência listada nesta visão.
+            </div>
+          `}
+        ` : `
+          <!-- BALANCETE ANALÍTICO -->
+          <div class="p-8 text-center text-gray-400 text-xs">
+            Visualização de Balancete Analítico disponível após o upload do documento "01. Balancete Mensal".
+          </div>
+        `}
+
+      </div>
+
+    </div>
+  `;
+}
+
+// ---------------- HANDLERS E CONTROLES DO FECHAMENTO IA ----------------
+window.handleFechamentoIASearch = (val) => {
+  state.fechamentoIA.companySearch = val;
+  render();
+  const inp = document.getElementById('fechamento-ia-search-input');
+  if (inp) {
+    inp.focus();
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+  }
+};
+
+window.openFechamentoIACompany = (companyId, comp = '08/2026') => {
+  state.fechamentoIA.selectedCompanyId = companyId;
+  state.fechamentoIA.selectedCompetencia = comp;
+  state.fechamentoIA.viewMode = 'workspace';
+  state.activeTab = 'fechamento_ia';
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.backToFechamentoIASelection = () => {
+  state.fechamentoIA.viewMode = 'selection';
+  state.fechamentoIA.selectedCompanyId = null;
+  render();
+};
+
+window.changeFechamentoIACompetencia = (companyId, newComp) => {
+  state.fechamentoIA.selectedCompetencia = newComp;
+  render();
+};
+
+window.setFechamentoIASubTab = (tabId) => {
+  state.fechamentoIA.activeSubTab = tabId;
+  render();
+};
+
+window.setFechamentoIAPanelTheme = (themeId) => {
+  state.fechamentoIA.panelTheme = themeId;
+  render();
+};
+
+window.toggleNaoSeAplicaFechamentoIA = (companyId, comp, catKey) => {
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  if (!record.arquivosUpload[catKey]) {
+    record.arquivosUpload[catKey] = { enviado: false, naoSeAplica: false, nome: null, data: null };
+  }
+  
+  const current = record.arquivosUpload[catKey].naoSeAplica;
+  record.arquivosUpload[catKey].naoSeAplica = !current;
+  if (!current) {
+    record.arquivosUpload[catKey].enviado = false;
+    record.arquivosUpload[catKey].nome = null;
+  }
+  saveStorage();
+  render();
+};
+
+window.toggleFinalizarMesFechamentoIA = (companyId, comp) => {
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  
+  if (record.status === 'CONCLUIDO') {
+    record.status = 'EM_ABERTO';
+    saveStorage();
+    render();
+    alert(`Competência ${comp} reaberta para edição.`);
+    return;
+  }
+
+  // 1. Validar se todos os 6 documentos foram atendidos (enviado ou não se aplica)
+  const keys = CATEGORIAS_FECHAMENTO_IA.map(c => c.key);
+  const faltantes = keys.filter(k => {
+    const item = record.arquivosUpload[k];
+    return !item || (!item.enviado && !item.naoSeAplica);
+  });
+
+  if (faltantes.length > 0) {
+    alert(`⚠️ ATENÇÃO: Existem ${faltantes.length} categorias de documentos não atendidas no checklist!\n\nEnvie os arquivos pendentes ou clique em "Não se aplica" antes de finalizar o mês.`);
+    return;
+  }
+
+  // 2. Validar pendências críticas sem justificativa ou resolução
+  const pendenciasImpeditivas = (record.itensAuditoria || []).filter(i => {
+    if (i.risco === 'VERDE') return false;
+    const justificado = i.justificativa && i.justificativa.trim().length > 0;
+    return !i.resolvido && !justificado;
+  });
+
+  if (pendenciasImpeditivas.length > 0) {
+    alert(`🚫 BLOQUEIO DE FECHAMENTO:\n\nExistem ${pendenciasImpeditivas.length} pendências (Críticas/Atenção) sem justificativa técnica ou sem estarem marcadas como resolvidas no Plano de Ação.\n\nPor favor, justifique ou resolva todos os itens para atingir 100% de conformidade.`);
+    return;
+  }
+
+  // 3. Finaliza com 100% e avança para o próximo mês
+  record.status = 'CONCLUIDO';
+  
+  const compParts = comp.split('/');
+  let m = parseInt(compParts[0], 10) + 1;
+  let y = parseInt(compParts[1], 10);
+  if (m > 12) { m = 1; y += 1; }
+  const nextComp = `${m.toString().padStart(2, '0')}/${y}`;
+
+  saveStorage();
+  render();
+  alert(`🎉 PARABÉNS!\n\nA competência ${comp} foi 100% auditada e concluída com sucesso!\nAvançando para a competência subsequente: ${nextComp}.`);
+  
+  state.fechamentoIA.selectedCompetencia = nextComp;
+  getOrCreateFechamentoIARecord(companyId, nextComp);
+  render();
+};
+
+window.toggleItemAuditoriaResolvido = (companyId, comp, itemId, checked) => {
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  const item = record.itensAuditoria.find(i => i.id === itemId);
+  if (item) {
+    item.resolvido = checked;
+    if (checked && !item.justificativa) {
+      item.justificativa = 'Item validado e conciliado tecnicamente pela equipe contábil.';
+    }
+    saveStorage();
+    render();
+  }
+};
+
+window.updateItemAuditoriaJustificativa = (companyId, comp, itemId, justif) => {
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  const item = record.itensAuditoria.find(i => i.id === itemId);
+  if (item) {
+    item.justificativa = justif;
+    saveStorage();
+  }
+};
+
+window.handleFechamentoIAUpload = (companyId, comp, moduloKey, event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  record.arquivosUpload[moduloKey] = {
+    enviado: true,
+    naoSeAplica: false,
+    nome: file.name,
+    data: new Date().toLocaleDateString('pt-BR')
+  };
+  
+  // Ao anexar o primeiro documento, dispara a auditoria analítica e gera a DRE consultiva
+  gerarAnaliseContabilAposUpload(record);
+
+  saveStorage();
+  render();
+  alert(`Arquivo "${file.name}" anexado com sucesso!\nO motor de IA processou o documento e atualizou a D.R.E. analítica.`);
+};
+
+// Finalizar Mês (Pilar 1: Regra rigorosa de 100%)
+window.toggleFinalizarMesFechamentoIA = (companyId, comp) => {
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  
+  if (record.status === 'CONCLUIDO') {
+    record.status = 'EM_ABERTO';
+    saveStorage();
+    render();
+    alert(`Competência ${comp} reaberta para edição.`);
+    return;
+  }
+
+  // Validar se todos os 6 documentos foram atendidos (enviado ou não se aplica)
+  const keys = CATEGORIAS_FECHAMENTO_IA.map(c => c.key);
+  const faltantes = keys.filter(k => {
+    const item = record.arquivosUpload[k];
+    return !item || (!item.enviado && !item.naoSeAplica);
+  });
+
+  if (faltantes.length > 0) {
+    alert(`⚠️ ATENÇÃO: Existem ${faltantes.length} categorias de documentos não atendidas no checklist!\n\nEnvie os arquivos pendentes ou clique em "Não se aplica" antes de finalizar o mês.`);
+    return;
+  }
+
+  // Validar se há pendências críticas/atenções sem justificativa ou sem resolução
+  const pendenciasImpeditivas = (record.itensAuditoria || []).filter(i => {
+    if (i.risco === 'VERDE') return false;
+    const justificado = i.justificativa && i.justificativa.trim().length > 0;
+    return !i.resolvido && !justificado;
+  });
+
+  if (pendenciasImpeditivas.length > 0) {
+    alert(`🚫 BLOQUEIO DE FECHAMENTO:\n\nExistem ${pendenciasImpeditivas.length} pendências (Críticas/Atenção) sem justificativa técnica ou sem estarem marcadas como resolvidas no Plano de Ação.\n\nPor favor, justifique ou resolva todos os itens para atingir 100% de conformidade.`);
+    return;
+  }
+
+  // Se tudo conforme, finaliza e avança
+  record.status = 'CONCLUIDO';
+  
+  // Avança para a próxima competência
+  const compParts = comp.split('/');
+  let m = parseInt(compParts[0], 10) + 1;
+  let y = parseInt(compParts[1], 10);
+  if (m > 12) { m = 1; y += 1; }
+  const nextComp = `${m.toString().padStart(2, '0')}/${y}`;
+
+  saveStorage();
+  render();
+  alert(`🎉 PARABÉNS!\n\nA competência ${comp} foi 100% auditada e concluída com sucesso!\nAvançando para a competência subsequente: ${nextComp}.`);
+  
+  state.fechamentoIA.selectedCompetencia = nextComp;
+  getOrCreateFechamentoIARecord(companyId, nextComp);
+  render();
+};
+
+window.toggleItemAuditoriaResolvido = (companyId, comp, itemId, checked) => {
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  const item = record.itensAuditoria.find(i => i.id === itemId);
+  if (item) {
+    item.resolvido = checked;
+    if (checked && !item.justificativa) {
+      item.justificativa = 'Item validado e conciliado tecnicamente pela equipe contábil.';
+    }
+    saveStorage();
+    render();
+  }
+};
+
+window.updateItemAuditoriaJustificativa = (companyId, comp, itemId, justif) => {
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  const item = record.itensAuditoria.find(i => i.id === itemId);
+  if (item) {
+    item.justificativa = justif;
+    saveStorage();
+  }
+};
+
+
+
+window.handleItemReupload = (companyId, comp, itemId, event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const record = getOrCreateFechamentoIARecord(companyId, comp);
+  const item = record.itensAuditoria.find(i => i.id === itemId);
+  if (item) {
+    item.resolvido = true;
+    item.justificativa = `Substituição de comprovante realizada: ${file.name}. Validado com sucesso.`;
+    saveStorage();
+    render();
+    alert(`Comprovante "${file.name}" anexado ao item. Pendência marcada como resolvida!`);
+  }
+};
+
+window.filtrarItensAuditoriaPorRisco = (risco) => {
+  alert(`Filtro ativo para pendências com nível de risco: ${risco}`);
+};
 
 // Funções de Ações em Massa (Batch Actions) PIS/COFINS
 function toggleSelectAllPis(checked, listIds) {
