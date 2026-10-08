@@ -146,6 +146,8 @@ const state = {
   irpjTrimData: JSON.parse(localStorage.getItem('control_irpj_trim') || '{}'),
   irpjMensalData: JSON.parse(localStorage.getItem('control_irpj_mensal') || '{}'),
   modal: { isOpen: false, mode: 'create', company: null },
+  welcomeModalOpen: false, // Modal inteligente de boas-vindas e vencimentos pós-login
+  welcomeModalDismissed: false,
   // Filtros dedicados da tela de CRUD de Empresas
   crudFilters: {
     responsavel: 'todos',
@@ -734,6 +736,168 @@ function injectDesignSystemStyles() {
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(140, 150, 170, 0.45);
     }
+    /* ==========================================================================
+       SISTEMA COMPLETO DE ANIMAÇÕES, HOVERS, TRANSIÇÕES E MICROINTERAÇÕES
+       ========================================================================== */
+
+    /* 1. Transições de Entrada (Fade-in & Slide-up) */
+    @keyframes panzeFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes panzeScaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.96) translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes panzeModalOverlay {
+      from { opacity: 0; backdrop-filter: blur(0px); }
+      to { opacity: 1; backdrop-filter: blur(8px); }
+    }
+
+    @keyframes panzeModalCard {
+      0% {
+        opacity: 0;
+        transform: scale(0.94) translateY(16px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes panzePulseGlow {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(236, 189, 86, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(236, 189, 86, 0);
+      }
+    }
+
+    /* Animação suave para troca de abas e carregamento inicial */
+    main#main-content, .animate-fadeIn {
+      animation: panzeFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      will-change: opacity, transform;
+    }
+
+    /* 2. Efeitos de Hover nos Cards e Blocos (Elevação e Sombra Dinâmica) */
+    .panze-card,
+    .bg-white.dark\\:bg-\\[\\#15151C\\],
+    .bg-white.dark\\:bg-\\[\\#171825\\] {
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+                  box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+                  border-color 0.28s ease, 
+                  background-color 0.28s ease !important;
+      will-change: transform, box-shadow;
+    }
+
+    .panze-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 32px -6px rgba(0, 0, 0, 0.35), 0 6px 16px -2px rgba(0, 0, 0, 0.2) !important;
+      border-color: var(--border-accent, rgba(236, 189, 86, 0.35)) !important;
+    }
+
+    /* Cards de Estatísticas e Métricas Rápidas */
+    .grid > div:not(table div) {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+                  box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.25s ease;
+    }
+
+    .grid > div:hover:not(table div) {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 3. Interatividade nos Botões (Microinterações de Clique e Hover) */
+    button, 
+    .tab-btn, 
+    input[type="button"], 
+    input[type="submit"] {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    /* Efeito de Clique (Active): Leve redução de escala suave */
+    button:active, 
+    .tab-btn:active, 
+    input[type="button"]:active, 
+    input[type="submit"]:active {
+      transform: scale(0.96) !important;
+      filter: brightness(0.95);
+    }
+
+    /* Efeito de Hover com Brilho Suave e Elevação Mínima */
+    button:hover:not(:disabled) {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    /* Botões Primários com Sombra e Glow no Hover */
+    button.bg-\\[\\#ECBD56\\],
+    button.bg-emerald-600,
+    button.bg-blue-600,
+    button.bg-indigo-600 {
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    button.bg-\\[\\#ECBD56\\]:hover {
+      box-shadow: 0 8px 20px -3px rgba(236, 189, 86, 0.45) !important;
+    }
+
+    button.bg-emerald-600:hover {
+      box-shadow: 0 8px 20px -3px rgba(16, 185, 129, 0.45) !important;
+    }
+
+    /* Linhas das tabelas com realce fluido */
+    tbody tr {
+      transition: background-color 0.2s ease, transform 0.15s ease !important;
+    }
+
+    tbody tr:hover {
+      transform: scale(1.002);
+    }
+
+    /* 4. Transições de Modais e Telas de Autenticação */
+    .fixed.inset-0.z-50 {
+      animation: panzeModalOverlay 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .fixed.inset-0.z-50 > div {
+      animation: panzeModalCard 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Tela de Autenticação / Login */
+    #login-form, #register-form {
+      animation: panzeScaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Inputs e Selects com Foco Suave */
+    input, select, textarea {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 3px rgba(236, 189, 86, 0.2) !important;
+    }
+
     /* Estilos de Impressão Executiva (PDF) */
     @media print {
       body { background: #FFFFFF !important; color: #000000 !important; }
@@ -822,6 +986,322 @@ function openWhatsAppMessage(empresaNome, tributoTipo, competencia) {
 function triggerExecutiveReport() {
   window.print();
 }
+
+// Helper para verificar status de atraso de tarefas (Comparando data atual vs data meta)
+function getTaskOverdueInfo(taskDateStr) {
+  if (!taskDateStr) return { isOverdue: false, daysDiff: 0, text: 'Sem data' };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Normaliza formato YYYY-MM-DD
+  const parts = taskDateStr.split('-');
+  const dueDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  dueDate.setHours(0, 0, 0, 0);
+
+  const diffTime = dueDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      isOverdue: true,
+      isClose: false,
+      diffDays,
+      label: `Atrasada (${Math.abs(diffDays)}d)`,
+      css: 'bg-rose-500/15 text-rose-500 border-rose-500/30'
+    };
+  } else if (diffDays === 0) {
+    return {
+      isOverdue: false,
+      isClose: true,
+      diffDays,
+      label: 'Vence Hoje',
+      css: 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+    };
+  } else if (diffDays <= 3) {
+    return {
+      isOverdue: false,
+      isClose: true,
+      diffDays,
+      label: `Vence em ${diffDays}d`,
+      css: 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+    };
+  } else {
+    return {
+      isOverdue: false,
+      isClose: false,
+      diffDays,
+      label: `No prazo (${diffDays}d)`,
+      css: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+    };
+  }
+}
+
+// Resumo inteligente de tributos e vencimentos para o modal de boas-vindas
+function getPendingTaxesSummary() {
+  const taxes = [];
+  const now = new Date();
+  const currentDay = now.getDate();
+
+  // PIS / COFINS (Dia 25 útil)
+  const pisDue = getAdjustedTaxDueDate(25);
+  const realCos = state.companies.filter(c => normalizeRegime(c.regime).includes('Lucro Real'));
+  const pisPending = realCos.filter(c => {
+    const r = state.pisCofinsData[`${c.id}_${state.selPisComp}`];
+    return !r || (!r.saldoCredor && !r.darfEnviado && r.status !== 'Concluída');
+  }).length;
+
+  if (pisPending > 0) {
+    taxes.push({
+      nome: 'PIS / COFINS (Mensal)',
+      diaUtil: pisDue.adjustedDay,
+      competencia: state.selPisComp,
+      pendentes: pisPending,
+      diasRestantes: pisDue.adjustedDay - currentDay,
+      tab: 'piscofins'
+    });
+  }
+
+  // IRPJ Mensal (Último dia útil)
+  const mensalDue = getAdjustedTaxDueDate(31);
+  const mensalCos = state.companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Mensal');
+  const mensalPending = mensalCos.filter(c => {
+    const r = state.irpjMensalData[`${c.id}_${state.selIrpjMes}`];
+    return !r || (!r.prejuizo && r.status !== 'Concluída');
+  }).length;
+
+  if (mensalPending > 0) {
+    taxes.push({
+      nome: 'IRPJ / CSLL (Mensal)',
+      diaUtil: mensalDue.adjustedDay,
+      competencia: state.selIrpjMes,
+      pendentes: mensalPending,
+      diasRestantes: mensalDue.adjustedDay - currentDay,
+      tab: 'irpj_mensal'
+    });
+  }
+
+  // IRPJ Trimestral
+  const trimDue = getAdjustedTaxDueDate(31);
+  const trimCos = state.companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Trimestral');
+  const trimPending = trimCos.filter(c => {
+    const r = state.irpjTrimData[`${c.id}_${state.selTrim}`];
+    return !r || (!r.prejuizo && (!r.quotaUnica ? !(r.p1 && r.p2 && r.p3) : !r.darfUnica));
+  }).length;
+
+  if (trimPending > 0) {
+    taxes.push({
+      nome: 'IRPJ / CSLL (Trimestral)',
+      diaUtil: trimDue.adjustedDay,
+      competencia: state.selTrim,
+      pendentes: trimPending,
+      diasRestantes: trimDue.adjustedDay - currentDay,
+      tab: 'irpj_trim'
+    });
+  }
+
+  return taxes;
+}
+
+// Renderizador do Modal / Card de Boas-Vindas e Avisos de Vencimento
+function renderWelcomeModal() {
+  const taxes = getPendingTaxesSummary();
+  const overdueTasks = state.tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue);
+  const closeTasks = state.tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isClose);
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div class="w-full max-w-xl rounded-3xl bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden relative">
+        
+        <!-- Faixa decorativa superior -->
+        <div class="h-2 bg-gradient-to-r from-blue-600 via-[#ECBD56] to-emerald-500"></div>
+
+        <div class="p-6 md:p-8">
+          
+          <!-- Topo: Boas-vindas -->
+          <div class="flex items-start justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800/80">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xl">👋</span>
+                <h2 class="text-lg md:text-xl font-black text-gray-900 dark:text-white">
+                  Olá, ${state.user || 'Analista'}!
+                </h2>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                  Radar do Dia
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Aqui está o resumo dos impostos e tarefas que precisam da sua atenção hoje.
+              </p>
+            </div>
+            <button
+              onclick="dismissWelcomeModal()"
+              class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-sm transition"
+              title="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Conteúdo: 2 Blocos Inteligentes -->
+          <div class="mt-5 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            
+            <!-- Bloco 1: Impostos Prestes a Vencer -->
+            <div class="p-4 rounded-2xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800/80">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+                    <line x1="16" x2="16" y1="2" y2="6"></line>
+                    <line x1="8" x2="8" y1="2" y2="6"></line>
+                    <line x1="3" x2="21" y1="10" x2="10"></line>
+                  </svg>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    Impostos & Vencimentos do Período
+                  </h3>
+                </div>
+                <span class="text-[11px] font-bold text-gray-400">
+                  ${taxes.length} tributos pendentes
+                </span>
+              </div>
+
+              ${taxes.length > 0 ? `
+                <div class="space-y-2">
+                  ${taxes.map(tx => `
+                    <div
+                      onclick="dismissWelcomeModal(); switchTab('${tx.tab}');"
+                      class="p-2.5 rounded-xl bg-white dark:bg-[#171824] border border-gray-200/60 dark:border-gray-800/60 hover:border-blue-500/40 cursor-pointer transition flex items-center justify-between gap-3 group"
+                    >
+                      <div class="min-w-0">
+                        <div class="font-bold text-xs text-gray-900 dark:text-white group-hover:text-blue-400 transition truncate">
+                          ${tx.nome}
+                        </div>
+                        <div class="text-[11px] text-gray-400 mt-0.5">
+                          ${tx.pendentes} empresa(s) pendente(s) &bull; Comp. ${tx.competencia}
+                        </div>
+                      </div>
+                      <div class="text-right shrink-0">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          tx.diasRestantes <= 0 ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30' :
+                          tx.diasRestantes <= 3 ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30' :
+                          'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                        }">
+                          Dia ${tx.diaUtil} (${tx.diasRestantes > 0 ? tx.diasRestantes + 'd' : 'Vencido'})
+                        </span>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div class="text-center py-2 text-xs text-emerald-500 font-medium">
+                  ✓ Todos os DARFs estão em dia nesta competência!
+                </div>
+              `}
+            </div>
+
+            <!-- Bloco 2: Tarefas Atrasadas & Próximas do Prazo -->
+            <div class="p-4 rounded-2xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800/80">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    Tarefas Críticas & Prazos
+                  </h3>
+                </div>
+                <div class="flex items-center gap-2">
+                  ${overdueTasks.length > 0 ? `
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
+                      ${overdueTasks.length} atrasada(s)
+                    </span>
+                  ` : ''}
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                ${overdueTasks.slice(0, 3).map(t => {
+                  const ov = getTaskOverdueInfo(t.data);
+                  return `
+                    <div
+                      onclick="dismissWelcomeModal(); switchTab('tarefas');"
+                      class="p-2.5 rounded-xl bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/40 cursor-pointer transition flex items-center justify-between gap-3"
+                    >
+                      <div class="min-w-0">
+                        <div class="font-bold text-xs text-gray-900 dark:text-white truncate">
+                          ${t.titulo}
+                        </div>
+                        <div class="text-[10px] text-rose-400 mt-0.5">
+                          Prazo estourado: ${t.data}
+                        </div>
+                      </div>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
+                        🚨 ATRASADA
+                      </span>
+                    </div>
+                  `;
+                }).join('')}
+
+                ${closeTasks.slice(0, 2).map(t => {
+                  const ov = getTaskOverdueInfo(t.data);
+                  return `
+                    <div
+                      onclick="dismissWelcomeModal(); switchTab('tarefas');"
+                      class="p-2.5 rounded-xl bg-white dark:bg-[#171824] border border-gray-200/60 dark:border-gray-800/60 hover:border-amber-500/40 cursor-pointer transition flex items-center justify-between gap-3"
+                    >
+                      <div class="min-w-0">
+                        <div class="font-bold text-xs text-gray-900 dark:text-white truncate">
+                          ${t.titulo}
+                        </div>
+                        <div class="text-[10px] text-gray-400 mt-0.5">
+                          Prazo: ${t.data}
+                        </div>
+                      </div>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ov.css} shrink-0">
+                        ${ov.label}
+                      </span>
+                    </div>
+                  `;
+                }).join('')}
+
+                ${overdueTasks.length === 0 && closeTasks.length === 0 ? `
+                  <div class="text-center py-2 text-xs text-gray-400 font-medium">
+                    Nenhuma tarefa em atraso no momento! Todas dentro do prazo.
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Rodapé do Modal -->
+          <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <button
+              onclick="dismissWelcomeModal(); switchTab('tarefas');"
+              class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              <span>Abrir Painel de Tarefas</span>
+              <span>→</span>
+            </button>
+            <button
+              onclick="dismissWelcomeModal()"
+              class="px-5 py-2 rounded-xl text-xs font-bold bg-[#ECBD56] hover:bg-[#DEA93F] text-gray-950 transition shadow-sm"
+            >
+              Entendido, Acessar Painel
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window.dismissWelcomeModal = () => {
+  state.welcomeModalOpen = false;
+  state.welcomeModalDismissed = true;
+  render();
+};
 
 // ---------------- EXIBIÇÃO: NOME EM NEGRITO E GRUPO LOGO ABAIXO NORMAL ----------------
 function renderCompanyCell(c) {
@@ -1329,6 +1809,9 @@ function render() {
 
       <!-- MODAL DE CRUD DE EMPRESA -->
       ${state.modal.isOpen ? renderCompanyModal() : ''}
+
+      <!-- MODAL INTELIGENTE DE BOAS-VINDAS E VENCIMENTOS (PÓS-LOGIN) -->
+      ${state.welcomeModalOpen ? renderWelcomeModal() : ''}
     </div>
   `;
 
@@ -1496,6 +1979,7 @@ function renderAuthScreen(root) {
       if (found) {
         state.user = found.usuario;
         localStorage.setItem('control_auth_user', found.usuario);
+        state.welcomeModalOpen = true;
         render();
       } else {
         document.getElementById('auth-alert-container').innerHTML = `
@@ -1692,8 +2176,13 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('piscofins')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg font-bold shadow-xs">
-                📄
+              <div class="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow-xs">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path>
+                  <path d="M14 8H8"></path>
+                  <path d="M16 12H8"></path>
+                  <path d="M13 16H8"></path>
+                </svg>
               </div>
               <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
                 Ver PIS/COFINS →
@@ -1714,12 +2203,15 @@ function renderDashboardTab(companies) {
               
               <!-- Barra de Progresso Visual -->
               <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
-                <div class="bg-purple-500 h-full rounded-full transition-all duration-500" style="width: ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}%"></div>
+                <div class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}%"></div>
               </div>
             </div>
           </div>
           <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1">📅 Dia ${getAdjustedTaxDueDate(25).adjustedDay}${getAdjustedTaxDueDate(25).antecipado ? ' (Útil)' : ''}</span>
+            <span class="flex items-center gap-1.5 font-medium">
+              <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              Dia ${getAdjustedTaxDueDate(25).adjustedDay}${getAdjustedTaxDueDate(25).antecipado ? ' (Útil)' : ''}
+            </span>
             ${getDeadlineBadge(25)}
           </div>
         </div>
@@ -1728,8 +2220,15 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('irpj_mensal')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-11 h-11 rounded-2xl bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-lg font-bold shadow-xs">
-                🧮
+              <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20 shadow-xs">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="16" height="20" x="4" y="2" rx="2"></rect>
+                  <line x1="8" x2="16" y1="6" y2="6"></line>
+                  <line x1="16" x2="16" y1="14" y2="18"></line>
+                  <path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path>
+                  <path d="M12 14h.01"></path><path d="M8 14h.01"></path>
+                  <path d="M12 18h.01"></path><path d="M8 18h.01"></path>
+                </svg>
               </div>
               <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
                 Ver Mensal →
@@ -1755,7 +2254,10 @@ function renderDashboardTab(companies) {
             </div>
           </div>
           <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1">📅 Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)</span>
+            <span class="flex items-center gap-1.5 font-medium">
+              <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)
+            </span>
             ${getDeadlineBadge(31)}
           </div>
         </div>
@@ -1764,8 +2266,11 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('irpj_trim')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg font-bold shadow-xs">
-                📑
+              <div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-xs">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                  <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                </svg>
               </div>
               <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
                 Ver Trimestral →
@@ -1791,7 +2296,10 @@ function renderDashboardTab(companies) {
             </div>
           </div>
           <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1">📅 Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)</span>
+            <span class="flex items-center gap-1.5 font-medium">
+              <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)
+            </span>
             ${getDeadlineBadge(31)}
           </div>
         </div>
@@ -1800,8 +2308,11 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('fechamentos')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg font-bold shadow-xs">
-                📈
+              <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20 shadow-xs">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 3v18h18"></path>
+                  <path d="m19 9-5 5-4-4-3 3"></path>
+                </svg>
               </div>
               <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
                 Ver Fechamentos →
@@ -1835,8 +2346,9 @@ function renderDashboardTab(companies) {
               </div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-            ✓ ${companies.length} empresas monitoradas
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            ${companies.length} empresas monitoradas
           </div>
         </div>
 
@@ -4852,20 +5364,39 @@ function renderIrpjMensalTab(companies) {
 // ---------------- TAREFAS TAB (GOOGLE TASKS) ----------------
 function renderTarefasTab() {
   const urgencyWeight = { 'Alta': 3, 'Media': 2, 'Baixa': 1 };
+  
+  // Ordenação inteligente: 
+  // 1º: Tarefas Atrasadas (Overdue) sempre no topo com prioridade máxima
+  // 2º: Urgência (Alta -> Média -> Baixa)
+  // 3º: Proximidade da data meta
   const activeTasks = state.tasks.filter(t => !t.concluida).sort((a, b) => {
-    const diff = (urgencyWeight[b.urgencia] || 1) - (urgencyWeight[a.urgencia] || 1);
-    if (diff !== 0) return diff;
+    const aOverdue = getTaskOverdueInfo(a.data).isOverdue;
+    const bOverdue = getTaskOverdueInfo(b.data).isOverdue;
+    if (aOverdue && !bOverdue) return -1;
+    if (!aOverdue && bOverdue) return 1;
+
+    const diffUrg = (urgencyWeight[b.urgencia] || 1) - (urgencyWeight[a.urgencia] || 1);
+    if (diffUrg !== 0) return diffUrg;
     return new Date(a.data) - new Date(b.data);
   });
+  
   const completedTasks = state.tasks.filter(t => t.concluida);
   const displayList = state.taskFilter === 'ativas' ? activeTasks : completedTasks;
+  const overdueCount = activeTasks.filter(t => getTaskOverdueInfo(t.data).isOverdue).length;
 
   return `
     <div class="space-y-6 max-w-4xl mx-auto">
       <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-2 border-b border-gray-200 dark:border-gray-800">
         <div>
-          <h1 class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white uppercase">Gestão de Tarefas (Google Tasks)</h1>
-          <p class="text-sm text-gray-500 dark:text-gray-400">Organize pendências com ordenação automática por urgência e proximidade de vencimento.</p>
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white uppercase">Gestão de Tarefas</h1>
+            ${overdueCount > 0 ? `
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
+                ${overdueCount} atrasada(s)
+              </span>
+            ` : ''}
+          </div>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Organize pendências com priorização automática de prazos e controle de atrasos.</p>
         </div>
 
         <div class="flex items-center gap-2 bg-white dark:bg-[#15151A] p-1.5 rounded-full border border-gray-200 dark:border-gray-800">
@@ -4910,12 +5441,12 @@ function renderTarefasTab() {
         <div class="flex flex-wrap items-center justify-between gap-4 pt-1">
           <div class="flex items-center gap-3">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-gray-400">Data Limite:</span>
+              <span class="text-xs font-semibold text-gray-400">Data Meta:</span>
               <input
                 type="date"
                 id="task-date-input"
                 required
-                value="2026-10-05"
+                value="${new Date().toISOString().split('T')[0]}"
                 class="px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
               />
             </div>
@@ -4926,9 +5457,9 @@ function renderTarefasTab() {
                 id="task-urgency-input"
                 class="px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
               >
-                <option value="Alta">🔴 Alta</option>
-                <option value="Media">🟡 Média</option>
-                <option value="Baixa">🟢 Baixa</option>
+                <option value="Alta">Alta</option>
+                <option value="Media" selected>Média</option>
+                <option value="Baixa">Baixa</option>
               </select>
             </div>
           </div>
@@ -4942,45 +5473,77 @@ function renderTarefasTab() {
         </div>
       </form>
 
-      <!-- Lista de Tarefas -->
+      <!-- Lista de Tarefas com Destaque de Atraso e Priorização -->
       <div class="space-y-3">
-        ${displayList.map(t => `
-          <div class="panze-card !p-4 transition flex items-start gap-4 ${
-            t.concluida ? 'opacity-60 bg-gray-50/50 dark:bg-[#11121C]/50' : 'hover:border-[#ECBD56]/40'
-          }">
-            <button
-              onclick="toggleTaskComplete(${t.id})"
-              class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                t.concluida ? 'bg-[#10B981] border-[#10B981] text-white' : 'border-gray-400 hover:border-[#ECBD56]'
-              }"
-            >
-              ${t.concluida ? '✓' : ''}
-            </button>
+        ${displayList.map(t => {
+          const overdueInfo = getTaskOverdueInfo(t.data);
+          const isAtrasada = !t.concluida && overdueInfo.isOverdue;
 
-            <div class="flex-1">
-              <div class="flex items-center gap-3">
-                <h4 class="font-bold text-sm ${t.concluida ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}">
-                  ${t.titulo}
-                </h4>
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  t.urgencia === 'Alta' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/30' :
-                  t.urgencia === 'Media' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' :
-                  'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
-                }">
-                  ${t.urgencia}
-                </span>
+          return `
+            <div class="panze-card !p-4 transition flex items-start gap-4 relative overflow-hidden ${
+              t.concluida 
+                ? 'opacity-60 bg-gray-50/50 dark:bg-[#11121C]/50' 
+                : isAtrasada 
+                ? 'bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5' 
+                : 'hover:border-[#ECBD56]/40'
+            }">
+              
+              <!-- Faixa vertical indicativa para tarefas atrasadas -->
+              ${isAtrasada ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>` : ''}
+
+              <button
+                onclick="toggleTaskComplete(${t.id})"
+                class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                  t.concluida ? 'bg-[#10B981] border-[#10B981] text-white' : 'border-gray-400 hover:border-[#ECBD56]'
+                }"
+              >
+                ${t.concluida ? '✓' : ''}
+              </button>
+
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2.5">
+                  <h4 class="font-bold text-sm ${t.concluida ? 'line-through text-gray-400' : isAtrasada ? 'text-rose-500 dark:text-rose-400 font-extrabold' : 'text-gray-900 dark:text-white'}">
+                    ${t.titulo}
+                  </h4>
+                  
+                  <!-- Selo de Status: Atrasada (Alerta Vermelho) vs No Prazo -->
+                  ${isAtrasada ? `
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
+                      🚨 ATRASADA
+                    </span>
+                  ` : ''}
+
+                  <!-- Selo de Urgência -->
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    t.urgencia === 'Alta' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/30' :
+                    t.urgencia === 'Media' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' :
+                    'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
+                  }">
+                    ${t.urgencia}
+                  </span>
+
+                  <!-- Selo de Prazo Dinâmico -->
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold ${overdueInfo.css}">
+                    ${overdueInfo.label}
+                  </span>
+                </div>
+
+                ${t.descricao ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${t.descricao}</p>` : ''}
+                
+                <div class="flex items-center gap-3 mt-2 text-[11px] text-gray-400 font-medium">
+                  <span class="flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    Data Meta: <strong>${t.data}</strong>
+                  </span>
+                </div>
               </div>
-              ${t.descricao ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${t.descricao}</p>` : ''}
-              <div class="flex items-center gap-3 mt-2 text-[11px] text-gray-400 font-medium">
-                <span>📅 Prazo: ${t.data}</span>
-              </div>
+
+              <button onclick="deleteTask(${t.id})" class="p-1.5 rounded-lg hover:bg-rose-500/10 text-gray-400 hover:text-rose-500 transition" title="Excluir">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+              </button>
             </div>
-
-            <button onclick="deleteTask(${t.id})" class="p-1.5 rounded-lg hover:bg-rose-500/10 text-gray-400 hover:text-rose-500 transition" title="Excluir">
-              🗑️
-            </button>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
 
         ${displayList.length === 0 ? `
           <div class="panze-card text-center p-8 text-gray-400">
