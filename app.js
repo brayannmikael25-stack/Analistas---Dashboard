@@ -19,10 +19,10 @@ const INITIAL_USERS = [
 ];
 
 const INITIAL_TASKS = [
-  { id: 1, titulo: "Conferir apuração de PIS/COFINS Alfa Engenharia", descricao: "Validar notas de entrada de materiais e créditos extemporâneos.", data: "2026-10-02", urgencia: "Alta", concluida: false },
-  { id: 2, titulo: "Emitir DARF IRPJ Trimestral Beta Distribuidora", descricao: "Verificar se cliente optou por Quota Única ou 3 Parcelas.", data: "2026-10-05", urgencia: "Alta", concluida: false },
-  { id: 3, titulo: "Solicitar extratos bancários pendentes Delta Tecnologia", descricao: "Contatar financeiro para conciliação da conta Santander.", data: "2026-10-10", urgencia: "Media", concluida: false },
-  { id: 4, titulo: "Reunião de alinhamento com a diretoria", descricao: "Apresentação dos indicadores do fechamento do 3º trimestre.", data: "2026-10-15", urgencia: "Baixa", concluida: false }
+  { id: 1, titulo: "Conferir apuração de PIS/COFINS Alfa Engenharia", descricao: "Validar notas de entrada de materiais e créditos extemporâneos.", data: "2026-10-02", urgencia: "Alta", concluida: false, createdAt: "2026-09-28" },
+  { id: 2, titulo: "Emitir DARF IRPJ Trimestral Beta Distribuidora", descricao: "Verificar se cliente optou por Quota Única ou 3 Parcelas.", data: "2026-10-05", urgencia: "Alta", concluida: false, createdAt: "2026-10-01" },
+  { id: 3, titulo: "Solicitar extratos bancários pendentes Delta Tecnologia", descricao: "Contatar financeiro para conciliação da conta Santander.", data: "2026-10-10", urgencia: "Media", concluida: false, createdAt: "2026-10-03" },
+  { id: 4, titulo: "Reunião de alinhamento com a diretoria", descricao: "Apresentação dos indicadores do fechamento do 3º trimestre.", data: "2026-10-15", urgencia: "Baixa", concluida: false, createdAt: "2026-10-08" }
 ];
 
 const MONTH_COMPETENCIES = [];
@@ -141,11 +141,19 @@ const state = {
       classe: normalizeClasse(c.classe)
     }));
   })(),
-  tasks: JSON.parse(localStorage.getItem('control_tasks') || 'null') || INITIAL_TASKS,
+  tasks: (() => {
+    const raw = JSON.parse(localStorage.getItem('control_tasks') || 'null') || INITIAL_TASKS;
+    return raw.map(t => ({
+      ...t,
+      createdAt: t.createdAt || t.data || new Date().toISOString().split('T')[0]
+    }));
+  })(),
   pisCofinsData: JSON.parse(localStorage.getItem('control_piscofins') || '{}'),
   irpjTrimData: JSON.parse(localStorage.getItem('control_irpj_trim') || '{}'),
   irpjMensalData: JSON.parse(localStorage.getItem('control_irpj_mensal') || '{}'),
   modal: { isOpen: false, mode: 'create', company: null },
+  taskModal: { isOpen: false, task: null }, // Modal de edição de tarefas
+  activeTaskMenuId: null, // Menu de 3 pontos ativo
   welcomeModalOpen: false, // Modal inteligente de boas-vindas e vencimentos pós-login
   welcomeModalDismissed: false,
   // Filtros dedicados da tela de CRUD de Empresas
@@ -1036,6 +1044,16 @@ function getTaskOverdueInfo(taskDateStr) {
   }
 }
 
+// Helper para formatar datas YYYY-MM-DD para DD/MM/AAAA
+function formatBrazilianDate(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
+
 // Resumo inteligente de tributos e vencimentos para o modal de boas-vindas
 function getPendingTaxesSummary() {
   const taxes = [];
@@ -1809,6 +1827,9 @@ function render() {
 
       <!-- MODAL DE CRUD DE EMPRESA -->
       ${state.modal.isOpen ? renderCompanyModal() : ''}
+
+      <!-- MODAL DE EDIÇÃO DE TAREFA -->
+      ${state.taskModal.isOpen ? renderEditTaskModal() : ''}
 
       <!-- MODAL INTELIGENTE DE BOAS-VINDAS E VENCIMENTOS (PÓS-LOGIN) -->
       ${state.welcomeModalOpen ? renderWelcomeModal() : ''}
@@ -5530,17 +5551,70 @@ function renderTarefasTab() {
 
                 ${t.descricao ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${t.descricao}</p>` : ''}
                 
-                <div class="flex items-center gap-3 mt-2 text-[11px] text-gray-400 font-medium">
-                  <span class="flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    Data Meta: <strong>${t.data}</strong>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-[11px] text-gray-400 font-medium">
+                  <!-- Data de Criação com destaque visual sutil -->
+                  <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200/60 dark:border-gray-800 text-gray-500 dark:text-gray-400">
+                    <svg class="w-3.5 h-3.5 text-blue-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Criada em: <strong class="text-gray-700 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.createdAt || t.data)}</strong>
+                  </span>
+
+                  <!-- Data Meta / Vencimento -->
+                  <span class="inline-flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-amber-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    Data Meta: <strong class="text-gray-800 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.data)}</strong>
                   </span>
                 </div>
               </div>
 
-              <button onclick="deleteTask(${t.id})" class="p-1.5 rounded-lg hover:bg-rose-500/10 text-gray-400 hover:text-rose-500 transition" title="Excluir">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-              </button>
+              <!-- Menu de Opções com 3 Pontos (...) -->
+              <div class="relative shrink-0">
+                <button
+                  onclick="toggleTaskMenu(${t.id}, event)"
+                  class="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                  title="Mais Opções da Tarefa"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="19" cy="12" r="1"></circle>
+                    <circle cx="5" cy="12" r="1"></circle>
+                  </svg>
+                </button>
+
+                <!-- Dropdown do Menu de 3 Pontos -->
+                ${state.activeTaskMenuId === t.id ? `
+                  <div
+                    id="task-menu-dropdown-${t.id}"
+                    class="absolute right-0 mt-1 w-44 rounded-2xl bg-white dark:bg-[#181926] border border-gray-200 dark:border-gray-800 shadow-2xl p-1.5 z-30 animate-fadeIn"
+                    onclick="event.stopPropagation()"
+                  >
+                    <button
+                      onclick="openEditTaskModal(${t.id})"
+                      class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-[#ECBD56]/15 hover:text-[#ECBD56] dark:hover:text-[#ECBD56] transition flex items-center gap-2.5"
+                    >
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      <span>Editar Tarefa</span>
+                    </button>
+
+                    <button
+                      onclick="toggleTaskComplete(${t.id}); closeAllTaskMenus();"
+                      class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition flex items-center gap-2.5"
+                    >
+                      <svg class="w-3.5 h-3.5 ${t.concluida ? 'text-amber-500' : 'text-emerald-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <span>${t.concluida ? 'Marcar Pendente' : 'Marcar Concluída'}</span>
+                    </button>
+
+                    <div class="my-1 border-t border-gray-100 dark:border-gray-800/80"></div>
+
+                    <button
+                      onclick="deleteTask(${t.id})"
+                      class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition flex items-center gap-2.5"
+                    >
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                      <span>Excluir Tarefa</span>
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
             </div>
           `;
         }).join('')}
@@ -5936,6 +6010,107 @@ function renderCompanyModal() {
   `;
 }
 
+// ---------------- MODAL DE EDIÇÃO DE TAREFA ----------------
+function renderEditTaskModal() {
+  const t = state.taskModal.task;
+  if (!t) return '';
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div class="w-full max-w-lg rounded-3xl bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 shadow-2xl p-6 relative">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div class="flex items-center gap-2">
+            <span class="text-[#ECBD56] text-base">✏️</span>
+            <h3 class="font-extrabold text-base md:text-lg text-gray-900 dark:text-white">
+              Editar Tarefa
+            </h3>
+          </div>
+          <button onclick="closeEditTaskModal()" class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-sm transition">
+            ✕
+          </button>
+        </div>
+
+        <form id="edit-task-modal-form" class="mt-5 space-y-4">
+          <!-- Título da Tarefa -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Título da Tarefa *</label>
+            <input
+              type="text"
+              id="edit-task-title"
+              required
+              value="${t.titulo.replace(/"/g, '&quot;')}"
+              placeholder="Título da tarefa..."
+              class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition"
+            />
+          </div>
+
+          <!-- Descrição / Observação -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Descrição ou Observações</label>
+            <textarea
+              id="edit-task-desc"
+              rows="3"
+              placeholder="Informações adicionais ou notas de acompanhamento..."
+              class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition resize-none"
+            >${t.descricao || ''}</textarea>
+          </div>
+
+          <!-- Metadados de Data e Urgência -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1">Data Meta (Vencimento) *</label>
+              <input
+                type="date"
+                id="edit-task-date"
+                required
+                value="${t.data}"
+                class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1">Nível de Urgência</label>
+              <select
+                id="edit-task-urgency"
+                class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
+              >
+                <option value="Alta" ${t.urgencia === 'Alta' ? 'selected' : ''}>Alta</option>
+                <option value="Media" ${t.urgencia === 'Media' ? 'selected' : ''}>Média</option>
+                <option value="Baixa" ${t.urgencia === 'Baixa' ? 'selected' : ''}>Baixa</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Observação de Criação (Informativo fixo) -->
+          <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/60 dark:border-gray-800/80 flex items-center justify-between text-xs text-gray-400">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>Data de Criação do Registro:</span>
+            </span>
+            <span class="font-bold text-gray-700 dark:text-gray-200">${formatBrazilianDate(t.createdAt || t.data)}</span>
+          </div>
+
+          <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
+            <button
+              type="button"
+              onclick="closeEditTaskModal()"
+              class="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-[#12131F] dark:bg-[#ECBD56] dark:text-gray-950 hover:opacity-90 transition shadow-sm"
+            >
+              Salvar Alterações
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
 // ---------------- ATTACH EVENT HANDLERS ----------------
 function attachEventHandlers() {
   // Troca de Abas
@@ -6127,9 +6302,43 @@ function attachEventHandlers() {
       const date = document.getElementById('task-date-input').value;
       const urg = document.getElementById('task-urgency-input').value;
       if (!title) return;
-      state.tasks.unshift({ id: Date.now(), titulo: title, descricao: desc, data: date, urgencia: urg, concluida: false });
+      const today = new Date().toISOString().split('T')[0];
+      state.tasks.unshift({
+        id: Date.now(),
+        titulo: title,
+        descricao: desc,
+        data: date,
+        urgencia: urg,
+        concluida: false,
+        createdAt: today
+      });
       saveStorage();
       render();
+    });
+  }
+
+  // Form de Edição de Tarefa
+  const editTaskForm = document.getElementById('edit-task-modal-form');
+  if (editTaskForm) {
+    editTaskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!state.taskModal.task) return;
+      const id = state.taskModal.task.id;
+      const title = document.getElementById('edit-task-title').value.trim();
+      const desc = document.getElementById('edit-task-desc').value.trim();
+      const date = document.getElementById('edit-task-date').value;
+      const urg = document.getElementById('edit-task-urgency').value;
+
+      if (!title) return;
+      const t = state.tasks.find(x => x.id === id);
+      if (t) {
+        t.titulo = title;
+        t.descricao = desc;
+        t.data = date;
+        t.urgencia = urg;
+        saveStorage();
+      }
+      closeEditTaskModal();
     });
   }
 
@@ -6278,6 +6487,17 @@ function attachEventHandlers() {
       if (backupDropdown) backupDropdown.classList.add('hidden');
     });
   }
+
+  // Fechar menu de 3 pontos das tarefas ao clicar fora
+  document.addEventListener('click', (e) => {
+    if (state.activeTaskMenuId !== null) {
+      const activeDropdown = document.getElementById(`task-menu-dropdown-${state.activeTaskMenuId}`);
+      if (!activeDropdown || !activeDropdown.contains(e.target)) {
+        state.activeTaskMenuId = null;
+        render();
+      }
+    }
+  });
 }
 
 // ---------------- FUNÇÕES GLOBAIS EXPOSTAS ----------------
@@ -6364,10 +6584,34 @@ window.toggleTaskComplete = (id) => {
   if (t) { t.concluida = !t.concluida; saveStorage(); render(); }
 };
 window.deleteTask = (id) => {
+  state.activeTaskMenuId = null;
   if (confirm('Deseja excluir esta tarefa?')) {
     state.tasks = state.tasks.filter(x => x.id !== id);
     saveStorage(); render();
   }
+};
+window.toggleTaskMenu = (id, event) => {
+  if (event) event.stopPropagation();
+  state.activeTaskMenuId = state.activeTaskMenuId === id ? null : id;
+  render();
+};
+window.closeAllTaskMenus = () => {
+  if (state.activeTaskMenuId !== null) {
+    state.activeTaskMenuId = null;
+    render();
+  }
+};
+window.openEditTaskModal = (id) => {
+  state.activeTaskMenuId = null;
+  const t = state.tasks.find(x => x.id === id);
+  if (t) {
+    state.taskModal = { isOpen: true, task: { ...t } };
+    render();
+  }
+};
+window.closeEditTaskModal = () => {
+  state.taskModal = { isOpen: false, task: null };
+  render();
 };
 
 // Funções de CRUD e Filtros de Empresa
