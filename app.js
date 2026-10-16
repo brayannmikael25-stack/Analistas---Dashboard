@@ -115,7 +115,7 @@ const autoComp = getAutoCompetencies();
 // Estado Global da Aplicação
 const state = {
   user: localStorage.getItem('control_auth_user') || null,
-  authMode: 'login', // 'login' ou 'register'
+  authMode: 'login', // 'login' | 'register' | 'forgot'
   users: JSON.parse(localStorage.getItem('control_users') || 'null') || INITIAL_USERS,
   theme: (() => {
     const saved = localStorage.getItem('control_theme');
@@ -170,6 +170,7 @@ const state = {
   selectedPisIds: [],
   selectedMensalIds: [],
   selectedTrimIds: [],
+  isTableLoading: false, // Indicador de transição para exibição do Skeleton Screen
   // URL do Backend / API de sincronização (configurável pelo usuário)
   backendUrl: localStorage.getItem('control_backend_url') || '',
   syncStatus: 'idle', // 'idle' | 'syncing' | 'saved' | 'error'
@@ -925,6 +926,150 @@ function injectDesignSystemStyles() {
         width: 100% !important;
       }
     }
+
+    /* 5. Menu Lateral com Indicador Fluido Deslizante */
+    .panze-sidebar nav {
+      position: relative;
+    }
+
+    .panze-nav-indicator {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 40px;
+      background: rgba(30, 41, 59, 0.85);
+      border-left: 3px solid #F58220;
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.25);
+      transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .panze-nav-item {
+      position: relative;
+      z-index: 2;
+    }
+
+    .panze-nav-item.active {
+      background: transparent !important;
+      border-left: 2px solid transparent !important;
+      box-shadow: none !important;
+    }
+
+    /* 6. Filtros Flutuantes & Dropdowns com Desfoque de Fundo */
+    select option {
+      background-color: #171825 !important;
+      color: #FFFFFF !important;
+    }
+
+    .backdrop-blur-md,
+    #theme-palette-dropdown,
+    #backup-dropdown,
+    [id^="task-menu-dropdown-"] {
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+    }
+
+    /* 7. Tela Fechamento IA: Interações nos Cards e nos Quadradinhos de Competência */
+    .fechamento-card {
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.28s ease,
+                  background-color 0.25s ease !important;
+      will-change: transform, box-shadow;
+    }
+
+    .fechamento-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(236, 189, 86, 0.45) !important;
+      background-color: rgba(255, 255, 255, 0.02) !important;
+      box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.35), 0 0 15px -3px rgba(236, 189, 86, 0.1) !important;
+    }
+
+    html:not(.dark) .fechamento-card:hover {
+      background-color: #F8FAFC !important;
+      border-color: rgba(236, 189, 86, 0.6) !important;
+    }
+
+    /* Quadradinhos individuais de competência */
+    .comp-block {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.2s ease,
+                  background-color 0.2s ease;
+      position: relative;
+    }
+
+    .comp-block:hover {
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 4px 12px rgba(236, 189, 86, 0.25);
+    }
+
+    /* Tooltip magnético instantâneo para os quadradinhos */
+    .comp-tooltip {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 40;
+      white-space: nowrap;
+    }
+
+    .comp-block:hover .comp-tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Efeito de entrada progressiva (Fade-in & Slide-up) para cards repetitivos */
+    .card-fade-enter {
+      animation: cardFadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes cardFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Skeleton Loading Screen para transição suave de gráficos */
+    .skeleton-box {
+      position: relative;
+      overflow: hidden;
+      background-color: rgba(150, 150, 160, 0.1);
+      border-radius: 12px;
+    }
+
+    .skeleton-box::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      transform: translateX(-100%);
+      background-image: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.08) 30%,
+        rgba(255, 255, 255, 0.16) 50%,
+        rgba(255, 255, 255, 0) 100%
+      );
+      animation: skeletonShimmer 1.4s infinite;
+    }
+
+    @keyframes skeletonShimmer {
+      100% {
+        transform: translateX(100%);
+      }
+    }
   `;
 }
 injectDesignSystemStyles();
@@ -1499,8 +1644,9 @@ function render() {
             </label>
           </div>
 
-          <!-- Menu de Navegação Vertical (Itens estilo SaaS Dark Premium) -->
-          <nav class="space-y-1">
+          <!-- Menu de Navegação Vertical (Itens estilo SaaS Dark Premium com Indicador Fluido) -->
+          <nav class="space-y-1 relative" id="sidebar-nav-container">
+            <div id="sidebar-nav-indicator" class="panze-nav-indicator"></div>
             <div class="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Menu Principal</div>
             ${[
               { 
@@ -1840,6 +1986,7 @@ function render() {
   if (state.activeTab === 'dashboard') {
     setTimeout(() => {
       renderCharts(filtered);
+      runCounterAnimations();
     }, 20);
   }
 }
@@ -1848,7 +1995,9 @@ function render() {
 // TELA DE AUTENTICAÇÃO: LOGIN OU REGISTRO DE CONTA
 // ----------------------------------------------------
 function renderAuthScreen(root) {
-  const isLogin = state.authMode === 'login';
+  const mode = state.authMode; // 'login' | 'register' | 'forgot'
+  const isLogin = mode === 'login';
+  const isForgot = mode === 'forgot';
 
   root.innerHTML = `
     <div class="min-h-screen flex items-center justify-center p-4">
@@ -1858,7 +2007,7 @@ function renderAuthScreen(root) {
         <div class="flex flex-col items-center mb-6 mt-2">
           ${renderLogo("h-14")}
           <h2 class="mt-5 text-2xl font-extrabold text-gray-900 dark:text-white">
-            ${isLogin ? 'Acesso Restrito' : 'Criar Nova Conta'}
+            ${isLogin ? 'Acesso Restrito' : isForgot ? 'Redefinir Senha' : 'Criar Nova Conta'}
           </h2>
           <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">
             Dashboard de Gestão e Controle Contábil
@@ -1882,7 +2031,16 @@ function renderAuthScreen(root) {
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Senha</label>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400">Senha</label>
+                <button
+                  type="button"
+                  onclick="setAuthMode('forgot')"
+                  class="text-[11px] font-semibold text-[#E88A1A] hover:underline"
+                >
+                  Esqueceu a senha?
+                </button>
+              </div>
               <input
                 type="password"
                 id="login-password"
@@ -1908,6 +2066,63 @@ function renderAuthScreen(root) {
               class="text-xs font-bold text-[#E88A1A] hover:underline"
             >
               Cadastre-se agora
+            </button>
+          </div>
+        ` : isForgot ? `
+          <!-- Formulário de Esqueci a Senha / Redefinição -->
+          <form id="forgot-form" class="space-y-4">
+            <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 leading-relaxed">
+              Informe seu e-mail cadastrado e digite a nova senha desejada para efetuar a confirmação imediata.
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">E-mail Cadastrado *</label>
+              <input
+                type="email"
+                id="forgot-email"
+                required
+                placeholder="seuemail@controlcontabilidade.com.br"
+                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nova Senha *</label>
+              <input
+                type="password"
+                id="forgot-new-password"
+                required
+                placeholder="Digite a nova senha (mínimo 6 dígitos)"
+                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Confirmar Nova Senha *</label>
+              <input
+                type="password"
+                id="forgot-confirm-password"
+                required
+                placeholder="Confirme a nova senha"
+                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+              />
+            </div>
+
+            <button
+              type="submit"
+              class="w-full py-3.5 px-6 rounded-full font-bold text-gray-950 bg-[#ECBD56] hover:bg-[#DEA93F] shadow-lg shadow-[#ECBD56]/20 transition flex items-center justify-center gap-2 mt-2"
+            >
+              <span>Redefinir Senha</span>
+            </button>
+          </form>
+
+          <div class="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center flex flex-col gap-2">
+            <button
+              type="button"
+              onclick="setAuthMode('login')"
+              class="text-xs font-bold text-[#E88A1A] hover:underline"
+            >
+              ← Voltar para o Login
             </button>
           </div>
         ` : `
@@ -2009,6 +2224,53 @@ function renderAuthScreen(root) {
           </div>
         `;
       }
+    });
+  }
+
+  // Handler de Esqueci a Senha
+  const forgotForm = document.getElementById('forgot-form');
+  if (forgotForm) {
+    forgotForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('forgot-email').value.trim().toLowerCase();
+      const newPass = document.getElementById('forgot-new-password').value.trim();
+      const confirmPass = document.getElementById('forgot-confirm-password').value.trim();
+
+      if (newPass.length < 6) {
+        document.getElementById('auth-alert-container').innerHTML = `
+          <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
+            A nova senha deve possuir no mínimo 6 caracteres.
+          </div>
+        `;
+        return;
+      }
+
+      if (newPass !== confirmPass) {
+        document.getElementById('auth-alert-container').innerHTML = `
+          <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
+            As senhas digitadas não coincidem. Por favor, verifique.
+          </div>
+        `;
+        return;
+      }
+
+      const userIndex = state.users.findIndex(u => u.email && u.email.toLowerCase() === email);
+      if (userIndex === -1) {
+        document.getElementById('auth-alert-container').innerHTML = `
+          <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
+            Nenhuma conta encontrada com o e-mail informado (${email}).
+          </div>
+        `;
+        return;
+      }
+
+      // Atualiza a senha e persiste
+      state.users[userIndex].senha = newPass;
+      saveStorage();
+
+      alert(`✅ Senha redefinida com sucesso!\n\nUm e-mail de confirmação foi simulado para ${email}. Você já pode entrar com a nova senha.`);
+      state.authMode = 'login';
+      render();
     });
   }
 
@@ -2218,7 +2480,7 @@ function renderDashboardTab(companies) {
               </div>
               <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">PIS / COFINS</div>
               <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingPis}</span>
+                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingPis}">${pendingPis}</span>
                 <span class="text-xs text-gray-400 font-medium">de ${realCompanies.length} empresas</span>
               </div>
               
@@ -2264,7 +2526,7 @@ function renderDashboardTab(companies) {
               </div>
               <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Mensal</div>
               <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingMensal}</span>
+                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingMensal}">${pendingMensal}</span>
                 <span class="text-xs text-gray-400 font-medium">de ${mensalCompanies.length} empresas</span>
               </div>
               
@@ -2306,7 +2568,7 @@ function renderDashboardTab(companies) {
               </div>
               <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Trimestral</div>
               <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400">${pendingTrim}</span>
+                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingTrim}">${pendingTrim}</span>
                 <span class="text-xs text-gray-400 font-medium">de ${trimCompanies.length} empresas</span>
               </div>
               
@@ -2344,17 +2606,17 @@ function renderDashboardTab(companies) {
               <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">Fechamentos</div>
               <div class="flex items-center gap-3 mt-2">
                 <div onclick="event.stopPropagation(); navigateToFechamentoFilter('em_dia')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-emerald-500/10" title="Ver empresas em dia">
-                  <span class="text-xl font-black text-emerald-500">${Math.round((emDia/tot)*100)}%</span>
+                  <span class="text-xl font-black text-emerald-500 animate-counter" data-counter-target="${Math.round((emDia/tot)*100)}" data-counter-suffix="%">${Math.round((emDia/tot)*100)}%</span>
                   <span class="block text-[9px] uppercase font-bold text-gray-400">Em Dia</span>
                 </div>
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
                 <div onclick="event.stopPropagation(); navigateToFechamentoFilter('atencao')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-amber-500/10" title="Ver empresas em atenção (1-2m)">
-                  <span class="text-xl font-black text-amber-500">${Math.round((atencao/tot)*100)}%</span>
+                  <span class="text-xl font-black text-amber-500 animate-counter" data-counter-target="${Math.round((atencao/tot)*100)}" data-counter-suffix="%">${Math.round((atencao/tot)*100)}%</span>
                   <span class="block text-[9px] uppercase font-bold text-gray-400">Atenção</span>
                 </div>
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
                 <div onclick="event.stopPropagation(); navigateToFechamentoFilter('critico')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-rose-500/10" title="Ver empresas em estado crítico (>2m)">
-                  <span class="text-xl font-black text-rose-500/90 dark:text-rose-400">${Math.round((critico/tot)*100)}%</span>
+                  <span class="text-xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${Math.round((critico/tot)*100)}" data-counter-suffix="%">${Math.round((critico/tot)*100)}%</span>
                   <span class="block text-[9px] uppercase font-bold text-gray-400">Crítico</span>
                 </div>
               </div>
@@ -2527,6 +2789,103 @@ function renderDashboardTab(companies) {
   `;
 }
 
+// Helper para atenuar cor para efeito de hover dimming (opacidade ~0.25)
+function dimColor(colorStr, alpha = 0.25) {
+  if (!colorStr) return colorStr;
+  const s = colorStr.trim();
+  if (s.startsWith('#')) {
+    let hex = s.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  } else if (s.startsWith('rgba')) {
+    return s.replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, `rgba($1,$2,$3, ${alpha})`);
+  } else if (s.startsWith('rgb')) {
+    return s.replace(/rgb\(([^)]+)\)/, `rgba($1, ${alpha})`);
+  } else if (s.startsWith('hsl')) {
+    return s.replace(/hsl\(([^)]+)\)/, `hsla($1, ${alpha})`);
+  }
+  return s;
+}
+
+// Configura o efeito Hover Dimming em gráficos de Rosca (Segmento, Classe, PIS, IRPJ)
+function setupDoughnutHoverDimming(chartInstance, originalColors) {
+  if (!chartInstance || !chartInstance.data || !chartInstance.data.datasets || !chartInstance.data.datasets[0]) return;
+  const baseColors = Array.isArray(originalColors) ? [...originalColors] : [originalColors];
+  let isDimmed = false;
+
+  const setDimmed = (targetIndex) => {
+    chartInstance.data.datasets[0].backgroundColor = baseColors.map((col, i) => 
+      (i === targetIndex) ? col : dimColor(col, 0.25)
+    );
+    isDimmed = true;
+    chartInstance.update('none');
+  };
+
+  const resetColors = () => {
+    if (isDimmed) {
+      chartInstance.data.datasets[0].backgroundColor = [...baseColors];
+      isDimmed = false;
+      chartInstance.update('none');
+    }
+  };
+
+  const origOnHover = chartInstance.options.onHover;
+  chartInstance.options.onHover = (evt, elements, chart) => {
+    if (elements && elements.length > 0) {
+      setDimmed(elements[0].index);
+    } else {
+      resetColors();
+    }
+    if (origOnHover) origOnHover(evt, elements, chart);
+  };
+
+  if (chartInstance.options.plugins && chartInstance.options.plugins.legend) {
+    const origLegendHover = chartInstance.options.plugins.legend.onHover;
+    const origLegendLeave = chartInstance.options.plugins.legend.onLeave;
+    chartInstance.options.plugins.legend.onHover = (evt, item, legend) => {
+      setDimmed(item.index);
+      if (origLegendHover) origLegendHover(evt, item, legend);
+    };
+    chartInstance.options.plugins.legend.onLeave = (evt, item, legend) => {
+      resetColors();
+      if (origLegendLeave) origLegendLeave(evt, item, legend);
+    };
+  }
+}
+
+// Executor de Contadores Numéricos Animados (0 -> Valor Real em ~300ms)
+function runCounterAnimations() {
+  const elements = document.querySelectorAll('.animate-counter');
+  if (!elements || elements.length === 0) return;
+  elements.forEach(el => {
+    const rawTarget = el.getAttribute('data-counter-target');
+    if (rawTarget === null || rawTarget === undefined) return;
+    const target = parseFloat(rawTarget);
+    if (isNaN(target)) return;
+    const suffix = el.getAttribute('data-counter-suffix') || '';
+    const duration = 300;
+    const startTime = performance.now();
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      const val = Math.round(target * ease);
+      el.textContent = val + suffix;
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        el.textContent = target + suffix;
+      }
+    }
+    el.textContent = '0' + suffix;
+    requestAnimationFrame(step);
+  });
+}
+
 function renderCharts(companies) {
   Object.values(state.charts).forEach(c => { if (c) c.destroy(); });
   state.charts = {};
@@ -2611,6 +2970,7 @@ function renderCharts(companies) {
           datasets: [{
             data: Object.values(segMap),
             backgroundColor: cColors.palette,
+            hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
           }]
@@ -2641,6 +3001,7 @@ function renderCharts(companies) {
           }
         }
       });
+      setupDoughnutHoverDimming(state.charts.c2, cColors.palette);
     }
   } catch (err) {
     console.error('Erro chartSegment:', err);
@@ -2720,6 +3081,7 @@ function renderCharts(companies) {
           datasets: [{
             data: Object.values(clsMap),
             backgroundColor: cColors.classes,
+            hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
           }]
@@ -2748,6 +3110,7 @@ function renderCharts(companies) {
           }
         }
       });
+      setupDoughnutHoverDimming(state.charts.c4, cColors.classes);
     }
   } catch (err) {
     console.error('Erro chartClass:', err);
@@ -2772,6 +3135,7 @@ function renderCharts(companies) {
           datasets: [{
             data: [pendPis, Math.max(0, realCos.length - pendPis)],
             backgroundColor: [cColors.danger, cColors.success],
+            hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
           }]
@@ -2793,6 +3157,7 @@ function renderCharts(companies) {
           }
         }
       });
+      setupDoughnutHoverDimming(state.charts.c5, [cColors.danger, cColors.success]);
     }
   } catch (err) {
     console.error('Erro chartPis:', err);
@@ -2831,6 +3196,7 @@ function renderCharts(companies) {
           datasets: [{
             data: [pendMensal, conclMensal],
             backgroundColor: [cColors.danger, cColors.success],
+            hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
           }]
@@ -2852,6 +3218,7 @@ function renderCharts(companies) {
           }
         }
       });
+      setupDoughnutHoverDimming(state.charts.c6_mensal, [cColors.danger, cColors.success]);
     }
 
     // IRPJ/CSLL Trimestral
@@ -2865,6 +3232,7 @@ function renderCharts(companies) {
           datasets: [{
             data: [pendTrim, conclTrim],
             backgroundColor: [cColors.danger, cColors.success],
+            hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
           }]
@@ -2886,6 +3254,7 @@ function renderCharts(companies) {
           }
         }
       });
+      setupDoughnutHoverDimming(state.charts.c6_trim, [cColors.danger, cColors.success]);
     }
   } catch (err) {
     console.error('Erro charts IRPJ:', err);
@@ -3006,7 +3375,23 @@ function renderFechamentosTab(companies) {
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
-            ${list.map(c => {
+            ${state.isTableLoading ? `
+              ${[1, 2, 3, 4, 5, 6].map(() => `
+                <tr class="animate-pulse">
+                  <td class="py-4 px-6">
+                    <div class="space-y-1.5">
+                      <div class="skeleton-box h-4 w-48"></div>
+                      <div class="skeleton-box h-3 w-28"></div>
+                    </div>
+                  </td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-5 w-24 rounded-full"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-20"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-6 w-24 rounded-xl"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-5 w-20 rounded-full"></div></td>
+                  <td class="py-4 px-6 text-right"><div class="skeleton-box h-7 w-28 ml-auto rounded-xl"></div></td>
+                </tr>
+              `).join('')}
+            ` : list.map(c => {
               const st = getFechamentoStatus(c.fechamento);
               return `
                 <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
@@ -3855,7 +4240,7 @@ function renderFechamentoIACompanySelection(companies) {
 
       <!-- Cards de Empresas (Pilar 1: Zero Mock Data - Meses 03 a 08 Iniciam Rigorosamente Zerados) -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        ${filteredCompanies.map(c => {
+        ${filteredCompanies.map((c, idx) => {
           // Histórico das 6 competências (03/2026 a 08/2026)
           const compsStatus = months.map(m => {
             const r = state.fechamentoIA.auditData[`${c.id}_${m}`];
@@ -3869,7 +4254,7 @@ function renderFechamentoIACompanySelection(companies) {
           });
 
           return `
-            <div class="bg-white dark:bg-[#15151C] border border-gray-200/80 dark:border-gray-800/80 rounded-2xl p-5 hover:border-[#ECBD56]/40 hover:shadow-xl hover:shadow-amber-500/5 transition duration-300 flex flex-col justify-between group">
+            <div class="fechamento-card card-fade-enter bg-white dark:bg-[#15151C] border border-gray-200/80 dark:border-gray-800/80 rounded-2xl p-5 flex flex-col justify-between group" style="animation-delay: ${Math.min(idx * 30, 360)}ms;">
               <div>
                 <!-- Topo: Nome, CNPJ e Regime Tributário -->
                 <div class="flex items-start justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800/60">
@@ -3888,7 +4273,7 @@ function renderFechamentoIACompanySelection(companies) {
                 <div class="mt-4">
                   <div class="flex items-center justify-between text-[11px] text-gray-400 mb-2">
                     <span class="font-semibold uppercase tracking-wider text-[10px]">Competências 03 a 08</span>
-                    <span class="text-[10px] text-gray-500">Clique para auditar</span>
+                    <span class="text-[10px] text-gray-500">Passe o mouse ou clique</span>
                   </div>
 
                   <div class="grid grid-cols-6 gap-1.5 h-28 p-2 rounded-xl bg-gray-50 dark:bg-[#101016] border border-gray-200/60 dark:border-gray-800/40">
@@ -3896,9 +4281,15 @@ function renderFechamentoIACompanySelection(companies) {
                       return `
                         <div
                           onclick="openFechamentoIACompany(${c.id}, '${cs.mes}')"
-                          class="flex flex-col items-center justify-end h-full cursor-pointer group/bar p-1 rounded-lg hover:bg-white/5 transition"
-                          title="Competência ${cs.mes}: ${cs.hasActivity ? cs.pct + '% de progresso' : '0% - Sem documentos anexados (Zerado)'}"
+                          class="comp-block flex flex-col items-center justify-end h-full cursor-pointer group/bar p-1 rounded-lg hover:bg-white/5 transition relative"
                         >
+                          <!-- Tooltip Magnético Instantâneo -->
+                          <div class="comp-tooltip px-2.5 py-1 rounded-lg bg-gray-900/95 dark:bg-[#1A1B29] border border-gray-700/60 shadow-xl text-[10px] text-white flex items-center gap-1.5 backdrop-blur-md">
+                            <span class="w-1.5 h-1.5 rounded-full ${cs.is100 ? 'bg-emerald-400' : cs.hasActivity ? 'bg-amber-400' : 'bg-gray-400'}"></span>
+                            <span class="font-bold">Comp. ${cs.mes}:</span>
+                            <span class="text-gray-300">${cs.is100 ? 'Concluído' : cs.hasActivity ? cs.pct + '%' : 'Pendente'}</span>
+                          </div>
+
                           <!-- Porcentagem no topo (SÓ aparece se o usuário tiver anexado documento) -->
                           <span class="text-[9px] font-bold h-3 mb-1 transition ${
                             cs.hasActivity ? 'text-gray-300 group-hover/bar:text-[#ECBD56]' : 'text-transparent'
@@ -5796,7 +6187,25 @@ function renderEmpresasTab(companies) {
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
-            ${fList.map(c => `
+            ${state.isTableLoading ? `
+              ${[1, 2, 3, 4, 5, 6].map(() => `
+                <tr class="animate-pulse">
+                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-10"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-16"></div></td>
+                  <td class="py-4 px-6">
+                    <div class="space-y-1.5">
+                      <div class="skeleton-box h-4 w-52"></div>
+                      <div class="skeleton-box h-3 w-32"></div>
+                    </div>
+                  </td>
+                  <td class="py-4 px-3 text-center"><div class="skeleton-box h-5 w-8 mx-auto rounded-full"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-5 w-24 rounded-full"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-20"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-20"></div></td>
+                  <td class="py-4 px-6 text-right"><div class="skeleton-box h-6 w-16 ml-auto rounded-lg"></div></td>
+                </tr>
+              `).join('')}
+            ` : fList.map(c => `
               <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
                 <td class="py-4 px-4 font-mono text-xs font-bold text-[#ECBD56]">
                   ${c.codigo || c.id}
@@ -6120,6 +6529,20 @@ function attachEventHandlers() {
       render();
     });
   });
+
+  // Atualização da Posição do Indicador Fluido do Menu Lateral
+  const navContainer = document.getElementById('sidebar-nav-container');
+  const navIndicator = document.getElementById('sidebar-nav-indicator');
+  if (navContainer && navIndicator) {
+    const activeItem = navContainer.querySelector(`.panze-nav-item[data-tab="${state.activeTab}"]`);
+    if (activeItem) {
+      navIndicator.style.top = `${activeItem.offsetTop}px`;
+      navIndicator.style.height = `${activeItem.offsetHeight}px`;
+      navIndicator.style.opacity = '1';
+    } else {
+      navIndicator.style.opacity = '0';
+    }
+  }
 
   // Busca Global
   const searchInput = document.getElementById('global-search-input');
@@ -6647,29 +7070,55 @@ window.clearCrudFilters = () => {
 
 // ---------------- SISTEMA DE ATALHOS / NAVEGAÇÃO INTERATIVA DE GRÁFICOS ----------------
 window.navigateToEmpresasFilter = (filterKey, filterValue) => {
-  state.crudFilters = {
-    responsavel: 'todos',
-    regime: 'todos',
-    classe: 'todos',
-    grupo: 'todos',
-    segmento: 'todos'
-  };
-  state.selectedAnalista = 'todos';
-  state.crudFilters[filterKey] = filterValue;
-  state.activeTab = 'empresas';
-  render();
+  const mainEl = document.getElementById('main-content');
+  if (mainEl) {
+    mainEl.style.transition = 'opacity 0.18s ease';
+    mainEl.style.opacity = '0.35';
+  }
+
   setTimeout(() => {
+    state.crudFilters = {
+      responsavel: 'todos',
+      regime: 'todos',
+      classe: 'todos',
+      grupo: 'todos',
+      segmento: 'todos'
+    };
+    state.selectedAnalista = 'todos';
+    state.crudFilters[filterKey] = filterValue;
+    state.activeTab = 'empresas';
+    state.isTableLoading = true;
+    render();
+    if (mainEl) mainEl.style.opacity = '1';
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 50);
+
+    setTimeout(() => {
+      state.isTableLoading = false;
+      render();
+    }, 280);
+  }, 120);
 };
 
 window.navigateToFechamentoFilter = (statusKey) => {
-  state.fechamentoFilter = statusKey;
-  state.activeTab = 'fechamentos';
-  render();
+  const mainEl = document.getElementById('main-content');
+  if (mainEl) {
+    mainEl.style.transition = 'opacity 0.18s ease';
+    mainEl.style.opacity = '0.35';
+  }
+
   setTimeout(() => {
+    state.fechamentoFilter = statusKey;
+    state.activeTab = 'fechamentos';
+    state.isTableLoading = true;
+    render();
+    if (mainEl) mainEl.style.opacity = '1';
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 50);
+
+    setTimeout(() => {
+      state.isTableLoading = false;
+      render();
+    }, 280);
+  }, 120);
 };
 
 window.navigateToTab = (tabName, optFilter) => {
