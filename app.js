@@ -1155,38 +1155,45 @@ function injectDesignSystemStyles() {
     html[data-theme="control_hub"] .panze-sidebar .border-slate-800\/80 {
       border-color: #E2E8F0 !important;
     }
-    html[data-theme="control_hub"] .panze-sidebar .bg-slate-900\/60,
-    html[data-theme="control_hub"] .panze-storage-card {
-      background-color: #F8FAFC !important;
-      border-color: #E2E8F0 !important;
-    }
-    html[data-theme="control_hub"] .panze-storage-icon {
-      color: #F25C05 !important;
-    }
-    html[data-theme="control_hub"] .panze-storage-icon svg {
-      stroke: #F25C05 !important;
-    }
-    html[data-theme="control_hub"] .panze-storage-title,
-    html[data-theme="control_hub"] .panze-user-name,
-    html[data-theme="control_hub"] .panze-sidebar .text-slate-200,
-    html[data-theme="control_hub"] .panze-sidebar .text-white {
-      color: #0F172A !important;
-    }
-    html[data-theme="control_hub"] .panze-storage-subtitle,
-    html[data-theme="control_hub"] .panze-user-sub,
-    html[data-theme="control_hub"] .panze-sidebar .text-slate-400,
-    html[data-theme="control_hub"] .panze-sidebar .text-slate-500 {
-      color: #64748B !important;
-    }
-    html[data-theme="control_hub"] .panze-storage-btn {
-      color: #64748B !important;
-    }
-    html[data-theme="control_hub"] .panze-storage-btn:hover {
-      background-color: #EDF2F7 !important;
-      color: #0F172A !important;
-    }
     html[data-theme="control_hub"] .panze-sidebar .hover\:bg-slate-800:hover {
       background-color: #EDF2F7 !important;
+    }
+
+    /* Card de Armazenamento Local 100% Adaptativo a Qualquer Tema */
+    .panze-storage-card {
+      background-color: color-mix(in srgb, var(--primary-accent) 8%, transparent) !important;
+      border: 1px solid color-mix(in srgb, var(--primary-accent) 20%, transparent) !important;
+      transition: background-color 0.25s ease, border-color 0.25s ease;
+    }
+    .panze-storage-card:hover {
+      background-color: color-mix(in srgb, var(--primary-accent) 12%, transparent) !important;
+      border-color: color-mix(in srgb, var(--primary-accent) 30%, transparent) !important;
+    }
+    .panze-storage-icon {
+      color: var(--primary-accent) !important;
+    }
+    .panze-storage-icon svg {
+      stroke: var(--primary-accent) !important;
+    }
+    .panze-storage-title {
+      color: var(--text-main) !important;
+      font-weight: 600 !important;
+    }
+    .panze-storage-subtitle {
+      color: var(--text-muted) !important;
+    }
+    .panze-storage-btn {
+      color: var(--text-muted) !important;
+    }
+    .panze-storage-btn:hover {
+      background-color: color-mix(in srgb, var(--primary-accent) 15%, transparent) !important;
+      color: var(--primary-accent) !important;
+    }
+    .panze-user-name {
+      color: var(--text-main) !important;
+    }
+    .panze-user-sub {
+      color: var(--text-muted) !important;
     }
 
     /* 9. Identidade Visual Unificada: Ícones, Links e Tags orientados à Cor Primária Ativa */
@@ -1861,9 +1868,9 @@ function render() {
         <!-- Rodapé da Sidebar: Info de Persistência e Usuário -->
         <div class="pt-4 border-t border-slate-800/80 space-y-3">
           <!-- Armazenamento Local / Nuvem -->
-          <div class="panze-storage-card px-3 py-2.5 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-xs">
+          <div class="panze-storage-card px-3 py-2.5 rounded-xl flex items-center justify-between text-xs cursor-pointer" onclick="document.getElementById('config-sync-btn')?.click()">
             <div class="flex items-center gap-2.5">
-              <span class="panze-storage-icon text-amber-500 shrink-0">
+              <span class="panze-storage-icon shrink-0">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="22" x2="2" y1="12" y2="12"></line>
                   <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
