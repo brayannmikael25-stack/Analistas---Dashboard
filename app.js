@@ -1155,17 +1155,35 @@ function injectDesignSystemStyles() {
     html[data-theme="control_hub"] .panze-sidebar .border-slate-800\/80 {
       border-color: #E2E8F0 !important;
     }
-    html[data-theme="control_hub"] .panze-sidebar .bg-slate-900\/60 {
+    html[data-theme="control_hub"] .panze-sidebar .bg-slate-900\/60,
+    html[data-theme="control_hub"] .panze-storage-card {
       background-color: #F8FAFC !important;
       border-color: #E2E8F0 !important;
     }
+    html[data-theme="control_hub"] .panze-storage-icon {
+      color: #F25C05 !important;
+    }
+    html[data-theme="control_hub"] .panze-storage-icon svg {
+      stroke: #F25C05 !important;
+    }
+    html[data-theme="control_hub"] .panze-storage-title,
+    html[data-theme="control_hub"] .panze-user-name,
     html[data-theme="control_hub"] .panze-sidebar .text-slate-200,
     html[data-theme="control_hub"] .panze-sidebar .text-white {
       color: #0F172A !important;
     }
+    html[data-theme="control_hub"] .panze-storage-subtitle,
+    html[data-theme="control_hub"] .panze-user-sub,
     html[data-theme="control_hub"] .panze-sidebar .text-slate-400,
     html[data-theme="control_hub"] .panze-sidebar .text-slate-500 {
       color: #64748B !important;
+    }
+    html[data-theme="control_hub"] .panze-storage-btn {
+      color: #64748B !important;
+    }
+    html[data-theme="control_hub"] .panze-storage-btn:hover {
+      background-color: #EDF2F7 !important;
+      color: #0F172A !important;
     }
     html[data-theme="control_hub"] .panze-sidebar .hover\:bg-slate-800:hover {
       background-color: #EDF2F7 !important;
@@ -1843,10 +1861,10 @@ function render() {
         <!-- Rodapé da Sidebar: Info de Persistência e Usuário -->
         <div class="pt-4 border-t border-slate-800/80 space-y-3">
           <!-- Armazenamento Local / Nuvem -->
-          <div class="px-3 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-xs">
+          <div class="panze-storage-card px-3 py-2.5 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 border border-slate-800/80 flex items-center justify-between text-xs">
             <div class="flex items-center gap-2.5">
-              <span class="text-slate-400 shrink-0">
-                <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <span class="panze-storage-icon text-amber-500 shrink-0">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="22" x2="2" y1="12" y2="12"></line>
                   <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
                   <line x1="6" x2="6.01" y1="16" y2="16"></line>
@@ -1854,11 +1872,11 @@ function render() {
                 </svg>
               </span>
               <div class="text-[11px] min-w-0">
-                <div class="text-slate-200 font-medium truncate">${state.backendUrl ? 'Nuvem Conectada' : 'Armazenamento Local'}</div>
-                <div class="text-slate-500 truncate">${state.lastSyncTime ? 'Sync: ' + state.lastSyncTime : 'Dispositivo atual'}</div>
+                <div class="panze-storage-title text-slate-200 font-medium truncate">${state.backendUrl ? 'Nuvem Conectada' : 'Armazenamento Local'}</div>
+                <div class="panze-storage-subtitle text-slate-400 truncate">${state.lastSyncTime ? 'Sync: ' + state.lastSyncTime : 'Dispositivo atual'}</div>
               </div>
             </div>
-            <button id="config-sync-btn" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors" title="Configurar Servidor">
+            <button id="config-sync-btn" class="panze-storage-btn p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors" title="Configurar Servidor">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -1875,8 +1893,8 @@ function render() {
                 <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path>
               </svg>
               <div class="truncate max-w-[130px]">
-                <div class="text-xs font-semibold text-white truncate leading-tight">${state.user}</div>
-                <div class="text-[10px] text-slate-400">Contabilidade</div>
+                <div class="panze-user-name text-xs font-semibold text-white truncate leading-tight">${state.user}</div>
+                <div class="panze-user-sub text-[10px] text-slate-400">Contabilidade</div>
               </div>
             </div>
             <button id="logout-btn" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors" title="Sair do Sistema">
@@ -2007,22 +2025,22 @@ function render() {
               </div>
             </div>
 
-            <!-- Dropdown Backup / Sincronização -->
+            <!-- Dropdown Salvar / Sincronização e Backup -->
             <div class="relative">
               <button id="backup-menu-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-[#1E2032] border border-gray-200 dark:border-gray-700/80 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:border-[#ECBD56] transition shadow-sm">
-                <span>🔄</span>
-                <span class="hidden sm:inline">Backup / Sync</span>
+                <span>💾</span>
+                <span class="hidden sm:inline">Salvar</span>
               </button>
 
               <div id="backup-dropdown" class="hidden absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 shadow-2xl p-2 z-50">
                 <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Sincronização & Backup
+                  Salvar & Backup
                 </div>
                 
                 <button id="btn-export-backup-json" class="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1C1C23] transition flex items-center gap-2">
                   <span>💾</span>
                   <div>
-                    <div class="font-semibold">Exportar Backup Completo</div>
+                    <div class="font-semibold">Salvar backup</div>
                     <div class="text-[10px] text-gray-400">Arquivo JSON com todas empresas e status</div>
                   </div>
                 </button>
@@ -2040,7 +2058,7 @@ function render() {
                 <label class="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1C1C23] transition flex items-center gap-2 cursor-pointer">
                   <span>📥</span>
                   <div>
-                    <div class="font-semibold">Importar Atualizações</div>
+                    <div class="font-semibold">Importar Backup</div>
                     <div class="text-[10px] text-gray-400">Carregar backup gerado em outro PC</div>
                   </div>
                   <input type="file" id="universal-sync-file-input" accept=".json, .xlsx, .xls, .csv" class="hidden" />
