@@ -1170,6 +1170,30 @@ function injectDesignSystemStyles() {
     html[data-theme="control_hub"] .panze-sidebar .hover\:bg-slate-800:hover {
       background-color: #EDF2F7 !important;
     }
+
+    /* 9. Identidade Visual Unificada: Ícones, Links e Tags orientados à Cor Primária Ativa */
+    .card-icon-badge {
+      background-color: color-mix(in srgb, var(--primary-accent) 12%, transparent) !important;
+      color: var(--primary-accent) !important;
+      border: 1px solid color-mix(in srgb, var(--primary-accent) 22%, transparent) !important;
+    }
+    .card-action-link {
+      color: #64748B !important;
+      transition: color 0.2s ease, transform 0.15s ease;
+      cursor: pointer;
+    }
+    .card-action-link:hover {
+      color: var(--primary-accent) !important;
+    }
+    html.dark .card-action-link {
+      color: #94A3B8 !important;
+    }
+    html.dark .card-action-link:hover {
+      color: var(--primary-accent) !important;
+    }
+    .card-progress-bar {
+      background-color: var(--primary-accent) !important;
+    }
   `;
 }
 injectDesignSystemStyles();
@@ -1225,7 +1249,7 @@ function getDeadlineBadge(diaVencimento = 25, year = new Date().getFullYear(), m
       ⚠️ Vence em ${daysLeft} dias${badgeSuffix}
     </span>`;
   } else {
-    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" title="${dueInfo.antecipado ? 'Antecipado para sexta-feira anterior' : ''}">
+    return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700/60 shadow-2xs" title="${dueInfo.antecipado ? 'Antecipado para sexta-feira anterior' : ''}">
       ⏳ ${daysLeft} dias restantes (Dia ${effectiveDay})
     </span>`;
   }
@@ -2561,7 +2585,7 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('piscofins')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow-xs">
+              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path>
                   <path d="M14 8H8"></path>
@@ -2569,14 +2593,14 @@ function renderDashboardTab(companies) {
                   <path d="M13 16H8"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
                 Ver PIS/COFINS →
               </span>
             </div>
             <div class="mt-4">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclPis === realCompanies.length && realCompanies.length > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclPis === realCompanies.length && realCompanies.length > 0 ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}">
                   ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}% Concluído
                 </span>
               </div>
@@ -2588,7 +2612,7 @@ function renderDashboardTab(companies) {
               
               <!-- Barra de Progresso Visual -->
               <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
-                <div class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}%"></div>
+                <div class="card-progress-bar h-full rounded-full transition-all duration-500" style="width: ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}%"></div>
               </div>
             </div>
           </div>
@@ -2605,7 +2629,7 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('irpj_mensal')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20 shadow-xs">
+              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <rect width="16" height="20" x="4" y="2" rx="2"></rect>
                   <line x1="8" x2="16" y1="6" y2="6"></line>
@@ -2615,14 +2639,14 @@ function renderDashboardTab(companies) {
                   <path d="M12 18h.01"></path><path d="M8 18h.01"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
                 Ver Mensal →
               </span>
             </div>
             <div class="mt-4">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclMensal === mensalCompanies.length && mensalCompanies.length > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-cyan-500/15 text-cyan-400'}">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclMensal === mensalCompanies.length && mensalCompanies.length > 0 ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}">
                   ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}% Concluído
                 </span>
               </div>
@@ -2634,7 +2658,7 @@ function renderDashboardTab(companies) {
               
               <!-- Barra de Progresso Visual -->
               <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
-                <div class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}%"></div>
+                <div class="card-progress-bar h-full rounded-full transition-all duration-500" style="width: ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}%"></div>
               </div>
             </div>
           </div>
@@ -2651,20 +2675,20 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('irpj_trim')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-xs">
+              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
                   <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
                 Ver Trimestral →
               </span>
             </div>
             <div class="mt-4">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclTrim === trimCompanies.length && trimCompanies.length > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclTrim === trimCompanies.length && trimCompanies.length > 0 ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}">
                   ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}% Concluído
                 </span>
               </div>
@@ -2676,7 +2700,7 @@ function renderDashboardTab(companies) {
               
               <!-- Barra de Progresso Visual -->
               <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
-                <div class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}%"></div>
+                <div class="card-progress-bar h-full rounded-full transition-all duration-500" style="width: ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}%"></div>
               </div>
             </div>
           </div>
@@ -2693,13 +2717,13 @@ function renderDashboardTab(companies) {
         <div onclick="switchTab('fechamentos')" class="panze-card cursor-pointer group flex flex-col justify-between">
           <div>
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20 shadow-xs">
+              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 3v18h18"></path>
                   <path d="m19 9-5 5-4-4-3 3"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline transition flex items-center gap-1">
+              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
                 Ver Fechamentos →
               </span>
             </div>
@@ -2707,8 +2731,8 @@ function renderDashboardTab(companies) {
               <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Eficiência Geral</div>
               <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">Fechamentos</div>
               <div class="flex items-center gap-3 mt-2">
-                <div onclick="event.stopPropagation(); navigateToFechamentoFilter('em_dia')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-emerald-500/10" title="Ver empresas em dia">
-                  <span class="text-xl font-black text-emerald-500 animate-counter" data-counter-target="${Math.round((emDia/tot)*100)}" data-counter-suffix="%">${Math.round((emDia/tot)*100)}%</span>
+                <div onclick="event.stopPropagation(); navigateToFechamentoFilter('em_dia')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Ver empresas em dia">
+                  <span class="text-xl font-black text-gray-800 dark:text-gray-100 animate-counter" data-counter-target="${Math.round((emDia/tot)*100)}" data-counter-suffix="%">${Math.round((emDia/tot)*100)}%</span>
                   <span class="block text-[9px] uppercase font-bold text-gray-400">Em Dia</span>
                 </div>
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
@@ -2725,14 +2749,14 @@ function renderDashboardTab(companies) {
 
               <!-- Barra de Progresso Tripla -->
               <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3 flex">
-                <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${Math.round((emDia/tot)*100)}%"></div>
+                <div class="card-progress-bar h-full transition-all duration-500" style="width: ${Math.round((emDia/tot)*100)}%"></div>
                 <div class="bg-amber-500 h-full transition-all duration-500" style="width: ${Math.round((atencao/tot)*100)}%"></div>
                 <div class="bg-rose-500 h-full transition-all duration-500" style="width: ${Math.round((critico/tot)*100)}%"></div>
               </div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             ${companies.length} empresas monitoradas
           </div>
         </div>
@@ -2748,11 +2772,11 @@ function renderDashboardTab(companies) {
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Empresas por Colaborador Responsável</h3>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Interativo ↗</span>
               </div>
               <p class="text-xs text-gray-400 mt-0.5">Clique em qualquer barra para abrir as empresas atribuídas ao colaborador</p>
             </div>
-            <button onclick="navigateToEmpresasFilter('responsavel', 'todos')" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200/50 dark:border-blue-500/20 hover:opacity-80 transition cursor-pointer">
+            <button onclick="navigateToEmpresasFilter('responsavel', 'todos')" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg card-action-link bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:opacity-90 transition">
               Ver Carteiras →
             </button>
           </div>
@@ -2764,7 +2788,7 @@ function renderDashboardTab(companies) {
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Segmentos de Atuação</h3>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Interativo ↗</span>
               </div>
               <p class="text-xs text-gray-400 mt-0.5">Clique em uma fatia para filtrar as empresas do segmento</p>
             </div>
@@ -2780,11 +2804,11 @@ function renderDashboardTab(companies) {
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Status dos Fechamentos Mensais</h3>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Atalho ↗</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Atalho ↗</span>
               </div>
               <p class="text-xs text-gray-400 mt-0.5">Clique em <em>Crítico</em>, <em>Atenção</em> ou <em>Em Dia</em> para abrir a lista filtrada</p>
             </div>
-            <button onclick="navigateToTab('fechamentos')" class="text-xs font-semibold text-emerald-500 hover:underline cursor-pointer">Ideal: Mês Anterior →</button>
+            <button onclick="navigateToTab('fechamentos')" class="text-xs font-semibold card-action-link">Ideal: Mês Anterior →</button>
           </div>
           <div class="h-56 relative w-full"><canvas id="chartFechamento"></canvas></div>
         </div>
@@ -2794,7 +2818,7 @@ function renderDashboardTab(companies) {
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Classificação por Classe de Empresa</h3>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Interativo ↗</span>
               </div>
               <p class="text-xs text-gray-400 mt-0.5">Clique em uma classe (A até E) para ver as empresas correspondentes</p>
             </div>
@@ -2806,51 +2830,51 @@ function renderDashboardTab(companies) {
       <!-- Linha 3: PIS/COFINS (1/3), IRPJ Mensal (1/3) e IRPJ Trimestral (1/3) - Perfeitamente Simétricos -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-purple-500/40 transition" onclick="navigateToTab('piscofins')" title="Clique para abrir apuração PIS / COFINS">
+        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-[var(--primary-accent)]/50 transition" onclick="navigateToTab('piscofins')" title="Clique para abrir apuração PIS / COFINS">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-1.5">
               <h3 class="font-bold text-sm text-gray-900 dark:text-white">PIS / COFINS</h3>
-              <span class="text-[9px] font-bold text-purple-400">↗</span>
+              <span class="text-[9px] font-bold text-gray-400">↗</span>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
               ${state.selPisComp}
             </span>
           </div>
           <div class="h-48 relative w-full"><canvas id="chartPis"></canvas></div>
           <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-center text-xs text-gray-500">
-            <strong class="text-rose-500 font-bold">${pendingPis}</strong> pendentes &bull; <strong class="text-emerald-500 font-bold">${conclPis}</strong> concluídos
+            <strong class="text-rose-500 font-bold">${pendingPis}</strong> pendentes &bull; <strong class="text-gray-700 dark:text-gray-300 font-bold">${conclPis}</strong> concluídos
           </div>
         </div>
 
-        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-cyan-500/40 transition" onclick="navigateToTab('irpj_mensal')" title="Clique para abrir apuração IRPJ / CSLL Mensal">
+        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-[var(--primary-accent)]/50 transition" onclick="navigateToTab('irpj_mensal')" title="Clique para abrir apuração IRPJ / CSLL Mensal">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-1.5">
               <h3 class="font-bold text-sm text-gray-900 dark:text-white">IRPJ / CSLL Mensal</h3>
-              <span class="text-[9px] font-bold text-cyan-400">↗</span>
+              <span class="text-[9px] font-bold text-gray-400">↗</span>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
               ${state.selIrpjMes}
             </span>
           </div>
           <div class="h-48 relative w-full"><canvas id="chartIrpjMensal"></canvas></div>
           <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-center text-xs text-gray-500">
-            <strong class="text-rose-500 font-bold">${pendingMensal}</strong> pendentes &bull; <strong class="text-emerald-500 font-bold">${conclMensal}</strong> concluídos
+            <strong class="text-rose-500 font-bold">${pendingMensal}</strong> pendentes &bull; <strong class="text-gray-700 dark:text-gray-300 font-bold">${conclMensal}</strong> concluídos
           </div>
         </div>
 
-        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-amber-500/40 transition" onclick="navigateToTab('irpj_trim')" title="Clique para abrir apuração IRPJ / CSLL Trimestral">
+        <div class="panze-card flex flex-col justify-between cursor-pointer hover:border-[var(--primary-accent)]/50 transition" onclick="navigateToTab('irpj_trim')" title="Clique para abrir apuração IRPJ / CSLL Trimestral">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-1.5">
               <h3 class="font-bold text-sm text-gray-900 dark:text-white">IRPJ / CSLL Trimestral</h3>
-              <span class="text-[9px] font-bold text-amber-400">↗</span>
+              <span class="text-[9px] font-bold text-gray-400">↗</span>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
               ${state.selTrim}
             </span>
           </div>
           <div class="h-48 relative w-full"><canvas id="chartIrpjTrim"></canvas></div>
           <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-center text-xs text-gray-500">
-            <strong class="text-rose-500 font-bold">${pendingTrim}</strong> pendentes &bull; <strong class="text-emerald-500 font-bold">${conclTrim}</strong> concluídos
+            <strong class="text-rose-500 font-bold">${pendingTrim}</strong> pendentes &bull; <strong class="text-gray-700 dark:text-gray-300 font-bold">${conclTrim}</strong> concluídos
           </div>
         </div>
 
@@ -2862,11 +2886,11 @@ function renderDashboardTab(companies) {
           <div>
             <div class="flex items-center gap-2">
               <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Gestão e Produtividade em Tarefas</h3>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">Interativo ↗</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">Interativo ↗</span>
             </div>
             <p class="text-xs text-gray-400 mt-0.5">Clique nas barras ou no botão para ir direto às tarefas da equipe</p>
           </div>
-          <button onclick="switchTab('tarefas')" class="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline transition">
+          <button onclick="switchTab('tarefas')" class="inline-flex items-center gap-1 text-xs font-semibold card-action-link">
             Ver Todas (${state.tasks.length}) →
           </button>
         </div>
@@ -2910,6 +2934,40 @@ function dimColor(colorStr, alpha = 0.25) {
     return s.replace(/hsl\(([^)]+)\)/, `hsla($1, ${alpha})`);
   }
   return s;
+}
+
+// Helper para gerar paleta monocromática em degradê baseada na cor principal
+function generateMonochromePalette(baseColor, count = 5) {
+  if (!baseColor || count <= 0) return [baseColor || '#F25C05'];
+  if (count === 1) return [baseColor];
+
+  // Converte baseColor para RGB se for Hex
+  let r = 242, g = 92, b = 5;
+  const s = String(baseColor).trim();
+  if (s.startsWith('#')) {
+    let hex = s.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+    r = parseInt(hex.substring(0, 2), 16) || 0;
+    g = parseInt(hex.substring(2, 4), 16) || 0;
+    b = parseInt(hex.substring(4, 6), 16) || 0;
+  } else if (s.startsWith('rgb')) {
+    const match = s.match(/\d+/g);
+    if (match && match.length >= 3) {
+      r = parseInt(match[0], 10);
+      g = parseInt(match[1], 10);
+      b = parseInt(match[2], 10);
+    }
+  }
+
+  // Gera escala decrescente de opacidade / luminosidade: maior fatia recebe a cor pura (1.0),
+  // e as demais fatias recebem variações mais claras / suaves em escala proporcional
+  const palette = [];
+  for (let i = 0; i < count; i++) {
+    // Escala de alfa variando suavemente de 1.0 (maior) até ~0.25 (menor)
+    const alpha = (count === 1) ? 1.0 : Math.max(0.20, 1.0 - (i * (0.80 / (count - 1))));
+    palette.push(`rgba(${r}, ${g}, ${b}, ${Number(alpha.toFixed(2))})`);
+  }
+  return palette;
 }
 
 // Configura o efeito Hover Dimming em gráficos de Rosca (Segmento, Classe, PIS, IRPJ)
@@ -3058,20 +3116,25 @@ function renderCharts(companies) {
     console.error('Erro chartColab:', err);
   }
 
-  // 2. Segmento (Rosca com a paleta harmônica do tema selecionado)
+  // 2. Segmento (Rosca monocromática ordenada pelo maior valor com degradê da cor principal)
   try {
     const segMap = {};
     companies.forEach(c => { segMap[c.segmento || 'Outros'] = (segMap[c.segmento || 'Outros'] || 0) + 1; });
+    const sortedSegEntries = Object.entries(segMap).sort((a, b) => b[1] - a[1]);
+    const segLabels = sortedSegEntries.map(e => e[0]);
+    const segValues = sortedSegEntries.map(e => e[1]);
+    const segColors = generateMonochromePalette(cColors.primary, segValues.length);
+
     const el2 = document.getElementById('chartSegment');
     if (el2) {
       el2.style.cursor = 'pointer';
       state.charts.c2 = new Chart(el2, {
         type: 'doughnut',
         data: {
-          labels: Object.keys(segMap),
+          labels: segLabels,
           datasets: [{
-            data: Object.values(segMap),
-            backgroundColor: cColors.palette,
+            data: segValues,
+            backgroundColor: segColors,
             hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
@@ -3084,7 +3147,7 @@ function renderCharts(companies) {
           onClick: (evt, elements) => {
             if (elements && elements.length > 0) {
               const idx = elements[0].index;
-              const segNome = Object.keys(segMap)[idx];
+              const segNome = segLabels[idx];
               if (segNome) {
                 navigateToEmpresasFilter('segmento', segNome);
               }
@@ -3103,13 +3166,13 @@ function renderCharts(companies) {
           }
         }
       });
-      setupDoughnutHoverDimming(state.charts.c2, cColors.palette);
+      setupDoughnutHoverDimming(state.charts.c2, segColors);
     }
   } catch (err) {
     console.error('Erro chartSegment:', err);
   }
 
-  // 3. Status Fechamento (Verde sucesso, Âmbar atenção e Vermelho perigo do tema)
+  // 3. Status Fechamento (Barras monocromáticas elegantes da cor principal)
   try {
     let emDia = 0, atencao = 0, critico = 0;
     companies.forEach(c => {
@@ -3121,13 +3184,14 @@ function renderCharts(companies) {
     const el3 = document.getElementById('chartFechamento');
     if (el3) {
       el3.style.cursor = 'pointer';
+      const fechColors = [cColors.primary, dimColor(cColors.primary, 0.65), dimColor(cColors.primary, 0.35)];
       state.charts.c3 = new Chart(el3, {
         type: 'bar',
         data: {
           labels: ['Em Dia (Ideal)', 'Atenção (1-2m)', 'Crítico (>2m)'],
           datasets: [{
             data: [emDia, atencao, critico],
-            backgroundColor: [cColors.success, cColors.warning, cColors.danger],
+            backgroundColor: fechColors,
             borderRadius: 8,
             borderSkipped: false,
             barPercentage: 0.5
@@ -3165,7 +3229,7 @@ function renderCharts(companies) {
     console.error('Erro chartFechamento:', err);
   }
 
-  // 4. Classe (Doughnut com paleta de classes do tema: Classes A até E)
+  // 4. Classe (Doughnut monocromático em degradê da cor principal: Classes A até E)
   try {
     const clsMap = { 'Classe A': 0, 'Classe B': 0, 'Classe C': 0, 'Classe D': 0, 'Classe E': 0 };
     companies.forEach(c => {
@@ -3173,16 +3237,20 @@ function renderCharts(companies) {
       const key = `Classe ${cl}`;
       clsMap[key] = (clsMap[key] || 0) + 1;
     });
+    const clsLabels = Object.keys(clsMap);
+    const clsValues = Object.values(clsMap);
+    const clsColors = generateMonochromePalette(cColors.primary, clsValues.length);
+
     const el4 = document.getElementById('chartClass');
     if (el4) {
       el4.style.cursor = 'pointer';
       state.charts.c4 = new Chart(el4, {
         type: 'doughnut',
         data: {
-          labels: Object.keys(clsMap),
+          labels: clsLabels,
           datasets: [{
-            data: Object.values(clsMap),
-            backgroundColor: cColors.classes,
+            data: clsValues,
+            backgroundColor: clsColors,
             hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
@@ -3195,7 +3263,7 @@ function renderCharts(companies) {
           onClick: (evt, elements) => {
             if (elements && elements.length > 0) {
               const idx = elements[0].index;
-              const label = Object.keys(clsMap)[idx]; // ex: "Classe A"
+              const label = clsLabels[idx]; // ex: "Classe A"
               const classLetter = label.replace('Classe ', '').trim();
               if (classLetter) {
                 navigateToEmpresasFilter('classe', classLetter);
@@ -3212,13 +3280,13 @@ function renderCharts(companies) {
           }
         }
       });
-      setupDoughnutHoverDimming(state.charts.c4, cColors.classes);
+      setupDoughnutHoverDimming(state.charts.c4, clsColors);
     }
   } catch (err) {
     console.error('Erro chartClass:', err);
   }
 
-  // 5. PIS/COFINS (competência dinâmica atual - Cores elegantes do tema)
+  // 5. PIS/COFINS (Rosca monocromática elegante com base na cor principal: Concluídos e Pendentes)
   try {
     const realCos = companies.filter(c => normalizeRegime(c.regime).includes('Lucro Real'));
     let pendPis = 0;
@@ -3227,6 +3295,13 @@ function renderCharts(companies) {
       const isDone = rec && (rec.saldoCredor || rec.status === 'Concluída' || (rec.darfEnviado && rec.status !== 'Pendente'));
       if (!isDone) pendPis++;
     });
+    const conclCountPis = Math.max(0, realCos.length - pendPis);
+    // Maior fatia recebe a cor pura, a menor recebe variação mais clara/suave
+    const pisDataValues = [pendPis, conclCountPis];
+    const pisColors = pendPis >= conclCountPis
+      ? [cColors.primary, dimColor(cColors.primary, 0.35)]
+      : [dimColor(cColors.primary, 0.35), cColors.primary];
+
     const el5 = document.getElementById('chartPis');
     if (el5) {
       el5.style.cursor = 'pointer';
@@ -3235,8 +3310,8 @@ function renderCharts(companies) {
         data: {
           labels: ['Pendentes', 'Concluídos'],
           datasets: [{
-            data: [pendPis, Math.max(0, realCos.length - pendPis)],
-            backgroundColor: [cColors.danger, cColors.success],
+            data: pisDataValues,
+            backgroundColor: pisColors,
             hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
@@ -3259,13 +3334,13 @@ function renderCharts(companies) {
           }
         }
       });
-      setupDoughnutHoverDimming(state.charts.c5, [cColors.danger, cColors.success]);
+      setupDoughnutHoverDimming(state.charts.c5, pisColors);
     }
   } catch (err) {
     console.error('Erro chartPis:', err);
   }
 
-  // 6 & 7. IRPJ/CSLL: Apuração Mensal x Trimestral (Pendentes x Concluídos - Cores do tema)
+  // 6 & 7. IRPJ/CSLL: Apuração Mensal x Trimestral (Rosca monocromática com cor principal)
   try {
     const trimCos = companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Trimestral');
     let pendTrim = 0;
@@ -3287,6 +3362,14 @@ function renderCharts(companies) {
       else pendMensal++;
     });
 
+    const mensalColors = pendMensal >= conclMensal
+      ? [cColors.primary, dimColor(cColors.primary, 0.35)]
+      : [dimColor(cColors.primary, 0.35), cColors.primary];
+
+    const trimColors = pendTrim >= conclTrim
+      ? [cColors.primary, dimColor(cColors.primary, 0.35)]
+      : [dimColor(cColors.primary, 0.35), cColors.primary];
+
     // IRPJ/CSLL Mensal
     const el6Mensal = document.getElementById('chartIrpjMensal');
     if (el6Mensal) {
@@ -3297,7 +3380,7 @@ function renderCharts(companies) {
           labels: ['Pendentes', 'Concluídos'],
           datasets: [{
             data: [pendMensal, conclMensal],
-            backgroundColor: [cColors.danger, cColors.success],
+            backgroundColor: mensalColors,
             hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
@@ -3320,7 +3403,7 @@ function renderCharts(companies) {
           }
         }
       });
-      setupDoughnutHoverDimming(state.charts.c6_mensal, [cColors.danger, cColors.success]);
+      setupDoughnutHoverDimming(state.charts.c6_mensal, mensalColors);
     }
 
     // IRPJ/CSLL Trimestral
@@ -3333,7 +3416,7 @@ function renderCharts(companies) {
           labels: ['Pendentes', 'Concluídos'],
           datasets: [{
             data: [pendTrim, conclTrim],
-            backgroundColor: [cColors.danger, cColors.success],
+            backgroundColor: trimColors,
             hoverOffset: 8,
             borderWidth: 2,
             borderColor: isDark ? '#171825' : '#FFFFFF'
@@ -3356,7 +3439,7 @@ function renderCharts(companies) {
           }
         }
       });
-      setupDoughnutHoverDimming(state.charts.c6_trim, [cColors.danger, cColors.success]);
+      setupDoughnutHoverDimming(state.charts.c6_trim, trimColors);
     }
   } catch (err) {
     console.error('Erro charts IRPJ:', err);
