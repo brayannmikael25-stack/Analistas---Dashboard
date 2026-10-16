@@ -121,7 +121,7 @@ const state = {
     const saved = localStorage.getItem('control_theme');
     if (saved === 'dark') return 'carbon';
     if (saved === 'light') return 'corporate';
-    if (saved && ['carbon', 'navy', 'ember', 'corporate', 'titanium', 'emerald', 'pureblack', 'midnight'].includes(saved)) return saved;
+    if (saved && ['control_hub', 'carbon', 'navy', 'ember', 'corporate', 'titanium', 'emerald', 'pureblack', 'midnight'].includes(saved)) return saved;
     return 'carbon';
   })(),
   activeTab: 'dashboard',
@@ -337,6 +337,38 @@ function getFechamentoStatus(mesStr) {
 
 // ---------------- SISTEMA DE TEMAS E PALETAS PROFISSIONAIS COESAS (MONOCROMÁTICAS E TONALIDADES) ----------------
 const THEMES = {
+  'control_hub': {
+    id: 'control_hub',
+    name: 'Control Hub',
+    desc: 'Padrão oficial Control Hub: fundo branco/gelo, cards limpos e destaque em laranja vibrante',
+    mode: 'light',
+    dotColor: '#F25C05',
+    vars: {
+      '--bg-main': '#F6F8FA',
+      '--bg-sidebar': '#FFFFFF',
+      '--bg-card': '#FFFFFF',
+      '--bg-card-hover': '#F8FAFC',
+      '--bg-input': '#FFFFFF',
+      '--border-color': 'rgba(226, 232, 240, 0.95)',
+      '--border-accent': '#F25C05',
+      '--text-main': '#1E293B',
+      '--text-muted': '#64748B',
+      '--text-sidebar': '#334155',
+      '--primary-accent': '#F25C05',
+      '--primary-hover': '#EA580C',
+      '--chart-text': '#64748B',
+      '--chart-grid': 'rgba(0, 0, 0, 0.05)'
+    },
+    charts: {
+      primary: '#F25C05',
+      primaryHover: '#EA580C',
+      success: '#10B981',
+      warning: '#F59E0B',
+      danger: '#EF4444',
+      palette: ['#F25C05', '#133E68', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6'],
+      classes: ['#F25C05', '#FB923C', '#FDBA74', '#94A3B8', '#CBD5E1']
+    }
+  },
   'carbon': {
     id: 'carbon',
     name: 'Preto Fosco & Grafite',
@@ -1065,10 +1097,78 @@ function injectDesignSystemStyles() {
       animation: skeletonShimmer 1.4s infinite;
     }
 
-    @keyframes skeletonShimmer {
-      100% {
-        transform: translateX(100%);
-      }
+    /* 8. Estilos Exclusivos: Tema Control Hub (Fiel à Imagem 2 - Clean Light com Laranja) */
+    html[data-theme="control_hub"] body {
+      background-color: #F6F8FA !important;
+      color: #1E293B !important;
+    }
+    html[data-theme="control_hub"] .panze-sidebar {
+      background-color: #FFFFFF !important;
+      border-right: 1px solid #E2E8F0 !important;
+    }
+    html[data-theme="control_hub"] .panze-nav-item {
+      color: #475569 !important;
+    }
+    html[data-theme="control_hub"] .panze-nav-item .nav-icon {
+      color: #64748B !important;
+    }
+    html[data-theme="control_hub"] .panze-nav-item:hover {
+      background-color: #F8FAFC !important;
+      color: #0F172A !important;
+    }
+    html[data-theme="control_hub"] .panze-nav-item:hover .nav-icon {
+      color: #0F172A !important;
+    }
+    html[data-theme="control_hub"] .panze-nav-item.active {
+      color: #FFFFFF !important;
+    }
+    html[data-theme="control_hub"] .panze-nav-item.active .nav-icon {
+      color: #FFFFFF !important;
+    }
+    html[data-theme="control_hub"] .panze-nav-indicator {
+      background: #F25C05 !important;
+      border-left: none !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 14px rgba(242, 92, 5, 0.35) !important;
+    }
+    html[data-theme="control_hub"] .panze-topbar {
+      background-color: #FFFFFF !important;
+      border-bottom: 1px solid #E2E8F0 !important;
+    }
+    html[data-theme="control_hub"] .panze-card {
+      background-color: #FFFFFF !important;
+      border-color: #E2E8F0 !important;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+    }
+    html[data-theme="control_hub"] thead tr {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+      color: #64748B !important;
+    }
+    html[data-theme="control_hub"] tbody tr:hover {
+      background-color: #F8FAFC !important;
+    }
+    html[data-theme="control_hub"] select option {
+      background-color: #FFFFFF !important;
+      color: #1E293B !important;
+    }
+    html[data-theme="control_hub"] .panze-sidebar .border-slate-800\/80 {
+      border-color: #E2E8F0 !important;
+    }
+    html[data-theme="control_hub"] .panze-sidebar .bg-slate-900\/60 {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+    html[data-theme="control_hub"] .panze-sidebar .text-slate-200,
+    html[data-theme="control_hub"] .panze-sidebar .text-white {
+      color: #0F172A !important;
+    }
+    html[data-theme="control_hub"] .panze-sidebar .text-slate-400,
+    html[data-theme="control_hub"] .panze-sidebar .text-slate-500 {
+      color: #64748B !important;
+    }
+    html[data-theme="control_hub"] .panze-sidebar .hover\:bg-slate-800:hover {
+      background-color: #EDF2F7 !important;
     }
   `;
 }
@@ -1466,14 +1566,16 @@ window.dismissWelcomeModal = () => {
   render();
 };
 
-// ---------------- EXIBIÇÃO: NOME EM NEGRITO E GRUPO LOGO ABAIXO NORMAL ----------------
+// ---------------- EXIBIÇÃO: RAZÃO SOCIAL EM CIMA EM DESTAQUE E GRUPO EMBAIXO SEM NEGRITO ----------------
 function renderCompanyCell(c) {
   const grupo = c.grupo && c.grupo !== '-' ? c.grupo : '';
-  const subInfo = grupo ? `${grupo}${c.cnpj ? ' • ' + c.cnpj : ''}` : (c.cnpj || '');
   return `
     <div>
-      <div class="font-bold text-gray-900 dark:text-white leading-tight">${c.nome}</div>
-      ${subInfo ? `<div class="text-xs text-gray-500 dark:text-gray-400 font-normal mt-0.5 tracking-wide">${subInfo}</div>` : ''}
+      <div class="font-bold text-sm text-gray-900 dark:text-white leading-tight tracking-tight">${c.nome}</div>
+      <div class="text-xs text-gray-500 dark:text-gray-400 font-normal mt-1 flex items-center gap-1.5 flex-wrap">
+        <span>Grupo: <span class="text-gray-600 dark:text-gray-300 font-normal">${grupo || 'Geral'}</span></span>
+        ${c.cnpj ? `<span class="opacity-40">•</span><span class="font-mono text-[11px] text-gray-400">${c.cnpj}</span>` : ''}
+      </div>
     </div>
   `;
 }
@@ -1848,7 +1950,7 @@ function render() {
               <div id="theme-palette-dropdown" class="hidden absolute right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 shadow-2xl p-2 z-50">
                 <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center justify-between">
                   <span>Paletas de Cores</span>
-                  <span class="text-[9px] lowercase font-semibold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full">8 temas prontos</span>
+                  <span class="text-[9px] lowercase font-semibold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full">${Object.keys(THEMES).length} temas prontos</span>
                 </div>
                 
                 <div class="py-1 space-y-1 max-h-[440px] overflow-y-auto pr-1">
@@ -6177,25 +6279,23 @@ function renderEmpresasTab(companies) {
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
                 <th class="py-4 px-4">Cód.</th>
-              <th class="py-4 px-4">Grupo</th>
-              <th class="py-4 px-6">Empresa & CNPJ</th>
-              <th class="py-4 px-3 text-center">Classe</th>
-              <th class="py-4 px-4">Regime Tributário</th>
-              <th class="py-4 px-4">Responsável</th>
-              <th class="py-4 px-4">Segmento</th>
-              <th class="py-4 px-6 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
+                <th class="py-4 px-6">Razão Social & Grupo</th>
+                <th class="py-4 px-3 text-center">Classe</th>
+                <th class="py-4 px-4">Regime Tributário</th>
+                <th class="py-4 px-4">Responsável</th>
+                <th class="py-4 px-4">Segmento</th>
+                <th class="py-4 px-6 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
             ${state.isTableLoading ? `
               ${[1, 2, 3, 4, 5, 6].map(() => `
                 <tr class="animate-pulse">
                   <td class="py-4 px-4"><div class="skeleton-box h-4 w-10"></div></td>
-                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-16"></div></td>
                   <td class="py-4 px-6">
                     <div class="space-y-1.5">
-                      <div class="skeleton-box h-4 w-52"></div>
-                      <div class="skeleton-box h-3 w-32"></div>
+                      <div class="skeleton-box h-4 w-56"></div>
+                      <div class="skeleton-box h-3 w-36"></div>
                     </div>
                   </td>
                   <td class="py-4 px-3 text-center"><div class="skeleton-box h-5 w-8 mx-auto rounded-full"></div></td>
@@ -6209,9 +6309,6 @@ function renderEmpresasTab(companies) {
               <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
                 <td class="py-4 px-4 font-mono text-xs font-bold text-[#ECBD56]">
                   ${c.codigo || c.id}
-                </td>
-                <td class="py-4 px-4 text-xs font-semibold text-gray-400 uppercase">
-                  ${c.grupo || '-'}
                 </td>
                 <td class="py-4 px-6">
                   ${renderCompanyCell(c)}
