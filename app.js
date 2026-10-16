@@ -27,8 +27,7 @@ const INITIAL_TASKS = [
 
 const MONTH_COMPETENCIES = [];
 for (const yr of [2026, 2027]) {
-  const startM = yr === 2026 ? 8 : 1;
-  for (let m = startM; m <= 12; m++) {
+  for (let m = 1; m <= 12; m++) {
     MONTH_COMPETENCIES.push(`${m.toString().padStart(2, '0')}/${yr}`);
   }
 }
@@ -4381,8 +4380,8 @@ function renderFechamentoIACompanySelection(companies) {
   });
 
   const auto = getAutoCompetencies();
-  // Competências de 03 a 08 requeridas rigorosamente
-  const months = ['03/2026', '04/2026', '05/2026', '06/2026', '07/2026', '08/2026'];
+  // Competências mapeadas desde o mês 01 (Janeiro de 2026)
+  const months = ['01/2026', '02/2026', '03/2026', '04/2026', '05/2026', '06/2026', '07/2026', '08/2026', '09/2026', '10/2026', '11/2026', '12/2026'];
 
   return `
     <div class="space-y-6 animate-fadeIn">
@@ -4404,7 +4403,7 @@ function renderFechamentoIACompanySelection(companies) {
             </h1>
           </div>
           <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Gestão e auditoria contábil com validação estrita de competências zeradas, checklist de ingestão e D.R.E. analítica.
+            Gestão e auditoria contábil com validação estrita de competências, checklist de ingestão e D.R.E. analítica.
           </p>
         </div>
 
@@ -4448,11 +4447,11 @@ function renderFechamentoIACompanySelection(companies) {
         </div>
       </div>
 
-      <!-- Cards de Empresas (Pilar 1: Zero Mock Data - Meses 03 a 08 Iniciam Rigorosamente Zerados) -->
+      <!-- Cards de Empresas -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         ${filteredCompanies.map((c, idx) => {
-          // Histórico das 6 competências (03/2026 a 08/2026)
-          const compsStatus = months.map(m => {
+          // Coleta o status de todas as competências do período (desde o mês 01)
+          const allCompsStatus = months.map(m => {
             const r = state.fechamentoIA.auditData[`${c.id}_${m}`];
             const prog = calcularProgressoFechamentoIA(r);
             return {
@@ -4463,61 +4462,65 @@ function renderFechamentoIACompanySelection(companies) {
             };
           });
 
+          // Renderização condicional: apenas competências com arquivos/dados importados
+          const activeComps = allCompsStatus.filter(cs => cs.hasActivity);
+          const grupo = c.grupo && c.grupo !== '-' ? c.grupo : '';
+
           return `
             <div class="fechamento-card card-fade-enter bg-white dark:bg-[#15151C] border border-gray-200/80 dark:border-gray-800/80 rounded-2xl p-5 flex flex-col justify-between group" style="animation-delay: ${Math.min(idx * 30, 360)}ms;">
               <div>
-                <!-- Topo: Nome, CNPJ e Regime Tributário -->
+                <!-- Topo: Razão Social em cima destacado, Grupo embaixo sem negrito, CNPJ e Regime -->
                 <div class="flex items-start justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800/60">
                   <div class="min-w-0 flex-1">
-                    <h3 class="font-bold text-sm text-gray-900 dark:text-white truncate group-hover:text-[#ECBD56] transition" title="${c.nome}">
+                    <h3 class="font-bold text-sm text-gray-900 dark:text-white leading-tight truncate group-hover:text-[#ECBD56] transition" title="${c.nome}">
                       ${c.nome}
                     </h3>
-                    <div class="text-[11px] text-gray-400 font-mono mt-0.5">${c.cnpj || '00.000.000/0001-00'}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 font-normal mt-1 flex items-center gap-1.5 flex-wrap">
+                      <span>Grupo: <span class="text-gray-600 dark:text-gray-300 font-normal">${grupo || 'Geral'}</span></span>
+                      ${c.cnpj ? `<span class="opacity-40">•</span><span class="font-mono text-[11px] text-gray-400">${c.cnpj}</span>` : ''}
+                    </div>
                   </div>
                   <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-white/10 shrink-0">
                     ${c.regime}
                   </span>
                 </div>
 
-                <!-- Histórico de Competências (03 a 08: Barras Cinzas Zeradas sem Dados Falsos) -->
+                <!-- Histórico de Competências (Renderização Dinâmica Apenas para Meses com Dados) -->
                 <div class="mt-4">
                   <div class="flex items-center justify-between text-[11px] text-gray-400 mb-2">
-                    <span class="font-semibold uppercase tracking-wider text-[10px]">Competências 03 a 08</span>
-                    <span class="text-[10px] text-gray-500">Passe o mouse ou clique</span>
+                    <span class="font-semibold uppercase tracking-wider text-[10px]">
+                      ${activeComps.length > 0 ? `Competências Ativas (${activeComps.length})` : 'Competências'}
+                    </span>
+                    <span class="text-[10px] text-gray-500">
+                      ${activeComps.length > 0 ? 'Passe o mouse ou clique' : 'Nenhum dado importado'}
+                    </span>
                   </div>
 
-                  <div class="grid grid-cols-6 gap-1.5 h-28 p-2 rounded-xl bg-gray-50 dark:bg-[#101016] border border-gray-200/60 dark:border-gray-800/40">
-                    ${compsStatus.map(cs => {
-                      return `
+                  ${activeComps.length > 0 ? `
+                    <div class="flex items-center gap-2 h-28 p-2 rounded-xl bg-gray-50 dark:bg-[#101016] border border-gray-200/60 dark:border-gray-800/40 overflow-x-auto">
+                      ${activeComps.map(cs => `
                         <div
                           onclick="openFechamentoIACompany(${c.id}, '${cs.mes}')"
-                          class="comp-block flex flex-col items-center justify-end h-full cursor-pointer group/bar p-1 rounded-lg hover:bg-white/5 transition relative"
+                          class="comp-block flex-1 min-w-[42px] max-w-[64px] flex flex-col items-center justify-end h-full cursor-pointer group/bar p-1 rounded-lg hover:bg-white/5 transition relative"
                         >
                           <!-- Tooltip Magnético Instantâneo -->
                           <div class="comp-tooltip px-2.5 py-1 rounded-lg bg-gray-900/95 dark:bg-[#1A1B29] border border-gray-700/60 shadow-xl text-[10px] text-white flex items-center gap-1.5 backdrop-blur-md">
-                            <span class="w-1.5 h-1.5 rounded-full ${cs.is100 ? 'bg-emerald-400' : cs.hasActivity ? 'bg-amber-400' : 'bg-gray-400'}"></span>
+                            <span class="w-1.5 h-1.5 rounded-full ${cs.is100 ? 'bg-emerald-400' : 'bg-amber-400'}"></span>
                             <span class="font-bold">Comp. ${cs.mes}:</span>
-                            <span class="text-gray-300">${cs.is100 ? 'Concluído' : cs.hasActivity ? cs.pct + '%' : 'Pendente'}</span>
+                            <span class="text-gray-300">${cs.is100 ? 'Concluído' : cs.pct + '%'}</span>
                           </div>
 
-                          <!-- Porcentagem no topo (SÓ aparece se o usuário tiver anexado documento) -->
-                          <span class="text-[9px] font-bold h-3 mb-1 transition ${
-                            cs.hasActivity ? 'text-gray-300 group-hover/bar:text-[#ECBD56]' : 'text-transparent'
-                          }">
-                            ${cs.hasActivity ? cs.pct + '%' : ''}
+                          <!-- Porcentagem no topo -->
+                          <span class="text-[9px] font-bold h-3 mb-1 text-gray-300 group-hover/bar:text-[#ECBD56] transition">
+                            ${cs.pct}%
                           </span>
 
-                          <!-- Coluna de Progresso (Cinza vazia por padrão) -->
+                          <!-- Coluna de Progresso -->
                           <div class="w-full bg-gray-200/60 dark:bg-gray-800/80 rounded-t-md overflow-hidden flex flex-col justify-end" style="height: 48px;">
-                            ${cs.hasActivity && cs.pct > 0 ? `
-                              <div
-                                class="${cs.is100 ? 'bg-emerald-500' : 'bg-gradient-to-t from-orange-500 to-amber-400'} w-full transition-all duration-300"
-                                style="height: ${cs.pct}%;"
-                              ></div>
-                            ` : `
-                              <!-- Estado Zerado: Bloco Cinza Vazio com traço sutil no pé -->
-                              <div class="w-full h-1 bg-gray-300 dark:bg-gray-700/40 rounded-t"></div>
-                            `}
+                            <div
+                              class="${cs.is100 ? 'bg-emerald-500' : 'bg-gradient-to-t from-orange-500 to-amber-400'} w-full transition-all duration-300"
+                              style="height: ${cs.pct}%;"
+                            ></div>
                           </div>
 
                           <!-- Rótulo do Mês -->
@@ -4525,9 +4528,21 @@ function renderFechamentoIACompanySelection(companies) {
                             ${cs.mes.split('/')[0]}
                           </span>
                         </div>
-                      `;
-                    }).join('')}
-                  </div>
+                      `).join('')}
+                    </div>
+                  ` : `
+                    <!-- Estado quando não há competências com dados/arquivos -->
+                    <div class="h-28 flex flex-col items-center justify-center text-center p-3 rounded-xl bg-gray-50/50 dark:bg-[#101016]/50 border border-dashed border-gray-200/60 dark:border-gray-800/60">
+                      <svg class="w-5 h-5 text-gray-400/70 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                      </svg>
+                      <span class="text-[11px] font-medium text-gray-400">Nenhuma competência com dados</span>
+                      <span class="text-[10px] text-gray-500 mt-0.5">Clique em "Auditar Mês" para iniciar</span>
+                    </div>
+                  `}
                 </div>
               </div>
 
@@ -4609,6 +4624,9 @@ function renderFechamentoIAWorkspace(company, comp) {
                 <span class="text-xs px-2 py-0.5 rounded bg-white/5 text-gray-400 font-mono">
                   Cód: ${company.codigo || company.id}
                 </span>
+              </div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 font-normal mt-0.5">
+                Grupo: <span class="text-gray-600 dark:text-gray-300 font-normal">${company.grupo || 'Geral'}</span>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-1">
                 <span>CNPJ: <strong class="font-mono text-gray-300">${company.cnpj}</strong></span>
