@@ -6697,171 +6697,318 @@ function renderTarefasTab() {
           />
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-4 pt-1">
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-gray-400">Data Meta:</span>
-              <input
-                type="date"
-                id="task-date-input"
-                required
-                value="${new Date().toISOString().split('T')[0]}"
-                class="px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
-              />
-            </div>
-
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-gray-400">Urgência:</span>
-              <select
-                id="task-urgency-input"
-                class="px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
-              >
-                <option value="Alta">Alta</option>
-                <option value="Media" selected>Média</option>
-                <option value="Baixa">Baixa</option>
-              </select>
-            </div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center pt-1">
+          <!-- Vincular a Empresa -->
+          <div class="md:col-span-5 flex items-center gap-2">
+            <span class="text-xs font-semibold text-gray-400 whitespace-nowrap">Empresa:</span>
+            <select
+              id="task-company-input"
+              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
+            >
+              <option value="">Sem empresa vinculada (Geral)</option>
+              ${state.companies.slice().sort((a,b) => (a.nome || '').localeCompare(b.nome || '')).map(c => `
+                <option value="${c.id}">${c.codigo ? c.codigo + ' - ' : ''}${c.nome}</option>
+              `).join('')}
+            </select>
           </div>
 
-          <button
-            type="submit"
-            class="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-[#12131F] dark:bg-[#ECBD56] dark:text-gray-950 hover:opacity-90 transition shadow-sm"
-          >
-            Adicionar Tarefa
-          </button>
+          <!-- Data Meta -->
+          <div class="md:col-span-3 flex items-center gap-2">
+            <span class="text-xs font-semibold text-gray-400 whitespace-nowrap">Data Meta:</span>
+            <input
+              type="date"
+              id="task-date-input"
+              required
+              value="${new Date().toISOString().split('T')[0]}"
+              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
+            />
+          </div>
+
+          <!-- Urgência -->
+          <div class="md:col-span-2 flex items-center gap-2">
+            <span class="text-xs font-semibold text-gray-400 whitespace-nowrap">Urgência:</span>
+            <select
+              id="task-urgency-input"
+              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
+            >
+              <option value="Alta">Alta</option>
+              <option value="Media" selected>Média</option>
+              <option value="Baixa">Baixa</option>
+            </select>
+          </div>
+
+          <!-- Botão Adicionar -->
+          <div class="md:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              class="w-full md:w-auto px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#12131F] dark:bg-[#ECBD56] dark:text-gray-950 hover:opacity-90 transition shadow-sm text-center"
+            >
+              + Adicionar
+            </button>
+          </div>
         </div>
       </form>
 
-      <!-- Lista de Tarefas com Destaque de Atraso e Priorização -->
-      <div class="space-y-3">
-        ${displayList.map(t => {
-          const overdueInfo = getTaskOverdueInfo(t.data);
-          const isAtrasada = !t.concluida && overdueInfo.isOverdue;
-
-          return `
-            <div class="panze-card !p-4 transition flex items-start gap-4 relative overflow-hidden ${
-              t.concluida 
-                ? 'opacity-60 bg-gray-50/50 dark:bg-[#11121C]/50' 
-                : isAtrasada 
-                ? 'bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5' 
-                : 'hover:border-[#ECBD56]/40'
-            }">
-              
-              <!-- Faixa vertical indicativa para tarefas atrasadas -->
-              ${isAtrasada ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>` : ''}
-
-              <button
-                onclick="toggleTaskComplete(${t.id})"
-                class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                  t.concluida ? 'bg-[#10B981] border-[#10B981] text-white' : 'border-gray-400 hover:border-[#ECBD56]'
-                }"
-              >
-                ${t.concluida ? '✓' : ''}
-              </button>
-
-              <div class="flex-1 min-w-0">
-                <div class="flex flex-wrap items-center gap-2.5">
-                  <h4 class="font-bold text-sm ${t.concluida ? 'line-through text-gray-400' : isAtrasada ? 'text-rose-500 dark:text-rose-400 font-extrabold' : 'text-gray-900 dark:text-white'}">
-                    ${t.titulo}
-                  </h4>
-                  
-                  <!-- Selo de Status: Atrasada (Alerta Vermelho) vs No Prazo -->
-                  ${isAtrasada ? `
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
-                      🚨 ATRASADA
-                    </span>
-                  ` : ''}
-
-                  <!-- Selo de Urgência -->
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    t.urgencia === 'Alta' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/30' :
-                    t.urgencia === 'Media' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' :
-                    'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
-                  }">
-                    ${t.urgencia}
-                  </span>
-
-                  <!-- Selo de Prazo Dinâmico -->
-                  <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold ${overdueInfo.css}">
-                    ${overdueInfo.label}
-                  </span>
-                </div>
-
-                ${t.descricao ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${t.descricao}</p>` : ''}
-                
-                <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-[11px] text-gray-400 font-medium">
-                  <!-- Data de Criação com destaque visual sutil -->
-                  <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200/60 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                    <svg class="w-3.5 h-3.5 text-blue-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    Criada em: <strong class="text-gray-700 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.createdAt || t.data)}</strong>
-                  </span>
-
-                  <!-- Data Meta / Vencimento -->
-                  <span class="inline-flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-amber-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    Data Meta: <strong class="text-gray-800 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.data)}</strong>
-                  </span>
-                </div>
+      <!-- Lista de Tarefas com Agrupamento por Empresa e Destaque de Atraso -->
+      <div class="space-y-6">
+        ${(() => {
+          if (displayList.length === 0) {
+            return `
+              <div class="panze-card text-center p-8 text-gray-400">
+                <p class="text-sm font-semibold">Nenhuma tarefa nesta categoria no momento!</p>
               </div>
+            `;
+          }
 
-              <!-- Menu de Opções com 3 Pontos (...) -->
-              <div class="relative shrink-0">
+          // Função auxiliar para renderizar o card de cada tarefa individual
+          const renderTaskCard = (t) => {
+            const overdueInfo = getTaskOverdueInfo(t.data);
+            const isAtrasada = !t.concluida && overdueInfo.isOverdue;
+            const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+
+            return `
+              <div class="panze-card !p-4 transition flex items-start gap-3.5 relative overflow-hidden ${
+                t.concluida 
+                  ? 'opacity-60 bg-gray-50/50 dark:bg-[#11121C]/50' 
+                  : isAtrasada 
+                  ? 'bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5' 
+                  : 'hover:border-[#ECBD56]/40'
+              }">
+                
+                <!-- Faixa vertical indicativa para tarefas atrasadas -->
+                ${isAtrasada ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>` : ''}
+
                 <button
-                  onclick="toggleTaskMenu(${t.id}, event)"
-                  class="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
-                  title="Mais Opções da Tarefa"
+                  onclick="toggleTaskComplete(${t.id})"
+                  class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0 ${
+                    t.concluida ? 'bg-[#10B981] border-[#10B981] text-white' : 'border-gray-400 hover:border-[#ECBD56]'
+                  }"
+                  title="${t.concluida ? 'Marcar como Pendente' : 'Marcar como Concluída'}"
                 >
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="1"></circle>
-                    <circle cx="19" cy="12" r="1"></circle>
-                    <circle cx="5" cy="12" r="1"></circle>
-                  </svg>
+                  ${t.concluida ? '✓' : ''}
                 </button>
 
-                <!-- Dropdown do Menu de 3 Pontos -->
-                ${state.activeTaskMenuId === t.id ? `
-                  <div
-                    id="task-menu-dropdown-${t.id}"
-                    class="absolute right-0 mt-1 w-44 rounded-2xl bg-white dark:bg-[#181926] border border-gray-200 dark:border-gray-800 shadow-2xl p-1.5 z-30 animate-fadeIn"
-                    onclick="event.stopPropagation()"
+                <div class="flex-1 min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h4 class="font-bold text-sm ${t.concluida ? 'line-through text-gray-400' : isAtrasada ? 'text-rose-500 dark:text-rose-400 font-extrabold' : 'text-gray-900 dark:text-white'}">
+                      ${t.titulo}
+                    </h4>
+                    
+                    <!-- Selo de Status: Atrasada vs No Prazo -->
+                    ${isAtrasada ? `
+                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
+                        🚨 ATRASADA
+                      </span>
+                    ` : ''}
+
+                    <!-- Selo de Urgência -->
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      t.urgencia === 'Alta' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/30' :
+                      t.urgencia === 'Media' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' :
+                      'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
+                    }">
+                      ${t.urgencia}
+                    </span>
+
+                    <!-- Selo de Prazo Dinâmico -->
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold ${overdueInfo.css}">
+                      ${overdueInfo.label}
+                    </span>
+
+                    <!-- Badge da Empresa se vinculado e não estiver dentro do cabeçalho de grupo -->
+                    ${comp ? `
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#ECBD56]/10 text-[#ECBD56] border border-[#ECBD56]/20">
+                        🏢 ${comp.nome}
+                      </span>
+                    ` : ''}
+                  </div>
+
+                  ${t.descricao ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${t.descricao}</p>` : ''}
+                  
+                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-[11px] text-gray-400 font-medium">
+                    <!-- Data de Criação -->
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200/60 dark:border-gray-800 text-gray-500 dark:text-gray-400">
+                      <svg class="w-3.5 h-3.5 text-blue-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                      Criada em: <strong class="text-gray-700 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.createdAt || t.data)}</strong>
+                    </span>
+
+                    <!-- Data Meta / Vencimento -->
+                    <span class="inline-flex items-center gap-1.5">
+                      <svg class="w-3.5 h-3.5 text-amber-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                      Data Meta: <strong class="text-gray-800 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.data)}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Botão de Ação Rápida de Exclusão Direta e Menu -->
+                <div class="flex items-center gap-1 shrink-0">
+                  <button
+                    onclick="deleteTask(${t.id})"
+                    class="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
+                    title="Excluir Tarefa"
                   >
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 6h18"></path>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                    </svg>
+                  </button>
+
+                  <!-- Menu de Opções com 3 Pontos (...) -->
+                  <div class="relative">
                     <button
-                      onclick="openEditTaskModal(${t.id})"
-                      class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-[#ECBD56]/15 hover:text-[#ECBD56] dark:hover:text-[#ECBD56] transition flex items-center gap-2.5"
+                      onclick="toggleTaskMenu(${t.id}, event)"
+                      class="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                      title="Mais Opções da Tarefa"
                     >
-                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                      <span>Editar Tarefa</span>
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="19" cy="12" r="1"></circle>
+                        <circle cx="5" cy="12" r="1"></circle>
+                      </svg>
                     </button>
 
-                    <button
-                      onclick="toggleTaskComplete(${t.id}); closeAllTaskMenus();"
-                      class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition flex items-center gap-2.5"
-                    >
-                      <svg class="w-3.5 h-3.5 ${t.concluida ? 'text-amber-500' : 'text-emerald-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                      <span>${t.concluida ? 'Marcar Pendente' : 'Marcar Concluída'}</span>
-                    </button>
+                    <!-- Dropdown do Menu de 3 Pontos -->
+                    ${state.activeTaskMenuId === t.id ? `
+                      <div
+                        id="task-menu-dropdown-${t.id}"
+                        class="absolute right-0 mt-1 w-44 rounded-2xl bg-white dark:bg-[#181926] border border-gray-200 dark:border-gray-800 shadow-2xl p-1.5 z-30 animate-fadeIn"
+                        onclick="event.stopPropagation()"
+                      >
+                        <button
+                          onclick="openEditTaskModal(${t.id})"
+                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-[#ECBD56]/15 hover:text-[#ECBD56] dark:hover:text-[#ECBD56] transition flex items-center gap-2.5"
+                        >
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                          <span>Editar Tarefa</span>
+                        </button>
 
-                    <div class="my-1 border-t border-gray-100 dark:border-gray-800/80"></div>
+                        <button
+                          onclick="toggleTaskComplete(${t.id}); closeAllTaskMenus();"
+                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition flex items-center gap-2.5"
+                        >
+                          <svg class="w-3.5 h-3.5 ${t.concluida ? 'text-amber-500' : 'text-emerald-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <span>${t.concluida ? 'Marcar Pendente' : 'Marcar Concluída'}</span>
+                        </button>
 
-                    <button
-                      onclick="deleteTask(${t.id})"
-                      class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition flex items-center gap-2.5"
-                    >
-                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                      <span>Excluir Tarefa</span>
-                    </button>
+                        <div class="my-1 border-t border-gray-100 dark:border-gray-800/80"></div>
+
+                        <button
+                          onclick="deleteTask(${t.id})"
+                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition flex items-center gap-2.5"
+                        >
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                          <span>Excluir Tarefa</span>
+                        </button>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          };
+
+          // Agrupar tarefas: empresas com múltiplas tarefas ficam em grupos dedicados
+          const companyGroups = {};
+          const standaloneTasks = [];
+
+          displayList.forEach(t => {
+            const cId = t.empresaId ? Number(t.empresaId) : null;
+            if (cId) {
+              if (!companyGroups[cId]) companyGroups[cId] = [];
+              companyGroups[cId].push(t);
+            } else {
+              standaloneTasks.push(t);
+            }
+          });
+
+          // Separa as empresas que têm mais de 1 tarefa para o bloco agrupado
+          // As empresas que tiverem apenas 1 tarefa também podem ser exibidas ou mantidas com agrupamento harmonioso
+          const multiTaskCompanyIds = Object.keys(companyGroups).filter(cId => companyGroups[cId].length > 1);
+          const singleTaskCompanyIds = Object.keys(companyGroups).filter(cId => companyGroups[cId].length === 1);
+
+          // As de 1 tarefa podem ser exibidas no fluxo geral ou também agrupadas.
+          // O usuário pediu: "ai quando ficar mais de uma tarefa por empresa elas ficam agrupadas"
+          const htmlGroups = multiTaskCompanyIds.map(cId => {
+            const comp = state.companies.find(c => c.id === Number(cId));
+            const tasks = companyGroups[cId];
+            const compName = comp ? comp.nome : `Empresa #${cId}`;
+            const compGrupo = comp && comp.grupo ? comp.grupo : '';
+            const overdueInGroup = tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
+
+            return `
+              <div class="rounded-2xl border-2 border-[#ECBD56]/30 bg-gray-50/40 dark:bg-[#12131F]/50 p-4 space-y-3 shadow-xs">
+                <!-- Cabeçalho do Grupo da Empresa -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-200/70 dark:border-gray-800 gap-2">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-[#ECBD56]/15 text-[#ECBD56] flex items-center justify-center text-sm font-bold shadow-xs">
+                      🏢
+                    </span>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-sm md:text-base text-gray-900 dark:text-white uppercase tracking-tight">
+                          ${compName}
+                        </h3>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#ECBD56] text-gray-950">
+                          ${tasks.length} tarefas agrupadas
+                        </span>
+                        ${overdueInGroup > 0 ? `
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
+                            ${overdueInGroup} atrasada(s)
+                          </span>
+                        ` : ''}
+                      </div>
+                      ${compGrupo ? `<span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Grupo: ${compGrupo}</span>` : ''}
+                    </div>
+                  </div>
+                  <span class="text-[11px] text-gray-400 font-semibold self-start sm:self-center">
+                    Tarefas vinculadas a esta empresa
+                  </span>
+                </div>
+
+                <!-- Lista interna de tarefas do grupo -->
+                <div class="space-y-2.5 pl-1 md:pl-2">
+                  ${tasks.map(t => renderTaskCard(t)).join('')}
+                </div>
+              </div>
+            `;
+          });
+
+          // Tarefas avulsas (sem empresa vinculada OU empresas com apenas 1 tarefa para manter fluxo limpo)
+          const remainingTasks = [
+            ...singleTaskCompanyIds.flatMap(cId => companyGroups[cId]),
+            ...standaloneTasks
+          ].sort((a, b) => {
+            const urgencyWeight = { 'Alta': 3, 'Media': 2, 'Baixa': 1 };
+            const aOverdue = getTaskOverdueInfo(a.data).isOverdue;
+            const bOverdue = getTaskOverdueInfo(b.data).isOverdue;
+            if (aOverdue && !bOverdue) return -1;
+            if (!aOverdue && bOverdue) return 1;
+            const diffUrg = (urgencyWeight[b.urgencia] || 1) - (urgencyWeight[a.urgencia] || 1);
+            if (diffUrg !== 0) return diffUrg;
+            return new Date(a.data) - new Date(b.data);
+          });
+
+          let htmlRemaining = '';
+          if (remainingTasks.length > 0) {
+            htmlRemaining = `
+              <div class="space-y-3">
+                ${multiTaskCompanyIds.length > 0 ? `
+                  <div class="flex items-center gap-2 pt-2">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Demais Tarefas & Pendências</span>
+                    <div class="flex-1 h-px bg-gray-200 dark:bg-gray-800"></div>
                   </div>
                 ` : ''}
+                ${remainingTasks.map(t => renderTaskCard(t)).join('')}
               </div>
-            </div>
-          `;
-        }).join('')}
+            `;
+          }
 
-        ${displayList.length === 0 ? `
-          <div class="panze-card text-center p-8 text-gray-400">
-            <p class="text-sm font-semibold">Nenhuma tarefa nesta categoria no momento!</p>
-          </div>
-        ` : ''}
+          return `
+            ${htmlGroups.join('')}
+            ${htmlRemaining}
+          `;
+        })()}
       </div>
     </div>
   `;
@@ -7306,6 +7453,22 @@ function renderEditTaskModal() {
             >${t.descricao || ''}</textarea>
           </div>
 
+          <!-- Empresa Vinculada -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Empresa Vinculada</label>
+            <select
+              id="edit-task-company"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
+            >
+              <option value="">Sem empresa vinculada (Geral)</option>
+              ${state.companies.slice().sort((a,b) => (a.nome || '').localeCompare(b.nome || '')).map(c => `
+                <option value="${c.id}" ${t.empresaId && Number(t.empresaId) === Number(c.id) ? 'selected' : ''}>
+                  ${c.codigo ? c.codigo + ' - ' : ''}${c.nome}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+
           <!-- Metadados de Data e Urgência -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -7564,6 +7727,7 @@ function attachEventHandlers() {
       e.preventDefault();
       const title = document.getElementById('task-title-input').value.trim();
       const desc = document.getElementById('task-desc-input').value.trim();
+      const companyVal = document.getElementById('task-company-input')?.value;
       const date = document.getElementById('task-date-input').value;
       const urg = document.getElementById('task-urgency-input').value;
       if (!title) return;
@@ -7572,6 +7736,7 @@ function attachEventHandlers() {
         id: Date.now(),
         titulo: title,
         descricao: desc,
+        empresaId: companyVal ? Number(companyVal) : null,
         data: date,
         urgencia: urg,
         concluida: false,
@@ -7591,6 +7756,7 @@ function attachEventHandlers() {
       const id = state.taskModal.task.id;
       const title = document.getElementById('edit-task-title').value.trim();
       const desc = document.getElementById('edit-task-desc').value.trim();
+      const companyVal = document.getElementById('edit-task-company')?.value;
       const date = document.getElementById('edit-task-date').value;
       const urg = document.getElementById('edit-task-urgency').value;
 
@@ -7599,6 +7765,7 @@ function attachEventHandlers() {
       if (t) {
         t.titulo = title;
         t.descricao = desc;
+        t.empresaId = companyVal ? Number(companyVal) : null;
         t.data = date;
         t.urgencia = urg;
         saveStorage();
