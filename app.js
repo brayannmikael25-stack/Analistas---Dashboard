@@ -150,6 +150,17 @@ const state = {
   pisCofinsData: JSON.parse(localStorage.getItem('control_piscofins') || '{}'),
   irpjTrimData: JSON.parse(localStorage.getItem('control_irpj_trim') || '{}'),
   irpjMensalData: JSON.parse(localStorage.getItem('control_irpj_mensal') || '{}'),
+  fechamentosMeta: JSON.parse(localStorage.getItem('control_fechamentos_meta') || '{}'),
+  fechamentoEstagioFilter: 'all',
+  fechamentoObsModal: { isOpen: false, companyId: null },
+  pisFilter: 'todos',
+  irpjTrimFilter: 'todos',
+  irpjMensalFilter: 'todos',
+  selEcdEcfYear: '2026 (Ano-Base 2025)',
+  ecdEcfFilter: 'todos',
+  ecdEcfData: JSON.parse(localStorage.getItem('control_ecd_ecf') || '{}'),
+  ecdEcfExtraIds: JSON.parse(localStorage.getItem('control_ecd_ecf_extra_ids') || '[]'),
+  ecdEcfModal: { isOpen: false, mode: 'edit', companyId: null },
   modal: { isOpen: false, mode: 'create', company: null },
   taskModal: { isOpen: false, task: null }, // Modal de edição de tarefas
   activeTaskMenuId: null, // Menu de 3 pontos ativo
@@ -165,6 +176,9 @@ const state = {
   },
   // Filtro Rápido Global por Analista ("Meu Painel")
   selectedAnalista: 'todos',
+  // Ordenação das tabelas (Sort por coluna)
+  sortColumn: null, // 'nome' | 'grupo' | 'cnpj' | 'codigo' | 'regime' | 'colaborador' | 'classe' | 'segmento' | 'fechamento'
+  sortDirection: 'asc', // 'asc' | 'desc'
   // Seleção Múltipla para Ações em Massa (Batch Actions)
   selectedPisIds: [],
   selectedMensalIds: [],
@@ -195,7 +209,7 @@ const state = {
 // Obter pacote consolidado de todos os dados do sistema
 function getFullDataPackage() {
   return {
-    version: '2.2',
+    version: '2.3',
     timestamp: new Date().toISOString(),
     user: state.user,
     users: state.users,
@@ -204,6 +218,9 @@ function getFullDataPackage() {
     pisCofinsData: state.pisCofinsData,
     irpjTrimData: state.irpjTrimData,
     irpjMensalData: state.irpjMensalData,
+    fechamentosMeta: state.fechamentosMeta,
+    ecdEcfData: state.ecdEcfData,
+    ecdEcfExtraIds: state.ecdEcfExtraIds,
     fechamentoIAData: state.fechamentoIA.auditData,
     customLogo: state.customLogo
   };
@@ -217,6 +234,9 @@ function saveStorage() {
   localStorage.setItem('control_piscofins', JSON.stringify(state.pisCofinsData));
   localStorage.setItem('control_irpj_trim', JSON.stringify(state.irpjTrimData));
   localStorage.setItem('control_irpj_mensal', JSON.stringify(state.irpjMensalData));
+  localStorage.setItem('control_fechamentos_meta', JSON.stringify(state.fechamentosMeta));
+  localStorage.setItem('control_ecd_ecf', JSON.stringify(state.ecdEcfData));
+  localStorage.setItem('control_ecd_ecf_extra_ids', JSON.stringify(state.ecdEcfExtraIds));
   localStorage.setItem('control_fechamento_ia', JSON.stringify(state.fechamentoIA.auditData));
 
   // Sincronização automática com backend se configurado
@@ -295,6 +315,9 @@ function applyDataPackage(data) {
   if (data.pisCofinsData) state.pisCofinsData = data.pisCofinsData;
   if (data.irpjTrimData) state.irpjTrimData = data.irpjTrimData;
   if (data.irpjMensalData) state.irpjMensalData = data.irpjMensalData;
+  if (data.fechamentosMeta) state.fechamentosMeta = data.fechamentosMeta;
+  if (data.ecdEcfData) state.ecdEcfData = data.ecdEcfData;
+  if (data.ecdEcfExtraIds && Array.isArray(data.ecdEcfExtraIds)) state.ecdEcfExtraIds = data.ecdEcfExtraIds;
   if (data.customLogo) {
     state.customLogo = data.customLogo;
     localStorage.setItem('control_custom_logo', data.customLogo);
@@ -650,44 +673,76 @@ function injectDesignSystemStyles() {
   });
 
   styleEl.innerHTML = `
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
     
     ${cssThemes}
 
-    * {
+    *:not(.font-mono):not(code):not(pre) {
       font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+
+    .font-mono, .tabular-nums, .animate-counter {
+      font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace !important;
+      font-variant-numeric: tabular-nums;
     }
     
-    /* Fundo geral e texto guiados por CSS Custom Properties */
+    /* Fundo geral e texto guiados por CSS Custom Properties + Iluminação Ambiente (Ambient Glow) */
     body {
       background-color: var(--bg-main) !important;
       color: var(--text-main) !important;
       overflow-x: hidden;
       transition: background-color 0.3s ease, color 0.3s ease;
+      position: relative;
     }
 
-    /* Cartões Flutuantes baseados em variáveis de tema */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 16% -6%, rgba(245, 130, 32, 0.07), transparent 42%),
+        radial-gradient(circle at 86% 6%, rgba(56, 189, 248, 0.055), transparent 46%),
+        radial-gradient(circle at 50% 102%, rgba(30, 58, 138, 0.085), transparent 55%);
+    }
+
+    /* Cartões Flutuantes com Borda Especular Superior e Soft Layered Shadows */
     .panze-card {
-      background-color: var(--bg-card) !important;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.028) 0%, rgba(255, 255, 255, 0.00) 100%), var(--bg-card) !important;
       border-radius: 20px;
       padding: 24px;
       border: 1px solid var(--border-color) !important;
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.15), 0 2px 8px -1px rgba(0, 0, 0, 0.08);
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.075),
+        0 1px 2px rgba(0, 0, 0, 0.08),
+        0 8px 24px -4px rgba(0, 0, 0, 0.18),
+        0 20px 40px -14px rgba(0, 0, 0, 0.12);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.28s ease,
+                  background-color 0.28s ease !important;
     }
     
     .panze-card:hover {
-      box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.2), 0 4px 12px -2px rgba(0, 0, 0, 0.12);
+      transform: translateY(-3px);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+        0 16px 34px -6px rgba(0, 0, 0, 0.32),
+        0 6px 16px -2px rgba(0, 0, 0, 0.18) !important;
+      border-color: var(--border-accent, rgba(236, 189, 86, 0.35)) !important;
     }
 
-    /* Barra Lateral baseada em variáveis de tema */
+    /* Barra Lateral baseada em variáveis de tema com acabamento refinado */
     .panze-sidebar {
-      background-color: var(--bg-sidebar) !important;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, transparent 40%), var(--bg-sidebar) !important;
       color: var(--text-sidebar) !important;
       width: 260px;
       min-width: 260px;
       transition: width 0.3s ease, background-color 0.3s ease;
       border-right: 1px solid var(--border-color) !important;
+      box-shadow: inset -1px 0 0 0 rgba(255, 255, 255, 0.03), 8px 0 30px -10px rgba(0, 0, 0, 0.25);
     }
 
     .panze-nav-item {
@@ -698,9 +753,10 @@ function injectDesignSystemStyles() {
       padding: 10px 14px;
       border-radius: 12px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       color: #94A3B8 !important;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       cursor: pointer;
       user-select: none;
       margin-bottom: 3px;
@@ -708,28 +764,31 @@ function injectDesignSystemStyles() {
     }
 
     .panze-nav-item:hover {
-      color: #F1F5F9 !important;
-      background: rgba(255, 255, 255, 0.05);
+      color: #F8FAFC !important;
+      background: rgba(255, 255, 255, 0.055);
+      transform: translateX(2px);
     }
 
     .panze-nav-item:hover .nav-icon {
-      color: #E2E8F0 !important;
+      color: #F58220 !important;
+      transform: scale(1.06);
     }
 
     .panze-nav-item.active {
       color: #FFFFFF !important;
       background: rgba(30, 41, 59, 0.9) !important;
-      border-left: 2px solid #6366F1 !important;
+      border-left: 2px solid #F58220 !important;
       border-top-left-radius: 4px;
       border-bottom-left-radius: 4px;
       border-top-right-radius: 12px;
       border-bottom-right-radius: 12px;
-      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.2);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.2);
       font-weight: 700;
     }
 
     .panze-nav-item.active .nav-icon {
-      color: #FFFFFF !important;
+      color: #ECBD56 !important;
+      filter: drop-shadow(0 0 6px rgba(236, 189, 86, 0.35));
     }
 
     .panze-nav-item .nav-icon {
@@ -739,7 +798,7 @@ function injectDesignSystemStyles() {
       align-items: center;
       justify-content: center;
       color: #94A3B8;
-      transition: color 0.2s ease;
+      transition: color 0.2s ease, transform 0.2s ease;
       flex-shrink: 0;
     }
 
@@ -751,13 +810,17 @@ function injectDesignSystemStyles() {
 
     .panze-nav-item:hover .panze-chevron,
     .panze-nav-item.active .panze-chevron {
-      opacity: 0.9;
+      opacity: 0.95;
+      transform: translateX(2px);
     }
 
-    /* Topbar limpa */
+    /* Topbar com Glassmorphism (translúcida e com desfoque de fundo) */
     .panze-topbar {
-      background-color: var(--bg-card) !important;
+      background-color: color-mix(in srgb, var(--bg-card) 82%, transparent) !important;
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
       border-bottom: 1px solid var(--border-color) !important;
+      box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.12);
       transition: background-color 0.3s ease, border-color 0.3s ease;
     }
 
@@ -828,27 +891,36 @@ function injectDesignSystemStyles() {
       }
     }
 
+    @keyframes panzeShimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, rgba(148,163,184,0.06) 25%, rgba(236,189,86,0.15) 50%, rgba(148,163,184,0.06) 75%);
+      background-size: 200% 100%;
+      animation: panzeShimmer 1.6s infinite linear;
+    }
+
     /* Animação suave para troca de abas e carregamento inicial */
     main#main-content, .animate-fadeIn {
       animation: panzeFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      will-change: opacity, transform;
     }
 
-    /* 2. Efeitos de Hover nos Cards e Blocos (Elevação e Sombra Dinâmica) */
-    .panze-card,
+    /* Entrada escalonada (Stagger) para os cards de KPI em grids */
+    .grid > .panze-card:nth-child(1) { animation: panzeFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.02s backwards; }
+    .grid > .panze-card:nth-child(2) { animation: panzeFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.06s backwards; }
+    .grid > .panze-card:nth-child(3) { animation: panzeFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.10s backwards; }
+    .grid > .panze-card:nth-child(4) { animation: panzeFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.14s backwards; }
+    .grid > .panze-card:nth-child(5) { animation: panzeFadeIn 0.36s cubic-bezier(0.16, 1, 0.3, 1) 0.18s backwards; }
+
+    /* 2. Efeitos de Hover nos Cards e Blocos */
     .bg-white.dark\\:bg-\\[\\#15151C\\],
     .bg-white.dark\\:bg-\\[\\#171825\\] {
       transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
                   box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
                   border-color 0.28s ease, 
                   background-color 0.28s ease !important;
-      will-change: transform, box-shadow;
-    }
-
-    .panze-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 16px 32px -6px rgba(0, 0, 0, 0.35), 0 6px 16px -2px rgba(0, 0, 0, 0.2) !important;
-      border-color: var(--border-accent, rgba(236, 189, 86, 0.35)) !important;
     }
 
     /* Cards de Estatísticas e Métricas Rápidas */
@@ -860,7 +932,7 @@ function injectDesignSystemStyles() {
 
     .grid > div:hover:not(table div) {
       transform: translateY(-3px);
-      box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 14px 30px -6px rgba(0, 0, 0, 0.28);
     }
 
     /* 3. Interatividade nos Botões (Microinterações de Clique e Hover) */
@@ -885,7 +957,7 @@ function injectDesignSystemStyles() {
 
     /* Efeito de Hover com Brilho Suave e Elevação Mínima */
     button:hover:not(:disabled) {
-      filter: brightness(1.08);
+      filter: brightness(1.07);
       transform: translateY(-1px);
     }
 
@@ -898,20 +970,23 @@ function injectDesignSystemStyles() {
     }
 
     button.bg-\\[\\#ECBD56\\]:hover {
-      box-shadow: 0 8px 20px -3px rgba(236, 189, 86, 0.45) !important;
+      box-shadow: 0 8px 22px -3px rgba(236, 189, 86, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
     }
 
     button.bg-emerald-600:hover {
-      box-shadow: 0 8px 20px -3px rgba(16, 185, 129, 0.45) !important;
+      box-shadow: 0 8px 22px -3px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
     }
 
-    /* Linhas das tabelas com realce fluido */
+    /* Linhas das tabelas com realce magnético lateral (estilo Linear/Stripe, sem distorcer subpixels) */
     tbody tr {
-      transition: background-color 0.2s ease, transform 0.15s ease !important;
+      transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
 
     tbody tr:hover {
-      transform: scale(1.002);
+      transform: none !important;
+      background-color: rgba(236, 189, 86, 0.035) !important;
+      box-shadow: inset 3px 0 0 0 #F58220;
     }
 
     /* 4. Transições de Modais e Telas de Autenticação */
@@ -1614,56 +1689,213 @@ window.dismissWelcomeModal = () => {
   render();
 };
 
-// ---------------- EXIBIÇÃO: RAZÃO SOCIAL EM CIMA EM DESTAQUE E GRUPO EMBAIXO SEM NEGRITO ----------------
+// ---------------- EXIBIÇÃO: RAZÃO SOCIAL EM CIMA EM DESTAQUE E GRUPO EMBAIXO COM BADGE TÉCNICO ----------------
 function renderCompanyCell(c) {
-  const grupo = c.grupo && c.grupo !== '-' ? c.grupo : '';
+  const grupo = c.grupo && c.grupo !== '-' ? c.grupo : 'GERAL';
   return `
-    <div>
-      <div class="font-bold text-sm text-gray-900 dark:text-white leading-tight tracking-tight">${c.nome}</div>
-      <div class="text-xs text-gray-500 dark:text-gray-400 font-normal mt-1 flex items-center gap-1.5 flex-wrap">
-        <span>Grupo: <span class="text-gray-600 dark:text-gray-300 font-normal">${grupo || 'Geral'}</span></span>
-        ${c.cnpj ? `<span class="opacity-40">•</span><span class="font-mono text-[11px] text-gray-400">${c.cnpj}</span>` : ''}
+    <div class="flex flex-col group/cell">
+      <div class="font-extrabold text-[13.5px] text-gray-900 dark:text-white leading-snug tracking-[-0.015em] group-hover/cell:text-[#F58220] dark:group-hover/cell:text-[#ECBD56] transition-colors">
+        ${c.nome}
+      </div>
+      <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gray-100 dark:bg-white/[0.05] text-gray-500 dark:text-gray-400 border border-gray-200/70 dark:border-white/[0.06]">
+          Grp: <strong class="ml-1 font-bold text-gray-700 dark:text-gray-200">${grupo}</strong>
+        </span>
+        ${c.cnpj ? `
+          <span class="font-mono text-[11px] tabular-nums tracking-tight text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-[#11121C] px-1.5 py-0.5 rounded-md border border-gray-200/60 dark:border-gray-800/80">
+            ${c.cnpj}
+          </span>
+        ` : ''}
       </div>
     </div>
   `;
 }
 
-// ---------------- ESTILIZAÇÃO POR CORES: REGIMES TRIBUTÁRIOS ----------------
+// ---------------- COMPONENTE VETORIAL DE EMPTY STATE (ESTADO VAZIO) ----------------
+function renderEmptyState(title = 'Nenhum registro encontrado', subtitle = 'Tente ajustar os filtros ativos ou o termo de pesquisa.') {
+  return `
+    <div class="py-12 px-4 flex flex-col items-center justify-center text-center select-none animate-fadeIn">
+      <div class="relative w-16 h-16 mb-3 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-[#F58220]/20 to-blue-500/20 blur-xl"></div>
+        <div class="relative w-14 h-14 rounded-2xl bg-gradient-to-b from-white/10 to-white/[0.02] dark:from-white/[0.07] dark:to-transparent border border-gray-200 dark:border-white/10 shadow-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-[#ECBD56]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="3" stroke-opacity="0.5"/>
+            <path d="M7 9h10M7 13h6" />
+            <circle cx="17" cy="15" r="2.5" class="fill-[#ECBD56]/20"/>
+          </svg>
+        </div>
+      </div>
+      <h4 class="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-tight">${title}</h4>
+      <p class="text-xs text-gray-400 max-w-xs mt-1 leading-relaxed">${subtitle}</p>
+    </div>
+  `;
+}
+
+// ---------------- ORDENAÇÃO INTERATIVA DE TABELAS (SORT POR COLUNA) ----------------
+window.toggleTableSort = (column) => {
+  if (state.sortColumn === column) {
+    state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.sortColumn = column;
+    state.sortDirection = 'asc';
+  }
+  render();
+};
+
+function sortCompaniesList(list) {
+  if (!state.sortColumn || !Array.isArray(list)) return list;
+  const col = state.sortColumn;
+  const dir = state.sortDirection === 'desc' ? -1 : 1;
+
+  return [...list].sort((a, b) => {
+    if (col === 'nome' || col === 'empresa') {
+      const valA = (a.nome || '').toString().trim();
+      const valB = (b.nome || '').toString().trim();
+      const cmp = valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base' });
+      if (cmp !== 0) return cmp * dir;
+      return (a.grupo || '').toString().trim().localeCompare((b.grupo || '').toString().trim(), 'pt-BR', { sensitivity: 'base', numeric: true }) * dir;
+    }
+
+    if (col === 'grupo') {
+      const valA = (a.grupo && a.grupo !== '-' ? a.grupo : 'Geral').toString().trim();
+      const valB = (b.grupo && b.grupo !== '-' ? b.grupo : 'Geral').toString().trim();
+      const cmp = valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base', numeric: true });
+      if (cmp !== 0) return cmp * dir;
+      const cmpCnpj = (a.cnpj || '').toString().trim().localeCompare((b.cnpj || '').toString().trim(), 'pt-BR', { sensitivity: 'base', numeric: true });
+      if (cmpCnpj !== 0) return cmpCnpj * dir;
+      return (a.nome || '').toString().trim().localeCompare((b.nome || '').toString().trim(), 'pt-BR', { sensitivity: 'base' }) * dir;
+    }
+
+    if (col === 'cnpj') {
+      const valA = (a.cnpj || '').toString().trim();
+      const valB = (b.cnpj || '').toString().trim();
+      const cmp = valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base', numeric: true });
+      if (cmp !== 0) return cmp * dir;
+      return (a.nome || '').toString().trim().localeCompare((b.nome || '').toString().trim(), 'pt-BR', { sensitivity: 'base' }) * dir;
+    }
+
+    if (col === 'codigo') {
+      const valA = (a.codigo || a.id || '').toString().trim();
+      const valB = (b.codigo || b.id || '').toString().trim();
+      return valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base', numeric: true }) * dir;
+    }
+
+    if (col === 'colaborador' || col === 'responsavel') {
+      const valA = (a.colaborador || '').toString().trim();
+      const valB = (b.colaborador || '').toString().trim();
+      const cmp = valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base' });
+      if (cmp !== 0) return cmp * dir;
+      return (a.nome || '').toString().trim().localeCompare((b.nome || '').toString().trim(), 'pt-BR', { sensitivity: 'base' }) * dir;
+    }
+
+    const valA = (a[col] || '').toString().trim();
+    const valB = (b[col] || '').toString().trim();
+    const cmp = valA.localeCompare(valB, 'pt-BR', { sensitivity: 'base', numeric: true });
+    if (cmp !== 0) return cmp * dir;
+    return (a.nome || '').toString().trim().localeCompare((b.nome || '').toString().trim(), 'pt-BR', { sensitivity: 'base' }) * dir;
+  });
+}
+
+function renderCompanySortHeader(label = 'Empresa & CNPJ') {
+  const isNome = state.sortColumn === 'nome';
+  const isGrupo = state.sortColumn === 'grupo';
+  const nomeArrow = isNome ? (state.sortDirection === 'asc' ? '↑' : '↓') : '↕';
+  const grupoArrow = isGrupo ? (state.sortDirection === 'asc' ? '↑' : '↓') : '↕';
+
+  return `
+    <th
+      onclick="toggleTableSort('nome')"
+      style="cursor: pointer;"
+      class="py-4 px-6 cursor-pointer select-none group hover:text-gray-700 dark:hover:text-gray-200 transition"
+      title="Clique para ordenar por Empresa (${isNome && state.sortDirection === 'asc' ? 'Z a A' : 'A a Z'})"
+    >
+      <div class="inline-flex items-center gap-2 flex-wrap">
+        <span class="inline-flex items-center gap-1.5 ${isNome ? 'text-gray-900 dark:text-white font-extrabold' : ''}">
+          <span>${label}</span>
+          <span class="inline-flex items-center justify-center text-xs font-extrabold transition-all ${
+            isNome
+              ? 'text-[#F58220] dark:text-[#ECBD56] scale-110'
+              : 'text-gray-400/50 group-hover:text-gray-400'
+          }">${nomeArrow}</span>
+        </span>
+        <button
+          type="button"
+          onclick="event.stopPropagation(); toggleTableSort('grupo');"
+          style="cursor: pointer;"
+          title="Ordenar por Grupo / Razão Social secundária (${isGrupo && state.sortDirection === 'asc' ? 'Z a A' : 'A a Z'})"
+          class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border transition inline-flex items-center gap-1 ${
+            isGrupo
+              ? 'bg-[#F58220]/15 dark:bg-[#ECBD56]/20 text-[#F58220] dark:text-[#ECBD56] border-[#F58220]/40 dark:border-[#ECBD56]/40 shadow-xs'
+              : 'bg-gray-200/50 dark:bg-white/5 text-gray-500 dark:text-gray-400 border-gray-300/60 dark:border-gray-700/60 hover:border-[#ECBD56]/50 hover:text-gray-800 dark:hover:text-white'
+          }"
+        >
+          <span>Grupo</span>
+          <span>${grupoArrow}</span>
+        </button>
+      </div>
+    </th>
+  `;
+}
+
+function renderSortableTh(label, colKey, extraClasses = 'py-4 px-4') {
+  const isActive = state.sortColumn === colKey;
+  const arrow = isActive ? (state.sortDirection === 'asc' ? '↑' : '↓') : '↕';
+  return `
+    <th
+      onclick="toggleTableSort('${colKey}')"
+      style="cursor: pointer;"
+      class="${extraClasses} cursor-pointer select-none group hover:text-gray-700 dark:hover:text-gray-200 transition ${isActive ? 'text-gray-900 dark:text-white font-extrabold' : ''}"
+      title="Clique para ordenar por ${label} (${isActive && state.sortDirection === 'asc' ? 'Z a A' : 'A a Z'})"
+    >
+      <div class="inline-flex items-center gap-1.5">
+        <span>${label}</span>
+        <span class="inline-flex items-center justify-center text-xs font-extrabold transition-all ${
+          isActive
+            ? 'text-[#F58220] dark:text-[#ECBD56] scale-110'
+            : 'text-gray-400/50 group-hover:text-gray-400'
+        }">${arrow}</span>
+      </div>
+    </th>
+  `;
+}
+
+// ---------------- ESTILIZAÇÃO POR CORES: REGIMES TRIBUTÁRIOS (COM GRADIENTE E GLOW DOT) ----------------
 function getRegimeBadge(regime) {
-  if (!regime) return '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-500/10 text-gray-400 border border-gray-500/30">-</span>';
+  if (!regime) return '<span class="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-gray-500/10 text-gray-400 border border-gray-500/30">-</span>';
   const r = regime.toLowerCase();
+  const badgeBase = "inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-tight border shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]";
 
   // Simples Nacional: Verde
   if (r.includes('simples')) {
-    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 dark:text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/10">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+    return `<span class="${badgeBase} bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-teal-500/5 text-emerald-600 dark:text-emerald-300 border-emerald-500/35">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
       ${regime}
     </span>`;
   }
 
   // Lucro Presumido: Laranja / Amarelo
   if (r.includes('presumido')) {
-    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/40 shadow-sm shadow-amber-500/10">
-      <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+    return `<span class="${badgeBase} bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/5 text-amber-600 dark:text-amber-300 border-amber-500/35">
+      <span class="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]"></span>
       ${regime}
     </span>`;
   }
 
-  // Lucro Real (Mensal ou Trimestral): Azul com destaque
+  // Lucro Real (Mensal ou Trimestral): Azul / Ciano com destaque e glow
   if (r.includes('real')) {
     const isTrim = r.includes('trimestral');
-    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+    return `<span class="${badgeBase} ${
       isTrim 
-        ? 'bg-blue-500/15 text-blue-400 dark:text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10' 
-        : 'bg-cyan-500/15 text-cyan-400 dark:text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/10'
+        ? 'bg-gradient-to-r from-blue-500/15 via-indigo-500/10 to-blue-500/5 text-blue-600 dark:text-blue-300 border-blue-500/35' 
+        : 'bg-gradient-to-r from-cyan-500/15 via-sky-500/10 to-cyan-500/5 text-cyan-600 dark:text-cyan-300 border-cyan-500/35'
     }">
-      <span class="w-1.5 h-1.5 rounded-full ${isTrim ? 'bg-blue-400' : 'bg-cyan-400'}"></span>
+      <span class="w-1.5 h-1.5 rounded-full ${isTrim ? 'bg-blue-400 shadow-[0_0_6px_#60a5fa]' : 'bg-cyan-400 shadow-[0_0_6px_#22d3ee]'}"></span>
       ${regime}
     </span>`;
   }
 
   // Padrão Neutro
-  return `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-500/10 text-gray-400 border border-gray-500/30">${regime}</span>`;
+  return `<span class="${badgeBase} bg-gray-500/10 text-gray-400 border-gray-500/30">${regime}</span>`;
 }
 
 // Renderização fiel da Logomarca Oficial da Control Contabilidade (Imagem 1)
@@ -1758,8 +1990,8 @@ function render() {
     return;
   }
 
-  // Filtragem de empresas por busca global e por Analista ("Meu Painel")
-  const filtered = state.companies.filter(c => {
+  // Filtragem de empresas por busca global e por Analista ("Meu Painel") + Ordenação ativa
+  const filtered = sortCompaniesList(state.companies.filter(c => {
     if (state.selectedAnalista !== 'todos' && c.colaborador !== state.selectedAnalista) return false;
     if (!state.globalSearch.trim()) return true;
     const q = state.globalSearch.toLowerCase();
@@ -1767,7 +1999,7 @@ function render() {
            (c.cnpj && c.cnpj.includes(q)) ||
            (c.codigo && c.codigo.toString().toLowerCase().includes(q)) ||
            (c.grupo && c.grupo.toLowerCase().includes(q));
-  });
+  }));
 
   const pendingTasksCount = state.tasks.filter(t => !t.concluida).length;
 
@@ -1829,6 +2061,11 @@ function render() {
                 id: 'irpj_mensal', 
                 label: 'IRPJ Mensal', 
                 icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>` 
+              },
+              { 
+                id: 'ecd_ecf', 
+                label: 'ECD / ECF', 
+                icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m9 15 2 2 4-4"></path></svg>` 
               },
               { 
                 id: 'tarefas', 
@@ -1931,6 +2168,7 @@ function render() {
                   state.activeTab === 'piscofins' ? 'Apuração PIS / COFINS' :
                   state.activeTab === 'irpj_trim' ? 'IRPJ / CSLL Trimestral' :
                   state.activeTab === 'irpj_mensal' ? 'IRPJ / CSLL Mensal' :
+                  state.activeTab === 'ecd_ecf' ? 'Obrigações Anuais - SPED ECD / ECF' :
                   state.activeTab === 'tarefas' ? 'Gestão de Tarefas' :
                   'Cadastro e Gestão de Empresas'
                 }
@@ -2100,6 +2338,7 @@ function render() {
             { id: 'piscofins', label: 'PIS/COFINS', icon: '📄' },
             { id: 'irpj_trim', label: 'IRPJ Trim', icon: '📑' },
             { id: 'irpj_mensal', label: 'IRPJ Mes', icon: '🧮' },
+            { id: 'ecd_ecf', label: 'ECD / ECF', icon: '📘' },
             { id: 'tarefas', label: 'Tarefas', icon: '✓' },
             { id: 'empresas', label: 'Empresas', icon: '🏢' }
           ].map(tab => `
@@ -2127,6 +2366,12 @@ function render() {
       <!-- MODAL DE EDIÇÃO DE TAREFA -->
       ${state.taskModal.isOpen ? renderEditTaskModal() : ''}
 
+      <!-- MODAL DE OBSERVAÇÃO E GARGALO DE FECHAMENTO -->
+      ${state.fechamentoObsModal && state.fechamentoObsModal.isOpen ? renderFechamentoObsModal() : ''}
+
+      <!-- MODAL DE GESTÃO / ADIÇÃO ECD & ECF -->
+      ${state.ecdEcfModal && state.ecdEcfModal.isOpen ? renderEcdEcfModal() : ''}
+
       <!-- MODAL INTELIGENTE DE BOAS-VINDAS E VENCIMENTOS (PÓS-LOGIN) -->
       ${state.welcomeModalOpen ? renderWelcomeModal() : ''}
     </div>
@@ -2150,16 +2395,153 @@ function renderAuthScreen(root) {
   const isForgot = mode === 'forgot';
 
   root.innerHTML = `
-    <div class="min-h-screen flex items-center justify-center p-4">
-      <div class="w-full max-w-md p-8 rounded-3xl bg-white dark:bg-[#15151A] shadow-2xl border border-gray-200 dark:border-gray-800 relative overflow-hidden">
-        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#133E68] via-[#E88A1A] to-[#133E68]"></div>
+    <div
+      class="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden select-none"
+      style="background: radial-gradient(circle at 15% 20%, rgba(19, 62, 104, 0.65) 0%, transparent 48%), radial-gradient(circle at 86% 80%, rgba(245, 130, 32, 0.20) 0%, transparent 45%), radial-gradient(circle at 50% 50%, #0D2644 0%, #071527 58%, #030A14 100%);"
+    >
+      <!-- CAMADA 1: Malha de Dados e Padrão de Pontos (Data Grid) -->
+      <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-25" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="auth-dot-grid" width="32" height="32" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="#60A5FA" fill-opacity="0.38" />
+          </pattern>
+          <pattern id="auth-major-grid" width="160" height="160" patternUnits="userSpaceOnUse">
+            <path d="M 160 0 L 0 0 0 160" fill="none" stroke="#1E4E8C" stroke-width="0.6" stroke-opacity="0.35" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#auth-major-grid)" />
+        <rect width="100%" height="100%" fill="url(#auth-dot-grid)" />
+      </svg>
+
+      <!-- CAMADA 2: Formas Abstratas e Luzes Ambientais Corporativas (Azul Profundo & Dourado/Laranja) -->
+      <div class="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full pointer-events-none blur-[110px]" style="background: radial-gradient(circle, rgba(29, 92, 150, 0.42) 0%, transparent 70%);"></div>
+      <div class="absolute -bottom-36 -right-28 w-[520px] h-[520px] rounded-full pointer-events-none blur-[120px]" style="background: radial-gradient(circle, rgba(245, 130, 32, 0.24) 0%, rgba(236, 189, 86, 0.12) 45%, transparent 72%);"></div>
+      <div class="absolute top-1/4 right-1/4 w-80 h-80 rounded-full pointer-events-none blur-[95px]" style="background: radial-gradient(circle, rgba(19, 62, 104, 0.35) 0%, transparent 70%);"></div>
+
+      <!-- CAMADA 3: Elementos Gráficos Contábeis, Gráficos de Linha/Barras Desfocados e Rede de Conexões -->
+      <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="bg-bar-blue" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.32" />
+            <stop offset="100%" stop-color="#0D3B66" stop-opacity="0.03" />
+          </linearGradient>
+          <linearGradient id="bg-bar-gold" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#F58220" stop-opacity="0.38" />
+            <stop offset="100%" stop-color="#ECBD56" stop-opacity="0.02" />
+          </linearGradient>
+          <linearGradient id="bg-line-gold" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#F58220" stop-opacity="0.05" />
+            <stop offset="45%" stop-color="#ECBD56" stop-opacity="0.45" />
+            <stop offset="100%" stop-color="#F58220" stop-opacity="0.1" />
+          </linearGradient>
+          <linearGradient id="bg-line-cyan" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.05" />
+            <stop offset="50%" stop-color="#60A5FA" stop-opacity="0.35" />
+            <stop offset="100%" stop-color="#1D4ED8" stop-opacity="0.08" />
+          </linearGradient>
+          <filter id="soft-chart-blur" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="2.2" />
+          </filter>
+        </defs>
+
+        <!-- Gráfico de Barras Contábil e Tendência Financeira (Esquerda Inferior - Suavemente Desfocado) -->
+        <g filter="url(#soft-chart-blur)" opacity="0.65">
+          <rect x="70" y="650" width="26" height="140" rx="5" fill="url(#bg-bar-blue)" />
+          <rect x="112" y="605" width="26" height="185" rx="5" fill="url(#bg-bar-blue)" />
+          <rect x="154" y="625" width="26" height="165" rx="5" fill="url(#bg-bar-blue)" />
+          <rect x="196" y="560" width="26" height="230" rx="5" fill="url(#bg-bar-gold)" />
+          <rect x="238" y="515" width="26" height="275" rx="5" fill="url(#bg-bar-blue)" />
+          <rect x="280" y="465" width="26" height="325" rx="5" fill="url(#bg-bar-gold)" />
+          <rect x="322" y="500" width="26" height="290" rx="5" fill="url(#bg-bar-blue)" />
+          <rect x="364" y="420" width="26" height="370" rx="5" fill="url(#bg-bar-gold)" />
+
+          <!-- Linha de Evolução Patrimonial sobre as barras -->
+          <path d="M 60 635 Q 130 575, 185 585 T 295 455 T 410 385" stroke="url(#bg-line-gold)" stroke-width="3" fill="none" stroke-linecap="round" />
+          <circle cx="185" cy="585" r="4.5" fill="#ECBD56" fill-opacity="0.7" />
+          <circle cx="295" cy="455" r="5" fill="#F58220" fill-opacity="0.8" />
+          <circle cx="410" cy="385" r="5.5" fill="#ECBD56" fill-opacity="0.85" />
+        </g>
+
+        <!-- Gráfico de Barras e Indicadores Analíticos (Direita Inferior - Suavemente Desfocado) -->
+        <g filter="url(#soft-chart-blur)" opacity="0.55">
+          <rect x="1055" y="620" width="24" height="170" rx="4" fill="url(#bg-bar-blue)" />
+          <rect x="1095" y="575" width="24" height="215" rx="4" fill="url(#bg-bar-gold)" />
+          <rect x="1135" y="535" width="24" height="255" rx="4" fill="url(#bg-bar-blue)" />
+          <rect x="1175" y="560" width="24" height="230" rx="4" fill="url(#bg-bar-blue)" />
+          <rect x="1215" y="485" width="24" height="305" rx="4" fill="url(#bg-bar-gold)" />
+          <rect x="1255" y="440" width="24" height="350" rx="4" fill="url(#bg-bar-blue)" />
+          <rect x="1295" y="390" width="24" height="400" rx="4" fill="url(#bg-bar-gold)" />
+          <rect x="1335" y="425" width="24" height="365" rx="4" fill="url(#bg-bar-blue)" />
+        </g>
+
+        <!-- Ondas de Fluxo de Dados e Gráficos de Linha Globais -->
+        <path d="M -50 710 C 240 640, 420 770, 720 690 C 1020 610, 1210 470, 1500 510" stroke="url(#bg-line-cyan)" stroke-width="2" fill="none" />
+        <path d="M -50 760 C 280 700, 490 610, 790 665 C 1090 720, 1250 545, 1500 440" stroke="url(#bg-line-gold)" stroke-width="2.2" stroke-dasharray="6 6" fill="none" />
+
+        <!-- Linhas de Conexão de Rede Tecnológica (Constelação de Dados Superior Esquerda) -->
+        <g opacity="0.32" stroke="#60A5FA" stroke-width="1">
+          <line x1="95" y1="130" x2="210" y2="95" />
+          <line x1="210" y1="95" x2="310" y2="165" />
+          <line x1="310" y1="165" x2="245" y2="265" />
+          <line x1="245" y1="265" x2="120" y2="235" />
+          <line x1="120" y1="235" x2="95" y2="130" />
+          <line x1="210" y1="95" x2="245" y2="265" />
+          <line x1="310" y1="165" x2="420" y2="125" />
+          <line x1="245" y1="265" x2="365" y2="310" />
+        </g>
+        <g opacity="0.55">
+          <circle cx="95" cy="130" r="3.5" fill="#60A5FA" />
+          <circle cx="210" cy="95" r="4.5" fill="#F58220" />
+          <circle cx="310" cy="165" r="3.5" fill="#60A5FA" />
+          <circle cx="245" cy="265" r="5" fill="#ECBD56" />
+          <circle cx="120" cy="235" r="3" fill="#60A5FA" />
+          <circle cx="420" cy="125" r="4" fill="#F58220" />
+          <circle cx="365" cy="310" r="3" fill="#38BDF8" />
+        </g>
+
+        <!-- Linhas de Conexão de Rede e Anéis Contábeis (Superior Direita) -->
+        <g opacity="0.30" stroke="#60A5FA" stroke-width="1">
+          <line x1="1060" y1="140" x2="1185" y2="105" />
+          <line x1="1185" y1="105" x2="1310" y2="180" />
+          <line x1="1310" y1="180" x2="1240" y2="290" />
+          <line x1="1240" y1="290" x2="1115" y2="250" />
+          <line x1="1115" y1="250" x2="1060" y2="140" />
+          <line x1="1185" y1="105" x2="1240" y2="290" />
+        </g>
+        <g opacity="0.55">
+          <circle cx="1060" cy="140" r="3.5" fill="#38BDF8" />
+          <circle cx="1185" cy="105" r="5" fill="#ECBD56" />
+          <circle cx="1310" cy="180" r="4" fill="#F58220" />
+          <circle cx="1240" cy="290" r="4.5" fill="#60A5FA" />
+          <circle cx="1115" cy="250" r="3" fill="#ECBD56" />
+        </g>
+
+        <!-- Anéis Geométricos Abstratos de Auditoria / Gestão -->
+        <g opacity="0.18" transform="translate(1240, 210)">
+          <circle cx="0" cy="0" r="88" stroke="#60A5FA" stroke-width="1.5" stroke-dasharray="8 6" />
+          <circle cx="0" cy="0" r="64" stroke="#F58220" stroke-width="2" stroke-dasharray="40 20" />
+          <circle cx="0" cy="0" r="40" stroke="#ECBD56" stroke-width="1.2" />
+        </g>
+        <g opacity="0.15" transform="translate(175, 440)">
+          <circle cx="0" cy="0" r="74" stroke="#ECBD56" stroke-width="1.5" stroke-dasharray="12 8" />
+          <circle cx="0" cy="0" r="48" stroke="#38BDF8" stroke-width="1.5" />
+        </g>
+      </svg>
+
+      <!-- CARD DE LOGIN CENTRAL (BRANCO IMACULADO COM SOMBRA PROFUNDA E ELEGANTE) -->
+      <div
+        class="w-full max-w-md p-8 sm:p-9 rounded-3xl bg-white text-slate-900 relative z-10 overflow-hidden select-text transition-all duration-300"
+        style="box-shadow: 0 32px 80px -12px rgba(2, 6, 18, 0.85), 0 16px 36px -6px rgba(13, 59, 102, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 55px -12px rgba(245, 130, 32, 0.22);"
+      >
+        <!-- Assinatura Visual Superior em Degradê da Marca -->
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#0D3B66] via-[#F58220] to-[#0D3B66]"></div>
         
         <div class="flex flex-col items-center mb-6 mt-2">
-          ${renderLogo("h-14")}
-          <h2 class="mt-5 text-2xl font-extrabold text-gray-900 dark:text-white">
+          ${renderLogo("h-14", false)}
+          <h2 class="mt-5 text-2xl font-extrabold text-[#0F172A] tracking-tight">
             ${isLogin ? 'Acesso Restrito' : isForgot ? 'Redefinir Senha' : 'Criar Nova Conta'}
           </h2>
-          <p class="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">
+          <p class="text-xs text-slate-500 text-center mt-1 font-medium">
             Dashboard de Gestão e Controle Contábil
           </p>
         </div>
@@ -2170,23 +2552,23 @@ function renderAuthScreen(root) {
           <!-- Formulário de Login -->
           <form id="login-form" class="space-y-4">
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Usuário ou E-mail</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Usuário ou E-mail</label>
               <input
                 type="text"
                 id="login-username"
                 required
                 placeholder="Seu usuário ou e-mail"
-                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400">Senha</label>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Senha</label>
                 <button
                   type="button"
                   onclick="setAuthMode('forgot')"
-                  class="text-[11px] font-semibold text-[#E88A1A] hover:underline"
+                  class="text-[11px] font-semibold text-[#E88A1A] hover:text-[#C96E0C] hover:underline transition"
                 >
                   Esqueceu a senha?
                 </button>
@@ -2196,24 +2578,25 @@ function renderAuthScreen(root) {
                 id="login-password"
                 required
                 placeholder="••••••••"
-                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <button
               type="submit"
-              class="w-full py-3.5 px-6 rounded-full font-bold text-gray-950 bg-[#ECBD56] hover:bg-[#DEA93F] shadow-lg shadow-[#ECBD56]/20 transition flex items-center justify-center gap-2 mt-2"
+              style="background: linear-gradient(135deg, #F58220 0%, #E06D14 45%, #133E68 100%); box-shadow: 0 10px 25px -5px rgba(245, 130, 32, 0.48), 0 4px 12px -2px rgba(19, 62, 104, 0.35);"
+              class="w-full py-3.5 px-6 rounded-full font-bold text-white tracking-wide hover:brightness-110 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-6px_rgba(245,130,32,0.6),0_6px_16px_-2px_rgba(19,62,104,0.45)] active:translate-y-0 transition-all duration-300 flex items-center justify-center gap-2 mt-2 cursor-pointer"
             >
               <span>Entrar no Sistema</span>
             </button>
           </form>
 
-          <div class="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center flex flex-col gap-2">
-            <p class="text-xs text-gray-400">Não tem uma conta cadastrada?</p>
+          <div class="mt-6 pt-5 border-t border-slate-100 text-center flex flex-col gap-2">
+            <p class="text-xs text-slate-400">Não tem uma conta cadastrada?</p>
             <button
               type="button"
               onclick="setAuthMode('register')"
-              class="text-xs font-bold text-[#E88A1A] hover:underline"
+              class="text-xs font-bold text-[#E88A1A] hover:text-[#C96E0C] hover:underline transition"
             >
               Cadastre-se agora
             </button>
@@ -2221,52 +2604,53 @@ function renderAuthScreen(root) {
         ` : isForgot ? `
           <!-- Formulário de Esqueci a Senha / Redefinição -->
           <form id="forgot-form" class="space-y-4">
-            <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 leading-relaxed">
+            <div class="p-3.5 rounded-2xl bg-blue-50 border border-blue-200/80 text-xs text-[#133E68] leading-relaxed font-medium">
               Informe seu e-mail cadastrado e digite a nova senha desejada para efetuar a confirmação imediata.
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">E-mail Cadastrado *</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">E-mail Cadastrado *</label>
               <input
                 type="email"
                 id="forgot-email"
                 required
                 placeholder="seuemail@controlcontabilidade.com.br"
-                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nova Senha *</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Nova Senha *</label>
               <input
                 type="password"
                 id="forgot-new-password"
                 required
                 placeholder="Digite a nova senha (mínimo 6 dígitos)"
-                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Confirmar Nova Senha *</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Confirmar Nova Senha *</label>
               <input
                 type="password"
                 id="forgot-confirm-password"
                 required
                 placeholder="Confirme a nova senha"
-                class="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <button
               type="submit"
-              class="w-full py-3.5 px-6 rounded-full font-bold text-gray-950 bg-[#ECBD56] hover:bg-[#DEA93F] shadow-lg shadow-[#ECBD56]/20 transition flex items-center justify-center gap-2 mt-2"
+              style="background: linear-gradient(135deg, #F58220 0%, #E06D14 45%, #133E68 100%); box-shadow: 0 10px 25px -5px rgba(245, 130, 32, 0.48), 0 4px 12px -2px rgba(19, 62, 104, 0.35);"
+              class="w-full py-3.5 px-6 rounded-full font-bold text-white tracking-wide hover:brightness-110 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 mt-2 cursor-pointer"
             >
               <span>Redefinir Senha</span>
             </button>
           </form>
 
-          <div class="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center flex flex-col gap-2">
+          <div class="mt-6 pt-5 border-t border-slate-100 text-center flex flex-col gap-2">
             <button
               type="button"
               onclick="setAuthMode('login')"
@@ -2279,59 +2663,60 @@ function renderAuthScreen(root) {
           <!-- Formulário de Criação de Conta -->
           <form id="register-form" class="space-y-4">
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nome Completo</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Nome Completo</label>
               <input
                 type="text"
                 id="reg-fullname"
                 required
                 placeholder="Ex: Ana Silva"
-                class="w-full px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nome de Usuário</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Nome de Usuário</label>
               <input
                 type="text"
                 id="reg-username"
                 required
                 placeholder="Ex: ana.silva"
-                class="w-full px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">E-mail Profissional</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">E-mail Profissional</label>
               <input
                 type="email"
                 id="reg-email"
                 required
                 placeholder="ana@controlcontabilidade.com.br"
-                class="w-full px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Senha de Acesso</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Senha de Acesso</label>
               <input
                 type="password"
                 id="reg-password"
                 required
                 placeholder="Mínimo 6 caracteres"
-                class="w-full px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#1C1C23] border border-gray-200 dark:border-gray-700/60 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ECBD56] transition"
+                class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F58220]/35 focus:border-[#F58220] transition"
               />
             </div>
 
             <button
               type="submit"
-              class="w-full py-3.5 px-6 rounded-full font-bold text-gray-950 bg-[#ECBD56] hover:bg-[#DEA93F] shadow-lg shadow-[#ECBD56]/20 transition flex items-center justify-center gap-2 mt-2"
+              style="background: linear-gradient(135deg, #F58220 0%, #E06D14 45%, #133E68 100%); box-shadow: 0 10px 25px -5px rgba(245, 130, 32, 0.48), 0 4px 12px -2px rgba(19, 62, 104, 0.35);"
+              class="w-full py-3.5 px-6 rounded-full font-bold text-white tracking-wide hover:brightness-110 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 mt-2 cursor-pointer"
             >
               <span>Finalizar Cadastro</span>
             </button>
           </form>
 
-          <div class="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center flex flex-col gap-2">
-            <p class="text-xs text-gray-400">Já possui uma conta?</p>
+          <div class="mt-6 pt-5 border-t border-slate-100 text-center flex flex-col gap-2">
+            <p class="text-xs text-slate-400">Já possui uma conta?</p>
             <button
               type="button"
               onclick="setAuthMode('login')"
@@ -2343,7 +2728,7 @@ function renderAuthScreen(root) {
         `}
 
         <div class="mt-6 text-center">
-          <span class="text-[11px] text-gray-500">Control Contabilidade &bull; Versão 2.1</span>
+          <span class="text-[11px] text-slate-400">Control Contabilidade &bull; Versão 2.1</span>
         </div>
       </div>
     </div>
@@ -2471,6 +2856,8 @@ function renderActiveTab(filtered) {
       return renderIrpjTrimTab(filtered);
     case 'irpj_mensal':
       return renderIrpjMensalTab(filtered);
+    case 'ecd_ecf':
+      return renderEcdEcfTab(filtered);
     case 'tarefas':
       return renderTarefasTab();
     case 'empresas':
@@ -2602,14 +2989,15 @@ function renderDashboardTab(companies) {
         </div>
       </div>
 
-      <!-- 4 CARTÕES SUPERIORES DE INDICADORES COM BARRAS DE PROGRESSO E SEMÁFORO DE VENCIMENTO -->
+      <!-- 4 CARTÕES SUPERIORES DE INDICADORES COM SPARKLINES VETORIAIS, SPOTLIGHT GLOW E BARRAS DE PROGRESSO -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         <!-- Card 1: PIS / COFINS -->
-        <div onclick="switchTab('piscofins')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div>
+        <div onclick="switchTab('piscofins')" class="panze-card cursor-pointer group relative overflow-hidden flex flex-col justify-between">
+          <div class="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-[#F58220]/10 blur-2xl group-hover:bg-[#F58220]/20 transition-all duration-500 pointer-events-none"></div>
+          <div class="relative z-10">
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#F58220]/20 to-[#ECBD56]/5 border border-[#ECBD56]/30 flex items-center justify-center text-[#F58220] dark:text-[#ECBD56] shadow-inner">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path>
                   <path d="M14 8H8"></path>
@@ -2617,31 +3005,42 @@ function renderDashboardTab(companies) {
                   <path d="M13 16H8"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
-                Ver PIS/COFINS →
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-gray-100/80 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 group-hover:border-[#ECBD56]/40 group-hover:text-[#F58220] dark:group-hover:text-[#ECBD56] transition-all">
+                ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}% Concluído ↗
               </span>
             </div>
-            <div class="mt-4">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclPis === realCompanies.length && realCompanies.length > 0 ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}">
-                  ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}% Concluído
-                </span>
+
+            <div class="mt-4 flex items-end justify-between gap-2">
+              <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">DARFs Pendentes</span>
+                <div class="text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">PIS / COFINS</div>
+                <div class="flex items-baseline gap-2 mt-1.5">
+                  <span class="text-3xl font-black tabular-nums text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingPis}">${pendingPis}</span>
+                  <span class="text-xs text-gray-400 font-medium">/ ${realCompanies.length} emp.</span>
+                </div>
               </div>
-              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">PIS / COFINS</div>
-              <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingPis}">${pendingPis}</span>
-                <span class="text-xs text-gray-400 font-medium">de ${realCompanies.length} empresas</span>
-              </div>
-              
-              <!-- Barra de Progresso Visual -->
-              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
-                <div class="card-progress-bar h-full rounded-full transition-all duration-500" style="width: ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}%"></div>
-              </div>
+
+              <!-- Mini Sparkline Vetorial -->
+              <svg class="w-20 h-9 opacity-75 group-hover:opacity-100 transition-opacity shrink-0" viewBox="0 0 80 32" fill="none">
+                <defs>
+                  <linearGradient id="sparkPis" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#F58220" stop-opacity="0.35"/>
+                    <stop offset="100%" stop-color="#F58220" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M2 26 C18 24, 24 14, 38 18 C52 22, 60 8, 76 5 L76 32 L2 32 Z" fill="url(#sparkPis)" />
+                <path d="M2 26 C18 24, 24 14, 38 18 C52 22, 60 8, 76 5" stroke="#F58220" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="76" cy="5" r="2.8" fill="#ECBD56" />
+              </svg>
+            </div>
+
+            <!-- Barra de Progresso Visual com Glow -->
+            <div class="w-full bg-gray-100 dark:bg-white/[0.06] h-2 rounded-full overflow-hidden mt-3.5">
+              <div class="h-full rounded-full bg-gradient-to-r from-[#F58220] to-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-500" style="width: ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}%"></div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1.5 font-medium">
+          <div class="relative z-10 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 text-[11px] text-gray-400 flex items-center justify-between">
+            <span class="flex items-center gap-1.5 font-medium tabular-nums">
               <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               Dia ${getAdjustedTaxDueDate(25).adjustedDay}${getAdjustedTaxDueDate(25).antecipado ? ' (Útil)' : ''}
             </span>
@@ -2650,10 +3049,11 @@ function renderDashboardTab(companies) {
         </div>
 
         <!-- Card 2: IRPJ/CSLL Mensal -->
-        <div onclick="switchTab('irpj_mensal')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div>
+        <div onclick="switchTab('irpj_mensal')" class="panze-card cursor-pointer group relative overflow-hidden flex flex-col justify-between">
+          <div class="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-cyan-500/10 blur-2xl group-hover:bg-cyan-500/20 transition-all duration-500 pointer-events-none"></div>
+          <div class="relative z-10">
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/5 border border-cyan-500/30 flex items-center justify-center text-cyan-500 dark:text-cyan-400 shadow-inner">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <rect width="16" height="20" x="4" y="2" rx="2"></rect>
                   <line x1="8" x2="16" y1="6" y2="6"></line>
@@ -2663,31 +3063,42 @@ function renderDashboardTab(companies) {
                   <path d="M12 18h.01"></path><path d="M8 18h.01"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
-                Ver Mensal →
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-gray-100/80 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 group-hover:border-cyan-500/40 group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-all">
+                ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}% Concluído ↗
               </span>
             </div>
-            <div class="mt-4">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclMensal === mensalCompanies.length && mensalCompanies.length > 0 ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}">
-                  ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}% Concluído
-                </span>
+
+            <div class="mt-4 flex items-end justify-between gap-2">
+              <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">DARFs Pendentes</span>
+                <div class="text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">IRPJ Mensal</div>
+                <div class="flex items-baseline gap-2 mt-1.5">
+                  <span class="text-3xl font-black tabular-nums text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingMensal}">${pendingMensal}</span>
+                  <span class="text-xs text-gray-400 font-medium">/ ${mensalCompanies.length} emp.</span>
+                </div>
               </div>
-              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Mensal</div>
-              <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingMensal}">${pendingMensal}</span>
-                <span class="text-xs text-gray-400 font-medium">de ${mensalCompanies.length} empresas</span>
-              </div>
-              
-              <!-- Barra de Progresso Visual -->
-              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
-                <div class="card-progress-bar h-full rounded-full transition-all duration-500" style="width: ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}%"></div>
-              </div>
+
+              <!-- Mini Sparkline Vetorial -->
+              <svg class="w-20 h-9 opacity-75 group-hover:opacity-100 transition-opacity shrink-0" viewBox="0 0 80 32" fill="none">
+                <defs>
+                  <linearGradient id="sparkMensal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.35"/>
+                    <stop offset="100%" stop-color="#06B6D4" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M2 24 C16 26, 28 16, 42 15 C54 14, 64 9, 76 6 L76 32 L2 32 Z" fill="url(#sparkMensal)" />
+                <path d="M2 24 C16 26, 28 16, 42 15 C54 14, 64 9, 76 6" stroke="#06B6D4" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="76" cy="6" r="2.8" fill="#22D3EE" />
+              </svg>
+            </div>
+
+            <!-- Barra de Progresso Visual com Glow -->
+            <div class="w-full bg-gray-100 dark:bg-white/[0.06] h-2 rounded-full overflow-hidden mt-3.5">
+              <div class="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 shadow-[0_0_10px_rgba(6,182,212,0.5)] transition-all duration-500" style="width: ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}%"></div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1.5 font-medium">
+          <div class="relative z-10 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 text-[11px] text-gray-400 flex items-center justify-between">
+            <span class="flex items-center gap-1.5 font-medium tabular-nums">
               <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)
             </span>
@@ -2696,40 +3107,52 @@ function renderDashboardTab(companies) {
         </div>
 
         <!-- Card 3: IRPJ/CSLL Trimestral -->
-        <div onclick="switchTab('irpj_trim')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div>
+        <div onclick="switchTab('irpj_trim')" class="panze-card cursor-pointer group relative overflow-hidden flex flex-col justify-between">
+          <div class="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-blue-500/10 blur-2xl group-hover:bg-blue-500/20 transition-all duration-500 pointer-events-none"></div>
+          <div class="relative z-10">
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/5 border border-blue-500/30 flex items-center justify-center text-blue-500 dark:text-blue-400 shadow-inner">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
                   <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
-                Ver Trimestral →
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-gray-100/80 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 group-hover:border-blue-500/40 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all">
+                ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}% Concluído ↗
               </span>
             </div>
-            <div class="mt-4">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total DARFs Pendentes</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${conclTrim === trimCompanies.length && trimCompanies.length > 0 ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}">
-                  ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}% Concluído
-                </span>
+
+            <div class="mt-4 flex items-end justify-between gap-2">
+              <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">DARFs Pendentes</span>
+                <div class="text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">IRPJ Trimestral</div>
+                <div class="flex items-baseline gap-2 mt-1.5">
+                  <span class="text-3xl font-black tabular-nums text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingTrim}">${pendingTrim}</span>
+                  <span class="text-xs text-gray-400 font-medium">/ ${trimCompanies.length} emp.</span>
+                </div>
               </div>
-              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">IRPJ Trimestral</div>
-              <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingTrim}">${pendingTrim}</span>
-                <span class="text-xs text-gray-400 font-medium">de ${trimCompanies.length} empresas</span>
-              </div>
-              
-              <!-- Barra de Progresso Visual -->
-              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3">
-                <div class="card-progress-bar h-full rounded-full transition-all duration-500" style="width: ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}%"></div>
-              </div>
+
+              <!-- Mini Sparkline Vetorial -->
+              <svg class="w-20 h-9 opacity-75 group-hover:opacity-100 transition-opacity shrink-0" viewBox="0 0 80 32" fill="none">
+                <defs>
+                  <linearGradient id="sparkTrim" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.35"/>
+                    <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M2 27 C14 22, 26 23, 40 14 C54 6, 64 12, 76 5 L76 32 L2 32 Z" fill="url(#sparkTrim)" />
+                <path d="M2 27 C14 22, 26 23, 40 14 C54 6, 64 12, 76 5" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="76" cy="5" r="2.8" fill="#60A5FA" />
+              </svg>
+            </div>
+
+            <!-- Barra de Progresso Visual com Glow -->
+            <div class="w-full bg-gray-100 dark:bg-white/[0.06] h-2 rounded-full overflow-hidden mt-3.5">
+              <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-500" style="width: ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}%"></div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 flex items-center justify-between">
-            <span class="flex items-center gap-1.5 font-medium">
+          <div class="relative z-10 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 text-[11px] text-gray-400 flex items-center justify-between">
+            <span class="flex items-center gap-1.5 font-medium tabular-nums">
               <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               Dia ${getAdjustedTaxDueDate(31).adjustedDay} (Útil)
             </span>
@@ -2738,49 +3161,50 @@ function renderDashboardTab(companies) {
         </div>
 
         <!-- Card 4: Fechamentos Contábeis -->
-        <div onclick="switchTab('fechamentos')" class="panze-card cursor-pointer group flex flex-col justify-between">
-          <div>
+        <div onclick="switchTab('fechamentos')" class="panze-card cursor-pointer group relative overflow-hidden flex flex-col justify-between">
+          <div class="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-emerald-500/10 blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500 pointer-events-none"></div>
+          <div class="relative z-10">
             <div class="flex items-start justify-between">
-              <div class="w-10 h-10 rounded-2xl card-icon-badge flex items-center justify-center shadow-xs">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/5 border border-emerald-500/30 flex items-center justify-center text-emerald-500 dark:text-emerald-400 shadow-inner">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 3v18h18"></path>
                   <path d="m19 9-5 5-4-4-3 3"></path>
                 </svg>
               </div>
-              <span class="text-[11px] font-semibold card-action-link flex items-center gap-1">
-                Ver Fechamentos →
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-gray-100/80 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 group-hover:border-emerald-500/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-all">
+                Ver Fechamentos ↗
               </span>
             </div>
             <div class="mt-4">
-              <div class="text-xs font-medium text-gray-500 dark:text-gray-400">Eficiência Geral</div>
-              <div class="text-2xl font-extrabold text-gray-900 dark:text-white mt-1 tracking-tight">Fechamentos</div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Eficiência Geral</span>
+              <div class="text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">Fechamentos</div>
               <div class="flex items-center gap-3 mt-2">
-                <div onclick="event.stopPropagation(); navigateToFechamentoFilter('em_dia')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Ver empresas em dia">
-                  <span class="text-xl font-black text-gray-800 dark:text-gray-100 animate-counter" data-counter-target="${Math.round((emDia/tot)*100)}" data-counter-suffix="%">${Math.round((emDia/tot)*100)}%</span>
+                <div onclick="event.stopPropagation(); navigateToFechamentoFilter('em_dia')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-emerald-500/10" title="Ver empresas em dia">
+                  <span class="text-xl font-black tabular-nums text-emerald-500 dark:text-emerald-400 animate-counter" data-counter-target="${Math.round((emDia/tot)*100)}" data-counter-suffix="%">${Math.round((emDia/tot)*100)}%</span>
                   <span class="block text-[9px] uppercase font-bold text-gray-400">Em Dia</span>
                 </div>
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
                 <div onclick="event.stopPropagation(); navigateToFechamentoFilter('atencao')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-amber-500/10" title="Ver empresas em atenção (1-2m)">
-                  <span class="text-xl font-black text-amber-500 animate-counter" data-counter-target="${Math.round((atencao/tot)*100)}" data-counter-suffix="%">${Math.round((atencao/tot)*100)}%</span>
+                  <span class="text-xl font-black tabular-nums text-amber-500 animate-counter" data-counter-target="${Math.round((atencao/tot)*100)}" data-counter-suffix="%">${Math.round((atencao/tot)*100)}%</span>
                   <span class="block text-[9px] uppercase font-bold text-gray-400">Atenção</span>
                 </div>
                 <div class="w-px h-6 bg-gray-200 dark:bg-gray-800"></div>
                 <div onclick="event.stopPropagation(); navigateToFechamentoFilter('critico')" class="cursor-pointer hover:opacity-80 transition p-1 -m-1 rounded-lg hover:bg-rose-500/10" title="Ver empresas em estado crítico (>2m)">
-                  <span class="text-xl font-black text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${Math.round((critico/tot)*100)}" data-counter-suffix="%">${Math.round((critico/tot)*100)}%</span>
+                  <span class="text-xl font-black tabular-nums text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${Math.round((critico/tot)*100)}" data-counter-suffix="%">${Math.round((critico/tot)*100)}%</span>
                   <span class="block text-[9px] uppercase font-bold text-gray-400">Crítico</span>
                 </div>
               </div>
 
-              <!-- Barra de Progresso Tripla -->
-              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-3 flex">
-                <div class="card-progress-bar h-full transition-all duration-500" style="width: ${Math.round((emDia/tot)*100)}%"></div>
+              <!-- Barra de Progresso Tripla com Glow -->
+              <div class="w-full bg-gray-100 dark:bg-white/[0.06] h-2 rounded-full overflow-hidden mt-3.5 flex">
+                <div class="bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] h-full transition-all duration-500" style="width: ${Math.round((emDia/tot)*100)}%"></div>
                 <div class="bg-amber-500 h-full transition-all duration-500" style="width: ${Math.round((atencao/tot)*100)}%"></div>
                 <div class="bg-rose-500 h-full transition-all duration-500" style="width: ${Math.round((critico/tot)*100)}%"></div>
               </div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <div class="relative z-10 mt-4 pt-3 border-t border-gray-100 dark:border-gray-800/80 text-[11px] text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1.5 tabular-nums">
+            <svg class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             ${companies.length} empresas monitoradas
           </div>
         </div>
@@ -3521,20 +3945,208 @@ function renderCharts(companies) {
 }
 
 // ---------------- FECHAMENTOS TAB ----------------
+const FECHAMENTO_ESTAGIOS = [
+  { id: 'Em Conciliação', label: '📋 Em Conciliação', css: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
+  { id: 'Aguardando Cliente', label: '⏳ Aguardando Cliente (Extratos)', css: 'bg-amber-500/15 text-amber-400 border-amber-500/35' },
+  { id: 'Aguardando Fiscal/DP', label: '🔄 Aguardando Fiscal / DP', css: 'bg-purple-500/15 text-purple-400 border-purple-500/35' },
+  { id: 'Em Revisão', label: '🔍 Em Revisão', css: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/35' },
+  { id: 'Fechado', label: '✅ Fechado / Concluído', css: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/35' }
+];
+
+function getCompanyFechamentoMeta(companyId, fechamentoStr) {
+  const saved = state.fechamentosMeta[companyId] || {};
+  const st = getFechamentoStatus(fechamentoStr);
+  const defaultEstagio = st.status === 'em_dia' ? 'Fechado' : 'Em Conciliação';
+  return {
+    estagio: saved.estagio || defaultEstagio,
+    obs: saved.obs || '',
+    updatedAt: saved.updatedAt || null
+  };
+}
+
+window.setFechamentoEstagioFilter = (val) => {
+  state.fechamentoEstagioFilter = val;
+  render();
+};
+
+window.updateFechamentoEstagio = (companyId, novoEstagio) => {
+  const current = state.fechamentosMeta[companyId] || {};
+  state.fechamentosMeta[companyId] = {
+    ...current,
+    estagio: novoEstagio,
+    updatedAt: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  };
+  saveStorage();
+  render();
+};
+
+window.openFechamentoObsModal = (companyId) => {
+  state.fechamentoObsModal = { isOpen: true, companyId };
+  render();
+  setTimeout(() => {
+    const el = document.getElementById('fechamento-obs-textarea');
+    if (el) el.focus();
+  }, 30);
+};
+
+window.closeFechamentoObsModal = () => {
+  state.fechamentoObsModal = { isOpen: false, companyId: null };
+  render();
+};
+
+window.saveFechamentoObsModal = (e) => {
+  if (e) e.preventDefault();
+  const cId = state.fechamentoObsModal.companyId;
+  if (!cId) return;
+  const estagioEl = document.getElementById('fechamento-obs-estagio');
+  const obsEl = document.getElementById('fechamento-obs-textarea');
+  const current = state.fechamentosMeta[cId] || {};
+  state.fechamentosMeta[cId] = {
+    ...current,
+    estagio: estagioEl ? estagioEl.value : (current.estagio || 'Em Conciliação'),
+    obs: obsEl ? obsEl.value.trim() : '',
+    updatedAt: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  };
+  saveStorage();
+  closeFechamentoObsModal();
+};
+
+window.applyQuickObsSuggestion = (text) => {
+  const obsEl = document.getElementById('fechamento-obs-textarea');
+  if (!obsEl) return;
+  const cur = obsEl.value.trim();
+  obsEl.value = cur ? `${cur}; ${text}` : text;
+  obsEl.focus();
+};
+
+function renderFechamentoObsModal() {
+  const cId = state.fechamentoObsModal.companyId;
+  const comp = state.companies.find(c => c.id === cId);
+  if (!comp) return '';
+  const meta = getCompanyFechamentoMeta(comp.id, comp.fechamento);
+
+  const quickSuggestions = [
+    'Falta extrato bancário do cliente',
+    'Aguardando fechamento da Folha / DP',
+    'Aguardando conferência Fiscal (EFD/NFe)',
+    'Pendente conciliação de aplicações financeiras',
+    'Aguardando relatórios financeiros de contas pagas/recebidas'
+  ];
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div class="w-full max-w-lg rounded-3xl bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 shadow-2xl p-6 relative">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div class="flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center text-base">📝</span>
+            <div>
+              <h3 class="font-extrabold text-base md:text-lg text-gray-900 dark:text-white leading-tight">
+                Estágio & Nota Rápida de Fechamento
+              </h3>
+              <p class="text-xs text-gray-400 font-medium">${comp.nome}</p>
+            </div>
+          </div>
+          <button onclick="closeFechamentoObsModal()" class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-sm transition">
+            ✕
+          </button>
+        </div>
+
+        <form onsubmit="saveFechamentoObsModal(event)" class="mt-5 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Estágio Atual / Motivo de Parada</label>
+            <select
+              id="fechamento-obs-estagio"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40"
+            >
+              ${FECHAMENTO_ESTAGIOS.map(e => `
+                <option value="${e.id}" ${meta.estagio === e.id ? 'selected' : ''} class="bg-[#15151A] text-white">${e.label}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400">Observação Rápida (Post-it da Competência)</label>
+              ${meta.obs ? `
+                <button type="button" onclick="document.getElementById('fechamento-obs-textarea').value = ''" class="text-[11px] font-semibold text-rose-400 hover:underline">
+                  Limpar nota
+                </button>
+              ` : ''}
+            </div>
+            <textarea
+              id="fechamento-obs-textarea"
+              rows="3"
+              placeholder="Ex: Falta extrato Bradesco conta 1234-5 e resumo da folha de agosto..."
+              class="w-full px-4 py-2.5 rounded-xl bg-amber-50/40 dark:bg-[#11121C] border border-amber-300/60 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition resize-none"
+            >${meta.obs}</textarea>
+
+            <!-- Sugestões rápidas clicáveis -->
+            <div class="mt-2.5">
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Atalhos de Pendências Comuns:</span>
+              <div class="flex flex-wrap gap-1.5">
+                ${quickSuggestions.map(sug => `
+                  <button
+                    type="button"
+                    onclick="applyQuickObsSuggestion('${sug}')"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-gray-100 dark:bg-white/5 hover:bg-[#ECBD56]/15 text-gray-600 dark:text-gray-300 hover:text-[#ECBD56] border border-gray-200/70 dark:border-gray-800 transition"
+                  >
+                    + ${sug}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          ${meta.updatedAt ? `
+            <div class="text-[11px] text-gray-400 flex items-center justify-between pt-1">
+              <span>Última atualização registrada:</span>
+              <strong class="text-gray-600 dark:text-gray-300">${meta.updatedAt}</strong>
+            </div>
+          ` : ''}
+
+          <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
+            <button type="button" onclick="closeFechamentoObsModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition">
+              Cancelar
+            </button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl font-bold text-xs text-gray-950 bg-[#ECBD56] hover:bg-[#DEA93F] transition shadow-sm">
+              Salvar Nota & Estágio
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
 function renderFechamentosTab(companies) {
   const list = companies.filter(c => {
-    if (state.fechamentoFilter === 'all') return true;
-    return getFechamentoStatus(c.fechamento).status === state.fechamentoFilter;
+    if (state.fechamentoFilter !== 'all' && getFechamentoStatus(c.fechamento).status !== state.fechamentoFilter) {
+      return false;
+    }
+    if (state.fechamentoEstagioFilter && state.fechamentoEstagioFilter !== 'all') {
+      const meta = getCompanyFechamentoMeta(c.id, c.fechamento);
+      if (state.fechamentoEstagioFilter === 'com_obs') {
+        if (!meta.obs) return false;
+      } else if (meta.estagio !== state.fechamentoEstagioFilter) {
+        return false;
+      }
+    }
+    return true;
   });
 
   const auto = getAutoCompetencies();
+
+  // Contadores rápidos de gargalos na carteira
+  const countCliente = companies.filter(c => getCompanyFechamentoMeta(c.id, c.fechamento).estagio === 'Aguardando Cliente').length;
+  const countFiscalDp = companies.filter(c => getCompanyFechamentoMeta(c.id, c.fechamento).estagio === 'Aguardando Fiscal/DP').length;
+  const countComObs = companies.filter(c => Boolean(getCompanyFechamentoMeta(c.id, c.fechamento).obs)).length;
 
   return `
     <div class="space-y-6">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
         <div>
           <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">Controle de Fechamentos Contábeis</h1>
-          <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5">Competência ideal: mês anterior (${auto.monthlyComp}). Acompanhe o avanço contábil por empresa.</p>
+          <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5">Competência ideal: mês anterior (${auto.monthlyComp}). Acompanhe o avanço contábil, gargalos e notas rápidas por empresa.</p>
         </div>
 
         <div class="flex items-center gap-1.5 bg-white dark:bg-[#171825] p-1.5 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-xs">
@@ -3554,18 +4166,43 @@ function renderFechamentosTab(companies) {
         </div>
       </div>
 
-      ${state.fechamentoFilter !== 'all' ? `
+      <!-- Barra de Filtro Rápido por Motivo de Parada / Estágio Operacional -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#171825] p-3 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-xs">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1.5">Estágio / Gargalo:</span>
+          ${[
+            { id: 'all', label: 'Todos' },
+            { id: 'Em Conciliação', label: '📋 Em Conciliação' },
+            { id: 'Aguardando Cliente', label: `⏳ Aguardando Cliente (${countCliente})` },
+            { id: 'Aguardando Fiscal/DP', label: `🔄 Aguardando Fiscal/DP (${countFiscalDp})` },
+            { id: 'Em Revisão', label: '🔍 Em Revisão' },
+            { id: 'com_obs', label: `📝 Com Nota Rápida (${countComObs})` }
+          ].map(ef => `
+            <button
+              onclick="setFechamentoEstagioFilter('${ef.id}')"
+              class="px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                (state.fechamentoEstagioFilter || 'all') === ef.id
+                  ? 'bg-[#F58220] text-white font-bold shadow-xs'
+                  : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
+              }"
+            >
+              ${ef.label}
+            </button>
+          `).join('')}
+        </div>
+        <div class="text-xs text-gray-400 font-medium">
+          Exibindo <strong>${list.length}</strong> de <strong>${companies.length}</strong> empresas
+        </div>
+      </div>
+
+      ${state.fechamentoFilter !== 'all' || (state.fechamentoEstagioFilter && state.fechamentoEstagioFilter !== 'all') ? `
         <div class="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between text-xs text-blue-500 font-semibold animate-fadeIn">
           <div class="flex items-center gap-2">
             <span>⚡</span>
-            <span>Exibindo apenas empresas com status <strong>${
-              state.fechamentoFilter === 'critico' ? '🔴 Crítico (>2 meses)' :
-              state.fechamentoFilter === 'atencao' ? '🟡 Atenção (1-2 meses)' :
-              '🟢 Em Dia (Ideal)'
-            }</strong> (${list.length} de ${companies.length} empresas)</span>
+            <span>Filtro ativo aplicado (${list.length} de ${companies.length} empresas listadas)</span>
           </div>
-          <button onclick="setFechamentoFilter('all')" class="underline hover:text-white text-xs font-bold">
-            Ver Todas
+          <button onclick="state.fechamentoFilter = 'all'; state.fechamentoEstagioFilter = 'all'; render();" class="underline hover:text-white text-xs font-bold">
+            Limpar Filtros
           </button>
         </div>
       ` : ''}
@@ -3575,11 +4212,12 @@ function renderFechamentosTab(companies) {
           <table class="w-full text-left text-sm border-collapse">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
-                <th class="py-4 px-6">Empresa & CNPJ</th>
-                <th class="py-4 px-4">Regime</th>
-                <th class="py-4 px-4">Responsável</th>
-                <th class="py-4 px-4">Último Fechamento</th>
+                ${renderCompanySortHeader('Empresa & CNPJ')}
+                ${renderSortableTh('Regime', 'regime')}
+                ${renderSortableTh('Responsável', 'colaborador')}
+                ${renderSortableTh('Último Fechamento', 'fechamento')}
                 <th class="py-4 px-4">Status</th>
+                <th class="py-4 px-4">Estágio / Motivo & Nota Rápida</th>
                 <th class="py-4 px-6 text-right">Ação</th>
               </tr>
             </thead>
@@ -3597,11 +4235,15 @@ function renderFechamentosTab(companies) {
                   <td class="py-4 px-4"><div class="skeleton-box h-4 w-20"></div></td>
                   <td class="py-4 px-4"><div class="skeleton-box h-6 w-24 rounded-xl"></div></td>
                   <td class="py-4 px-4"><div class="skeleton-box h-5 w-20 rounded-full"></div></td>
+                  <td class="py-4 px-4"><div class="skeleton-box h-6 w-40 rounded-xl"></div></td>
                   <td class="py-4 px-6 text-right"><div class="skeleton-box h-7 w-28 ml-auto rounded-xl"></div></td>
                 </tr>
               `).join('')}
             ` : list.map(c => {
               const st = getFechamentoStatus(c.fechamento);
+              const meta = getCompanyFechamentoMeta(c.id, c.fechamento);
+              const estObj = FECHAMENTO_ESTAGIOS.find(e => e.id === meta.estagio) || FECHAMENTO_ESTAGIOS[0];
+
               return `
                 <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
                   <td class="py-4 px-6">
@@ -3618,7 +4260,42 @@ function renderFechamentosTab(companies) {
                     />
                   </td>
                   <td class="py-4 px-4">
-                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${st.css}">${st.label}</span>
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${st.css}">${st.label}</span>
+                  </td>
+                  <td class="py-4 px-4">
+                    <div class="flex flex-col gap-1.5 max-w-xs">
+                      <div class="flex items-center gap-1.5">
+                        <select
+                          onchange="updateFechamentoEstagio(${c.id}, this.value)"
+                          class="px-2.5 py-1 rounded-xl text-[11px] font-bold border focus:outline-none cursor-pointer transition ${estObj.css}"
+                        >
+                          ${FECHAMENTO_ESTAGIOS.map(e => `
+                            <option value="${e.id}" ${meta.estagio === e.id ? 'selected' : ''} class="bg-[#15151A] text-white">${e.label}</option>
+                          `).join('')}
+                        </select>
+                        <button
+                          type="button"
+                          onclick="openFechamentoObsModal(${c.id})"
+                          class="p-1.5 rounded-lg border transition shrink-0 ${
+                            meta.obs
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25'
+                              : 'bg-gray-100 dark:bg-white/5 text-gray-400 border-gray-200 dark:border-gray-700 hover:text-[#ECBD56] hover:border-[#ECBD56]/40'
+                          }"
+                          title="${meta.obs ? 'Editar Nota Rápida: ' + meta.obs.replace(/"/g, '&quot;') : 'Adicionar Nota Rápida / Pendência'}"
+                        >
+                          📝
+                        </button>
+                      </div>
+                      ${meta.obs ? `
+                        <div
+                          onclick="openFechamentoObsModal(${c.id})"
+                          class="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-600 dark:text-amber-300 font-medium cursor-pointer hover:border-amber-500/50 transition line-clamp-2 leading-snug"
+                          title="Clique para editar observação"
+                        >
+                          📌 ${meta.obs}
+                        </div>
+                      ` : ''}
+                    </div>
                   </td>
                   <td class="py-4 px-6 text-right">
                     <div class="flex items-center justify-end gap-2">
@@ -3632,7 +4309,7 @@ function renderFechamentosTab(companies) {
                       </button>
                       <button
                         onclick="updateCompanyFechamento(${c.id}, '${auto.fechamento}')"
-                        class="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#22AC77]/10 text-[#22AC77] hover:bg-[#22AC77]/20 border border-[#22AC77]/30 transition"
+                        class="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#22AC77]/10 text-[#22AC77] hover:bg-[#22AC77]/20 border border-[#22AC77]/30 transition whitespace-nowrap"
                       >
                         Avançar p/ ${auto.monthlyComp}
                       </button>
@@ -6073,12 +6750,23 @@ function toggleSelectPisItem(id, checked) {
   render();
 }
 
+function formatNowTimestamp() {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} às ${hh}:${min}`;
+}
+
 function batchUpdatePisDarf(enviado) {
   if (!state.selectedPisIds.length) return alert('Selecione ao menos uma empresa.');
+  const stamp = formatNowTimestamp();
   state.selectedPisIds.forEach(id => {
     const key = `${id}_${state.selPisComp}`;
     state.pisCofinsData[key] = state.pisCofinsData[key] || { status: 'Pendente', darfEnviado: false };
     state.pisCofinsData[key].darfEnviado = enviado;
+    state.pisCofinsData[key].updatedAt = stamp;
     if (enviado && state.pisCofinsData[key].status === 'Pendente') {
       state.pisCofinsData[key].status = 'Concluída';
     }
@@ -6090,10 +6778,12 @@ function batchUpdatePisDarf(enviado) {
 
 function batchUpdatePisStatus(status) {
   if (!state.selectedPisIds.length) return alert('Selecione ao menos uma empresa.');
+  const stamp = formatNowTimestamp();
   state.selectedPisIds.forEach(id => {
     const key = `${id}_${state.selPisComp}`;
     state.pisCofinsData[key] = state.pisCofinsData[key] || { status: 'Pendente', darfEnviado: false };
     state.pisCofinsData[key].status = status;
+    state.pisCofinsData[key].updatedAt = stamp;
     if (status === 'Concluída') state.pisCofinsData[key].darfEnviado = true;
   });
   state.selectedPisIds = [];
@@ -6103,7 +6793,35 @@ function batchUpdatePisStatus(status) {
 
 // ---------------- PIS / COFINS TAB ----------------
 function renderPisCofinsTab(companies) {
-  const realCos = companies.filter(c => normalizeRegime(c.regime).includes('Lucro Real'));
+  const allRealCos = companies.filter(c => normalizeRegime(c.regime).includes('Lucro Real'));
+
+  const counts = {
+    todas: allRealCos.length,
+    pendente: 0,
+    analise: 0,
+    credor: 0,
+    concluida: 0
+  };
+
+  allRealCos.forEach(c => {
+    const rec = state.pisCofinsData[`${c.id}_${state.selPisComp}`] || { status: 'Pendente', darfEnviado: false, saldoCredor: false };
+    if (rec.saldoCredor || rec.status === 'Isenta') counts.credor++;
+    else if (rec.status === 'Concluída' || rec.darfEnviado) counts.concluida++;
+    else if (rec.status === 'Análise') counts.analise++;
+    else counts.pendente++;
+  });
+
+  const activeFilter = state.pisFilter || 'todas';
+  const realCos = allRealCos.filter(c => {
+    if (activeFilter === 'todas') return true;
+    const rec = state.pisCofinsData[`${c.id}_${state.selPisComp}`] || { status: 'Pendente', darfEnviado: false, saldoCredor: false };
+    if (activeFilter === 'credor') return rec.saldoCredor || rec.status === 'Isenta';
+    if (activeFilter === 'concluida') return !rec.saldoCredor && (rec.status === 'Concluída' || rec.darfEnviado);
+    if (activeFilter === 'analise') return !rec.saldoCredor && rec.status === 'Análise';
+    if (activeFilter === 'pendente') return !rec.saldoCredor && !rec.darfEnviado && rec.status === 'Pendente';
+    return true;
+  });
+
   const cosIds = realCos.map(c => c.id);
   const allSelected = cosIds.length > 0 && cosIds.every(id => state.selectedPisIds.includes(id));
   const someSelected = state.selectedPisIds.length > 0;
@@ -6141,6 +6859,26 @@ function renderPisCofinsTab(companies) {
         </div>
       </div>
 
+      <!-- Filtros Rápidos de Status PIS/COFINS -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Filtrar Status:</span>
+        <button onclick="setPisFilter('todas')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'todas' ? 'bg-[#12131F] text-white dark:bg-white dark:text-gray-950 border-transparent shadow-xs' : 'bg-white dark:bg-[#171825] text-gray-600 dark:text-gray-400 border-gray-200/80 dark:border-gray-800 hover:border-gray-300'}">
+          Todas (${counts.todas})
+        </button>
+        <button onclick="setPisFilter('pendente')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'pendente' ? 'bg-rose-500 text-white border-rose-500 shadow-xs' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20'}">
+          🔴 Pendentes (${counts.pendente})
+        </button>
+        <button onclick="setPisFilter('analise')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'analise' ? 'bg-amber-500 text-gray-950 border-amber-500 shadow-xs' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'}">
+          🟡 Em Análise (${counts.analise})
+        </button>
+        <button onclick="setPisFilter('credor')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'credor' ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/20'}">
+          🟣 Saldo Credor / Isenta (${counts.credor})
+        </button>
+        <button onclick="setPisFilter('concluida')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'concluida' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'}">
+          🟢 Concluídas (${counts.concluida})
+        </button>
+      </div>
+
       <!-- BARRA DE AÇÕES EM MASSA (BATCH ACTIONS) -->
       ${someSelected ? `
         <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
@@ -6176,16 +6914,22 @@ function renderPisCofinsTab(companies) {
                     title="Selecionar todas para ações em massa"
                   />
                 </th>
-                <th class="py-4 px-6">Empresa & CNPJ</th>
-                <th class="py-4 px-4">Regime</th>
-                <th class="py-4 px-4">Responsável</th>
+                ${renderCompanySortHeader('Empresa & CNPJ')}
+                ${renderSortableTh('Regime', 'regime')}
+                ${renderSortableTh('Responsável', 'colaborador')}
                 <th class="py-4 px-4 text-center">Saldo Credor?</th>
                 <th class="py-4 px-4">Situação</th>
                 <th class="py-4 px-6 text-center">Status / DARF</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
-              ${realCos.map(c => {
+              ${realCos.length === 0 ? `
+                <tr>
+                  <td colspan="7">
+                    ${renderEmptyState('Nenhuma empresa encontrada neste filtro', 'Altere o filtro de status acima ou limpe a busca para visualizar todas as empresas do Lucro Real.')}
+                  </td>
+                </tr>
+              ` : realCos.map(c => {
                 const rec = state.pisCofinsData[`${c.id}_${state.selPisComp}`] || { status: 'Pendente', darfEnviado: false, saldoCredor: false };
                 const isSelected = state.selectedPisIds.includes(c.id);
                 return `
@@ -6235,19 +6979,24 @@ function renderPisCofinsTab(companies) {
                       `}
                     </td>
                     <td class="py-4 px-6 text-center">
-                      ${rec.saldoCredor ? `
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">🟢 Concluído (Saldo Credor)</span>
-                      ` : `
-                        <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            ${rec.darfEnviado ? 'checked' : ''}
-                            onchange="togglePisDarf(${c.id}, this.checked)"
-                            class="w-5 h-5 rounded-md text-[#ECBD56] focus:ring-[#ECBD56]"
-                          />
-                          <span class="text-xs font-semibold ${rec.darfEnviado ? 'text-emerald-400 font-bold' : 'text-gray-300'}">${rec.darfEnviado ? 'Enviado' : 'Não enviado'}</span>
-                        </label>
-                      `}
+                      <div class="flex flex-col items-center gap-1">
+                        ${rec.saldoCredor ? `
+                          <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">🟢 Concluído (Saldo Credor)</span>
+                        ` : `
+                          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              ${rec.darfEnviado ? 'checked' : ''}
+                              onchange="togglePisDarf(${c.id}, this.checked)"
+                              class="w-5 h-5 rounded-md text-[#ECBD56] focus:ring-[#ECBD56]"
+                            />
+                            <span class="text-xs font-semibold ${rec.darfEnviado ? 'text-emerald-400 font-bold' : 'text-gray-400'}">${rec.darfEnviado ? 'DARF Enviado' : 'Não enviado'}</span>
+                          </label>
+                        `}
+                        ${rec.updatedAt ? `
+                          <span class="text-[10px] text-gray-400 font-medium" title="Última atualização do registro">🕒 ${rec.updatedAt}</span>
+                        ` : ''}
+                      </div>
                     </td>
                   </tr>
                 `;
@@ -6281,9 +7030,11 @@ function toggleSelectTrimItem(id, checked) {
 
 function batchUpdateTrimDarf(darfPaga) {
   if (!state.selectedTrimIds.length) return alert('Selecione ao menos uma empresa.');
+  const stamp = formatNowTimestamp();
   state.selectedTrimIds.forEach(id => {
     const key = `${id}_${state.selTrim}`;
     state.irpjTrimData[key] = state.irpjTrimData[key] || { prejuizo: false, quotaUnica: true, darfUnica: false, p1: false, p2: false, p3: false };
+    state.irpjTrimData[key].updatedAt = stamp;
     if (state.irpjTrimData[key].quotaUnica) {
       state.irpjTrimData[key].darfUnica = darfPaga;
     } else {
@@ -6299,7 +7050,47 @@ function batchUpdateTrimDarf(darfPaga) {
 
 // ---------------- IRPJ TRIMESTRAL TAB ----------------
 function renderIrpjTrimTab(companies) {
-  const trimCos = companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Trimestral');
+  const allTrimCos = companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Trimestral');
+
+  const counts = {
+    todas: allTrimCos.length,
+    pendente: 0,
+    parcial: 0,
+    prejuizo: 0,
+    concluida: 0
+  };
+
+  allTrimCos.forEach(c => {
+    const rec = state.irpjTrimData[`${c.id}_${state.selTrim}`] || { prejuizo: false, quotaUnica: true, darfUnica: false, p1: false, p2: false, p3: false };
+    if (rec.prejuizo) {
+      counts.prejuizo++;
+    } else if (rec.quotaUnica) {
+      if (rec.darfUnica) counts.concluida++;
+      else counts.pendente++;
+    } else {
+      const paidCount = (rec.p1 ? 1 : 0) + (rec.p2 ? 1 : 0) + (rec.p3 ? 1 : 0);
+      if (paidCount === 3) counts.concluida++;
+      else if (paidCount > 0) counts.parcial++;
+      else counts.pendente++;
+    }
+  });
+
+  const activeFilter = state.irpjTrimFilter || 'todas';
+  const trimCos = allTrimCos.filter(c => {
+    if (activeFilter === 'todas') return true;
+    const rec = state.irpjTrimData[`${c.id}_${state.selTrim}`] || { prejuizo: false, quotaUnica: true, darfUnica: false, p1: false, p2: false, p3: false };
+    const paidCount = (rec.p1 ? 1 : 0) + (rec.p2 ? 1 : 0) + (rec.p3 ? 1 : 0);
+    const isConcluida = !rec.prejuizo && ((rec.quotaUnica && rec.darfUnica) || (!rec.quotaUnica && paidCount === 3));
+    const isParcial = !rec.prejuizo && !rec.quotaUnica && paidCount > 0 && paidCount < 3;
+    const isPendente = !rec.prejuizo && ((rec.quotaUnica && !rec.darfUnica) || (!rec.quotaUnica && paidCount === 0));
+
+    if (activeFilter === 'prejuizo') return !!rec.prejuizo;
+    if (activeFilter === 'concluida') return isConcluida;
+    if (activeFilter === 'parcial') return isParcial;
+    if (activeFilter === 'pendente') return isPendente;
+    return true;
+  });
+
   const trimIds = trimCos.map(c => c.id);
   const allTrimSelected = trimIds.length > 0 && trimIds.every(id => state.selectedTrimIds.includes(id));
   const someTrimSelected = state.selectedTrimIds.length > 0;
@@ -6329,6 +7120,26 @@ function renderIrpjTrimTab(companies) {
         <div>
           ${getDeadlineBadge(31)}
         </div>
+      </div>
+
+      <!-- Filtros Rápidos de Status IRPJ Trimestral -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Filtrar Status:</span>
+        <button onclick="setIrpjTrimFilter('todas')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'todas' ? 'bg-[#12131F] text-white dark:bg-white dark:text-gray-950 border-transparent shadow-xs' : 'bg-white dark:bg-[#171825] text-gray-600 dark:text-gray-400 border-gray-200/80 dark:border-gray-800 hover:border-gray-300'}">
+          Todas (${counts.todas})
+        </button>
+        <button onclick="setIrpjTrimFilter('pendente')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'pendente' ? 'bg-rose-500 text-white border-rose-500 shadow-xs' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20'}">
+          🔴 Pendentes (${counts.pendente})
+        </button>
+        <button onclick="setIrpjTrimFilter('parcial')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'parcial' ? 'bg-amber-500 text-gray-950 border-amber-500 shadow-xs' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'}">
+          🟡 Em Parcelamento (${counts.parcial})
+        </button>
+        <button onclick="setIrpjTrimFilter('prejuizo')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'prejuizo' ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/20'}">
+          🟣 Prejuízo Fiscal (${counts.prejuizo})
+        </button>
+        <button onclick="setIrpjTrimFilter('concluida')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'concluida' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'}">
+          🟢 Quotas Quitadas (${counts.concluida})
+        </button>
       </div>
 
       <!-- BARRA DE AÇÕES EM MASSA (BATCH ACTIONS) TRIMESTRAL -->
@@ -6363,15 +7174,21 @@ function renderIrpjTrimTab(companies) {
                     title="Selecionar todas para ações em massa"
                   />
                 </th>
-                <th class="py-4 px-6">Empresa & CNPJ</th>
-                <th class="py-4 px-4">Responsável</th>
+                ${renderCompanySortHeader('Empresa & CNPJ')}
+                ${renderSortableTh('Responsável', 'colaborador')}
                 <th class="py-4 px-4">Prejuízo Fiscal?</th>
                 <th class="py-4 px-4">Modalidade de Pagamento</th>
                 <th class="py-4 px-6 text-center">Status / DARFs</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
-            ${trimCos.map(c => {
+            ${trimCos.length === 0 ? `
+              <tr>
+                <td colspan="6">
+                  ${renderEmptyState('Nenhuma empresa encontrada neste filtro', 'Altere o filtro de status acima para visualizar as empresas do Lucro Real Trimestral.')}
+                </td>
+              </tr>
+            ` : trimCos.map(c => {
               const rec = state.irpjTrimData[`${c.id}_${state.selTrim}`] || { prejuizo: false, quotaUnica: true, darfUnica: false, p1: false, p2: false, p3: false };
               const isSelected = state.selectedTrimIds.includes(c.id);
               return `
@@ -6414,29 +7231,34 @@ function renderIrpjTrimTab(companies) {
                     `}
                   </td>
                   <td class="py-4 px-6 text-center">
-                    ${rec.prejuizo ? `
-                      <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">🟢 Concluído (Prejuízo)</span>
-                    ` : rec.quotaUnica ? `
-                      <label class="inline-flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" ${rec.darfUnica ? 'checked' : ''} onchange="toggleTrimDarfUnica(${c.id}, this.checked)" class="w-5 h-5 rounded text-[#22AC77]" />
-                        <span class="text-xs font-bold ${rec.darfUnica ? 'text-emerald-400' : 'text-rose-400'}">${rec.darfUnica ? 'DARF Única Paga' : 'DARF Pendente'}</span>
-                      </label>
-                    ` : `
-                      <div class="flex items-center justify-center gap-3">
-                        <label class="inline-flex items-center gap-1 cursor-pointer">
-                          <input type="checkbox" ${rec.p1 ? 'checked' : ''} onchange="toggleTrimParcela(${c.id}, 1, this.checked)" class="w-4 h-4 rounded text-[#22AC77]" />
-                          <span class="text-xs ${rec.p1 ? 'text-emerald-400 font-bold' : 'text-gray-400'}">1ª</span>
+                    <div class="flex flex-col items-center gap-1">
+                      ${rec.prejuizo ? `
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">🟢 Concluído (Prejuízo)</span>
+                      ` : rec.quotaUnica ? `
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" ${rec.darfUnica ? 'checked' : ''} onchange="toggleTrimDarfUnica(${c.id}, this.checked)" class="w-5 h-5 rounded text-[#22AC77]" />
+                          <span class="text-xs font-bold ${rec.darfUnica ? 'text-emerald-400' : 'text-rose-400'}">${rec.darfUnica ? 'DARF Única Paga' : 'DARF Pendente'}</span>
                         </label>
-                        <label class="inline-flex items-center gap-1 cursor-pointer">
-                          <input type="checkbox" ${rec.p2 ? 'checked' : ''} onchange="toggleTrimParcela(${c.id}, 2, this.checked)" class="w-4 h-4 rounded text-[#22AC77]" />
-                          <span class="text-xs ${rec.p2 ? 'text-emerald-400 font-bold' : 'text-gray-400'}">2ª</span>
-                        </label>
-                        <label class="inline-flex items-center gap-1 cursor-pointer">
-                          <input type="checkbox" ${rec.p3 ? 'checked' : ''} onchange="toggleTrimParcela(${c.id}, 3, this.checked)" class="w-4 h-4 rounded text-[#22AC77]" />
-                          <span class="text-xs ${rec.p3 ? 'text-emerald-400 font-bold' : 'text-gray-400'}">3ª</span>
-                        </label>
-                      </div>
-                    `}
+                      ` : `
+                        <div class="flex items-center justify-center gap-3">
+                          <label class="inline-flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" ${rec.p1 ? 'checked' : ''} onchange="toggleTrimParcela(${c.id}, 1, this.checked)" class="w-4 h-4 rounded text-[#22AC77]" />
+                            <span class="text-xs ${rec.p1 ? 'text-emerald-400 font-bold' : 'text-gray-400'}">1ª</span>
+                          </label>
+                          <label class="inline-flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" ${rec.p2 ? 'checked' : ''} onchange="toggleTrimParcela(${c.id}, 2, this.checked)" class="w-4 h-4 rounded text-[#22AC77]" />
+                            <span class="text-xs ${rec.p2 ? 'text-emerald-400 font-bold' : 'text-gray-400'}">2ª</span>
+                          </label>
+                          <label class="inline-flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" ${rec.p3 ? 'checked' : ''} onchange="toggleTrimParcela(${c.id}, 3, this.checked)" class="w-4 h-4 rounded text-[#22AC77]" />
+                            <span class="text-xs ${rec.p3 ? 'text-emerald-400 font-bold' : 'text-gray-400'}">3ª</span>
+                          </label>
+                        </div>
+                      `}
+                      ${rec.updatedAt ? `
+                        <span class="text-[10px] text-gray-400 font-medium" title="Última atualização do registro">🕒 ${rec.updatedAt}</span>
+                      ` : ''}
+                    </div>
                   </td>
                 </tr>
               `;
@@ -6470,10 +7292,12 @@ function toggleSelectMensalItem(id, checked) {
 
 function batchUpdateMensalStatus(status) {
   if (!state.selectedMensalIds.length) return alert('Selecione ao menos uma empresa.');
+  const stamp = formatNowTimestamp();
   state.selectedMensalIds.forEach(id => {
     const key = `${id}_${state.selIrpjMes}`;
     state.irpjMensalData[key] = state.irpjMensalData[key] || { status: 'Pendente', prejuizo: false };
     state.irpjMensalData[key].status = status;
+    state.irpjMensalData[key].updatedAt = stamp;
   });
   state.selectedMensalIds = [];
   saveStorage();
@@ -6482,7 +7306,35 @@ function batchUpdateMensalStatus(status) {
 
 // ---------------- IRPJ MENSAL TAB ----------------
 function renderIrpjMensalTab(companies) {
-  const mensalCos = companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Mensal');
+  const allMensalCos = companies.filter(c => normalizeRegime(c.regime) === 'Lucro Real Mensal');
+
+  const counts = {
+    todas: allMensalCos.length,
+    pendente: 0,
+    analise: 0,
+    prejuizo: 0,
+    concluida: 0
+  };
+
+  allMensalCos.forEach(c => {
+    const rec = state.irpjMensalData[`${c.id}_${state.selIrpjMes}`] || { status: 'Pendente', prejuizo: false };
+    if (rec.prejuizo || rec.status === 'Estimativa') counts.prejuizo++;
+    else if (rec.status === 'Concluída') counts.concluida++;
+    else if (rec.status === 'Análise') counts.analise++;
+    else counts.pendente++;
+  });
+
+  const activeFilter = state.irpjMensalFilter || 'todas';
+  const mensalCos = allMensalCos.filter(c => {
+    if (activeFilter === 'todas') return true;
+    const rec = state.irpjMensalData[`${c.id}_${state.selIrpjMes}`] || { status: 'Pendente', prejuizo: false };
+    if (activeFilter === 'prejuizo') return rec.prejuizo || rec.status === 'Estimativa';
+    if (activeFilter === 'concluida') return !rec.prejuizo && rec.status === 'Concluída';
+    if (activeFilter === 'analise') return !rec.prejuizo && rec.status === 'Análise';
+    if (activeFilter === 'pendente') return !rec.prejuizo && rec.status === 'Pendente';
+    return true;
+  });
+
   const mensalIds = mensalCos.map(c => c.id);
   const allMensalSelected = mensalIds.length > 0 && mensalIds.every(id => state.selectedMensalIds.includes(id));
   const someMensalSelected = state.selectedMensalIds.length > 0;
@@ -6512,6 +7364,26 @@ function renderIrpjMensalTab(companies) {
         <div>
           ${getDeadlineBadge(31)}
         </div>
+      </div>
+
+      <!-- Filtros Rápidos de Status IRPJ Mensal -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Filtrar Status:</span>
+        <button onclick="setIrpjMensalFilter('todas')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'todas' ? 'bg-[#12131F] text-white dark:bg-white dark:text-gray-950 border-transparent shadow-xs' : 'bg-white dark:bg-[#171825] text-gray-600 dark:text-gray-400 border-gray-200/80 dark:border-gray-800 hover:border-gray-300'}">
+          Todas (${counts.todas})
+        </button>
+        <button onclick="setIrpjMensalFilter('pendente')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'pendente' ? 'bg-rose-500 text-white border-rose-500 shadow-xs' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20'}">
+          🔴 Pendentes (${counts.pendente})
+        </button>
+        <button onclick="setIrpjMensalFilter('analise')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'analise' ? 'bg-amber-500 text-gray-950 border-amber-500 shadow-xs' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'}">
+          🟡 Em Análise (${counts.analise})
+        </button>
+        <button onclick="setIrpjMensalFilter('prejuizo')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'prejuizo' ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/20'}">
+          🟣 Prejuízo / Estimativa (${counts.prejuizo})
+        </button>
+        <button onclick="setIrpjMensalFilter('concluida')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'concluida' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'}">
+          🟢 Concluídas (${counts.concluida})
+        </button>
       </div>
 
       <!-- BARRA DE AÇÕES EM MASSA (BATCH ACTIONS) MENSAL -->
@@ -6549,15 +7421,21 @@ function renderIrpjMensalTab(companies) {
                     title="Selecionar todas para ações em massa"
                   />
                 </th>
-                <th class="py-4 px-6">Empresa & CNPJ</th>
-                <th class="py-4 px-4">Responsável</th>
+                ${renderCompanySortHeader('Empresa & CNPJ')}
+                ${renderSortableTh('Responsável', 'colaborador')}
                 <th class="py-4 px-4">Prejuízo Fiscal?</th>
                 <th class="py-4 px-4">Situação</th>
                 <th class="py-4 px-6 text-center">Status Final</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
-            ${mensalCos.map(c => {
+            ${mensalCos.length === 0 ? `
+              <tr>
+                <td colspan="6">
+                  ${renderEmptyState('Nenhuma empresa encontrada neste filtro', 'Altere o filtro de status acima para visualizar as empresas do Lucro Real Mensal.')}
+                </td>
+              </tr>
+            ` : mensalCos.map(c => {
               const rec = state.irpjMensalData[`${c.id}_${state.selIrpjMes}`] || { status: 'Pendente', prejuizo: false };
               const isSelected = state.selectedMensalIds.includes(c.id);
               return `
@@ -6604,17 +7482,535 @@ function renderIrpjMensalTab(companies) {
                     `}
                   </td>
                   <td class="py-4 px-6 text-center">
-                    <span class="px-3 py-1 rounded-full text-xs font-bold ${
-                      rec.status === 'Concluída' || rec.prejuizo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                    }">
-                      ${rec.status === 'Concluída' || rec.prejuizo ? 'Concluído' : 'Pendente'}
-                    </span>
+                    <div class="flex flex-col items-center gap-1">
+                      <span class="px-3 py-1 rounded-full text-xs font-bold ${
+                        rec.status === 'Concluída' || rec.prejuizo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                      }">
+                        ${rec.status === 'Concluída' || rec.prejuizo ? 'Concluído' : 'Pendente'}
+                      </span>
+                      ${rec.updatedAt ? `
+                        <span class="text-[10px] text-gray-400 font-medium" title="Última atualização do registro">🕒 ${rec.updatedAt}</span>
+                      ` : ''}
+                    </div>
                   </td>
                 </tr>
               `;
             }).join('')}
           </tbody>
         </table>
+      </div>
+    </div>
+  `;
+}
+
+// ---------------- ECD / ECF TAB (LUCRO REAL + EMPRESAS ADICIONADAS) ----------------
+function getEcdEcfRecord(companyId, year = state.selEcdEcfYear) {
+  const key = `${companyId}_${year}`;
+  return state.ecdEcfData[key] || {
+    ecdStatus: 'Pendente',
+    ecfStatus: 'Pendente',
+    justificativa: '',
+    updatedAt: ''
+  };
+}
+
+function renderEcdEcfTab(companies) {
+  const year = state.selEcdEcfYear || '2026';
+  const extraIds = Array.isArray(state.ecdEcfExtraIds) ? state.ecdEcfExtraIds : [];
+
+  // Inclui automaticamente empresas do Lucro Real + empresas adicionadas manualmente na aba ECD/ECF
+  const baseScopeCos = companies.filter(c =>
+    normalizeRegime(c.regime).includes('Lucro Real') || extraIds.includes(c.id)
+  );
+
+  const counts = {
+    todas: baseScopeCos.length,
+    pendente: 0,
+    andamento: 0,
+    concluida: 0,
+    desconsiderada: 0,
+    ecdDone: 0,
+    ecfDone: 0
+  };
+
+  baseScopeCos.forEach(c => {
+    const rec = getEcdEcfRecord(c.id, year);
+    if (rec.ecdStatus === 'Concluída') counts.ecdDone++;
+    if (rec.ecfStatus === 'Concluída') counts.ecfDone++;
+
+    const isDesconsiderada = rec.ecdStatus === 'Desconsiderada' || rec.ecfStatus === 'Desconsiderada';
+    const isBothDone =
+      (rec.ecdStatus === 'Concluída' || rec.ecdStatus === 'Desconsiderada') &&
+      (rec.ecfStatus === 'Concluída' || rec.ecfStatus === 'Desconsiderada') &&
+      !(rec.ecdStatus === 'Desconsiderada' && rec.ecfStatus === 'Desconsiderada');
+    const isAndamento = rec.ecdStatus === 'Em Andamento' || rec.ecfStatus === 'Em Andamento' ||
+      (rec.ecdStatus === 'Concluída' && rec.ecfStatus === 'Pendente') ||
+      (rec.ecfStatus === 'Concluída' && rec.ecdStatus === 'Pendente');
+
+    if (rec.ecdStatus === 'Desconsiderada' && rec.ecfStatus === 'Desconsiderada') {
+      counts.desconsiderada++;
+    } else if (isBothDone) {
+      counts.concluida++;
+      if (isDesconsiderada) counts.desconsiderada++;
+    } else if (isAndamento) {
+      counts.andamento++;
+      if (isDesconsiderada) counts.desconsiderada++;
+    } else {
+      counts.pendente++;
+      if (isDesconsiderada) counts.desconsiderada++;
+    }
+  });
+
+  const activeFilter = state.ecdEcfFilter || 'todas';
+  const filteredScope = baseScopeCos.filter(c => {
+    if (activeFilter === 'todas') return true;
+    const rec = getEcdEcfRecord(c.id, year);
+    const isDesconsiderada = rec.ecdStatus === 'Desconsiderada' || rec.ecfStatus === 'Desconsiderada';
+    const isBothDone =
+      (rec.ecdStatus === 'Concluída' || rec.ecdStatus === 'Desconsiderada') &&
+      (rec.ecfStatus === 'Concluída' || rec.ecfStatus === 'Desconsiderada') &&
+      !(rec.ecdStatus === 'Desconsiderada' && rec.ecfStatus === 'Desconsiderada');
+    const isAndamento = rec.ecdStatus === 'Em Andamento' || rec.ecfStatus === 'Em Andamento' ||
+      (rec.ecdStatus === 'Concluída' && rec.ecfStatus === 'Pendente') ||
+      (rec.ecfStatus === 'Concluída' && rec.ecdStatus === 'Pendente');
+
+    if (activeFilter === 'desconsiderada') return isDesconsiderada;
+    if (activeFilter === 'concluida') return isBothDone;
+    if (activeFilter === 'andamento') return isAndamento;
+    if (activeFilter === 'pendente') return !isBothDone && !isAndamento && !(rec.ecdStatus === 'Desconsiderada' && rec.ecfStatus === 'Desconsiderada');
+    return true;
+  });
+
+  const sortedScope = sortCompaniesList(filteredScope);
+
+  return `
+    <div class="space-y-6">
+      <!-- Cabeçalho ECD / ECF -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">Controle Anual ECD / ECF (SPED)</h1>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-[#ECBD56]/15 text-[#ECBD56] border border-[#ECBD56]/30">
+              Lucro Real
+            </span>
+          </div>
+          <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            Gestão de entrega da Escrituração Contábil Digital (ECD) e Escrituração Contábil Fiscal (ECF) com suporte a justificativas e empresas extras.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Seletor de Ano-Calendário / Exercício -->
+          <div class="flex items-center gap-2 bg-white dark:bg-[#171825] px-3.5 py-2 rounded-xl border border-gray-200/80 dark:border-gray-800 shadow-xs">
+            <span class="text-xs font-semibold text-gray-400">Exercício / Entrega:</span>
+            <select onchange="setEcdEcfYear(this.value)" class="bg-transparent text-xs font-bold text-gray-900 dark:text-white focus:outline-none cursor-pointer">
+              ${['2024', '2025', '2026', '2027'].map(y => `
+                <option value="${y}" ${year === y ? 'selected' : ''} class="bg-[#171825] text-white">Ano ${y} (Ano-Base ${Number(y) - 1})</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <!-- Botão Adicionar / Vincular Empresa -->
+          <button
+            onclick="openEcdEcfModal('add')"
+            class="px-4 py-2 rounded-xl text-xs font-extrabold bg-[#12131F] dark:bg-[#ECBD56] text-white dark:text-gray-950 hover:opacity-90 transition shadow-sm flex items-center gap-2 cursor-pointer"
+          >
+            <span>➕</span>
+            <span>Adicionar / Vincular Empresa</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cards de Resumo Rápido ECD / ECF -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+        <div class="panze-card !p-4">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Empresas no Escopo</span>
+          <div class="text-2xl font-black text-gray-900 dark:text-white mt-1">${counts.todas}</div>
+          <span class="text-[11px] text-gray-400">Lucro Real + Vinculadas</span>
+        </div>
+        <div class="panze-card !p-4 border-emerald-500/20">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-500">ECD Transmitidas</span>
+          <div class="text-2xl font-black text-emerald-500 mt-1">${counts.ecdDone} <span class="text-xs font-semibold text-gray-400">/ ${counts.todas}</span></div>
+          <span class="text-[11px] text-gray-400">SPED Contábil (Maio/Jun)</span>
+        </div>
+        <div class="panze-card !p-4 border-blue-500/20">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-blue-500">ECF Transmitidas</span>
+          <div class="text-2xl font-black text-blue-500 mt-1">${counts.ecfDone} <span class="text-xs font-semibold text-gray-400">/ ${counts.todas}</span></div>
+          <span class="text-[11px] text-gray-400">SPED Fiscal (Julho)</span>
+        </div>
+        <div class="panze-card !p-4 border-rose-500/20">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-rose-500">Pendentes</span>
+          <div class="text-2xl font-black text-rose-500 mt-1">${counts.pendente}</div>
+          <span class="text-[11px] text-gray-400">Aguardando transmissão</span>
+        </div>
+        <div class="panze-card !p-4 border-gray-500/20 col-span-2 md:col-span-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Desconsideradas</span>
+          <div class="text-2xl font-black text-gray-600 dark:text-gray-300 mt-1">${counts.desconsiderada}</div>
+          <span class="text-[11px] text-gray-400">Com justificativa registrada</span>
+        </div>
+      </div>
+
+      <!-- Filtros Rápidos de Status ECD / ECF -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Filtrar Situação:</span>
+        <button onclick="setEcdEcfFilter('todas')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'todas' ? 'bg-[#12131F] text-white dark:bg-white dark:text-gray-950 border-transparent shadow-xs' : 'bg-white dark:bg-[#171825] text-gray-600 dark:text-gray-400 border-gray-200/80 dark:border-gray-800 hover:border-gray-300'}">
+          Todas (${counts.todas})
+        </button>
+        <button onclick="setEcdEcfFilter('pendente')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'pendente' ? 'bg-rose-500 text-white border-rose-500 shadow-xs' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20'}">
+          🔴 Pendentes (${counts.pendente})
+        </button>
+        <button onclick="setEcdEcfFilter('andamento')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'andamento' ? 'bg-amber-500 text-gray-950 border-amber-500 shadow-xs' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'}">
+          🟡 Em Andamento / Parcial (${counts.andamento})
+        </button>
+        <button onclick="setEcdEcfFilter('concluida')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'concluida' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'}">
+          🟢 Concluídas (${counts.concluida})
+        </button>
+        <button onclick="setEcdEcfFilter('desconsiderada')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border ${activeFilter === 'desconsiderada' ? 'bg-slate-600 text-white border-slate-600 shadow-xs' : 'bg-slate-500/10 text-slate-600 dark:text-slate-300 border-slate-500/20 hover:bg-slate-500/20'}">
+          ⚪ Desconsideradas (${counts.desconsiderada})
+        </button>
+      </div>
+
+      <!-- Tabela de Controle ECD / ECF -->
+      <div class="panze-card !p-0 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
+                ${renderCompanySortHeader('Empresa & CNPJ')}
+                ${renderSortableTh('Regime', 'regime')}
+                ${renderSortableTh('Responsável', 'colaborador')}
+                <th class="py-4 px-4">Status ECD (Contábil)</th>
+                <th class="py-4 px-4">Status ECF (Fiscal)</th>
+                <th class="py-4 px-4">Justificativa / Observação</th>
+                <th class="py-4 px-6 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
+              ${sortedScope.length === 0 ? `
+                <tr>
+                  <td colspan="7">
+                    ${renderEmptyState('Nenhuma empresa encontrada no controle ECD / ECF', 'Altere o filtro acima ou clique em "+ Adicionar / Vincular Empresa" para incluir uma empresa ao escopo.')}
+                  </td>
+                </tr>
+              ` : sortedScope.map(c => {
+                const rec = getEcdEcfRecord(c.id, year);
+                const isExtra = extraIds.includes(c.id) && !normalizeRegime(c.regime).includes('Lucro Real');
+                const hasDesconsiderada = rec.ecdStatus === 'Desconsiderada' || rec.ecfStatus === 'Desconsiderada';
+
+                const getStatusSelectClass = (st) => {
+                  if (st === 'Concluída') return 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30';
+                  if (st === 'Em Andamento') return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+                  if (st === 'Desconsiderada') return 'bg-slate-500/15 text-slate-600 dark:text-slate-300 border-slate-500/30';
+                  return 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/30';
+                };
+
+                return `
+                  <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
+                    <td class="py-4 px-6">
+                      <div class="flex flex-col gap-1">
+                        ${renderCompanyCell(c)}
+                        ${isExtra ? `
+                          <span class="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            📌 Adicionada manualmente ao ECD/ECF
+                          </span>
+                        ` : ''}
+                      </div>
+                    </td>
+                    <td class="py-4 px-4">${getRegimeBadge(c.regime)}</td>
+                    <td class="py-4 px-4 text-xs font-medium text-gray-600 dark:text-gray-300">${c.colaborador}</td>
+
+                    <!-- Seletor Status ECD -->
+                    <td class="py-4 px-4">
+                      <select
+                        onchange="updateEcdStatus(${c.id}, this.value)"
+                        class="px-3 py-1.5 rounded-full text-xs font-bold border focus:outline-none transition cursor-pointer ${getStatusSelectClass(rec.ecdStatus)}"
+                      >
+                        <option value="Pendente" ${rec.ecdStatus === 'Pendente' ? 'selected' : ''} class="bg-[#15151A] text-white">🔴 Pendente</option>
+                        <option value="Em Andamento" ${rec.ecdStatus === 'Em Andamento' ? 'selected' : ''} class="bg-[#15151A] text-white">🟡 Em Andamento</option>
+                        <option value="Concluída" ${rec.ecdStatus === 'Concluída' ? 'selected' : ''} class="bg-[#15151A] text-white">🟢 Concluída</option>
+                        <option value="Desconsiderada" ${rec.ecdStatus === 'Desconsiderada' ? 'selected' : ''} class="bg-[#15151A] text-white">⚪ Desconsiderada</option>
+                      </select>
+                    </td>
+
+                    <!-- Seletor Status ECF -->
+                    <td class="py-4 px-4">
+                      <select
+                        onchange="updateEcfStatus(${c.id}, this.value)"
+                        class="px-3 py-1.5 rounded-full text-xs font-bold border focus:outline-none transition cursor-pointer ${getStatusSelectClass(rec.ecfStatus)}"
+                      >
+                        <option value="Pendente" ${rec.ecfStatus === 'Pendente' ? 'selected' : ''} class="bg-[#15151A] text-white">🔴 Pendente</option>
+                        <option value="Em Andamento" ${rec.ecfStatus === 'Em Andamento' ? 'selected' : ''} class="bg-[#15151A] text-white">🟡 Em Andamento</option>
+                        <option value="Concluída" ${rec.ecfStatus === 'Concluída' ? 'selected' : ''} class="bg-[#15151A] text-white">🟢 Concluída</option>
+                        <option value="Desconsiderada" ${rec.ecfStatus === 'Desconsiderada' ? 'selected' : ''} class="bg-[#15151A] text-white">⚪ Desconsiderada</option>
+                      </select>
+                    </td>
+
+                    <!-- Coluna de Justificativa / Observação -->
+                    <td class="py-4 px-4 max-w-xs">
+                      ${rec.justificativa ? `
+                        <div
+                          onclick="openEcdEcfModal('edit', ${c.id})"
+                          class="group cursor-pointer p-2 rounded-xl border text-xs transition ${
+                            hasDesconsiderada
+                              ? 'bg-slate-500/10 border-slate-500/30 text-slate-700 dark:text-slate-200'
+                              : 'bg-amber-500/10 border-amber-500/25 text-amber-800 dark:text-amber-300'
+                          }"
+                          title="Clique para editar a justificativa ou status"
+                        >
+                          <div class="flex items-center justify-between gap-1 font-bold text-[10px] uppercase tracking-wider opacity-75 mb-0.5">
+                            <span>${hasDesconsiderada ? '⚖️ Justificativa de Dispensa' : '📝 Observação ECD/ECF'}</span>
+                            <span class="opacity-0 group-hover:opacity-100 transition">✏️</span>
+                          </div>
+                          <p class="line-clamp-2 font-medium leading-snug">${rec.justificativa}</p>
+                        </div>
+                      ` : hasDesconsiderada ? `
+                        <button
+                          onclick="openEcdEcfModal('edit', ${c.id})"
+                          class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition flex items-center gap-1.5"
+                        >
+                          <span>⚠️</span>
+                          <span>Informar Justificativa</span>
+                        </button>
+                      ` : `
+                        <button
+                          onclick="openEcdEcfModal('edit', ${c.id})"
+                          class="text-xs font-semibold text-gray-400 hover:text-[#ECBD56] transition flex items-center gap-1"
+                        >
+                          <span>+ Adicionar justificativa / nota</span>
+                        </button>
+                      `}
+                      ${rec.updatedAt ? `
+                        <div class="text-[10px] text-gray-400 mt-1">🕒 Atualizado em ${rec.updatedAt}</div>
+                      ` : ''}
+                    </td>
+
+                    <!-- Ações -->
+                    <td class="py-4 px-6 text-right">
+                      <div class="inline-flex items-center justify-end gap-1.5">
+                        <button
+                          onclick="openEcdEcfModal('edit', ${c.id})"
+                          class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200 hover:bg-[#ECBD56]/20 hover:text-[#ECBD56] transition flex items-center gap-1.5"
+                          title="Editar Status ECD/ECF e Justificativa"
+                        >
+                          <span>✏️</span>
+                          <span>Editar</span>
+                        </button>
+                        ${isExtra ? `
+                          <button
+                            onclick="removeEcdEcfExtraCompany(${c.id})"
+                            class="p-1.5 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
+                            title="Remover empresa avulsa da lista ECD/ECF"
+                          >
+                            ✕
+                          </button>
+                        ` : ''}
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEcdEcfModal() {
+  if (!state.ecdEcfModal || !state.ecdEcfModal.isOpen) return '';
+  const { mode, companyId } = state.ecdEcfModal;
+  const year = state.selEcdEcfYear || '2026';
+  const extraIds = Array.isArray(state.ecdEcfExtraIds) ? state.ecdEcfExtraIds : [];
+
+  if (mode === 'edit' && companyId) {
+    const comp = state.companies.find(c => c.id === Number(companyId));
+    if (!comp) return '';
+    const rec = getEcdEcfRecord(comp.id, year);
+
+    return `
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fadeIn" onclick="closeEcdEcfModal()">
+        <div class="bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5" onclick="event.stopPropagation()">
+          <div class="flex items-start justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-4">
+            <div>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#ECBD56]/15 text-[#ECBD56]">
+                ECD / ECF • Exercício ${year}
+              </span>
+              <h3 class="text-lg font-extrabold text-gray-900 dark:text-white mt-1">${comp.nome}</h3>
+              <p class="text-xs text-gray-400">${comp.cnpj} • Grupo: ${comp.grupo || 'GERAL'} • Resp: ${comp.colaborador}</p>
+            </div>
+            <button onclick="closeEcdEcfModal()" class="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition">✕</button>
+          </div>
+
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">Status ECD (SPED Contábil)</label>
+                <select id="ecd-modal-status-ecd" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ECBD56]">
+                  <option value="Pendente" ${rec.ecdStatus === 'Pendente' ? 'selected' : ''}>🔴 Pendente</option>
+                  <option value="Em Andamento" ${rec.ecdStatus === 'Em Andamento' ? 'selected' : ''}>🟡 Em Andamento</option>
+                  <option value="Concluída" ${rec.ecdStatus === 'Concluída' ? 'selected' : ''}>🟢 Concluída</option>
+                  <option value="Desconsiderada" ${rec.ecdStatus === 'Desconsiderada' ? 'selected' : ''}>⚪ Desconsiderada</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">Status ECF (SPED Fiscal)</label>
+                <select id="ecd-modal-status-ecf" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ECBD56]">
+                  <option value="Pendente" ${rec.ecfStatus === 'Pendente' ? 'selected' : ''}>🔴 Pendente</option>
+                  <option value="Em Andamento" ${rec.ecfStatus === 'Em Andamento' ? 'selected' : ''}>🟡 Em Andamento</option>
+                  <option value="Concluída" ${rec.ecfStatus === 'Concluída' ? 'selected' : ''}>🟢 Concluída</option>
+                  <option value="Desconsiderada" ${rec.ecfStatus === 'Desconsiderada' ? 'selected' : ''}>⚪ Desconsiderada</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5">
+                Justificativa (Obrigatória se Desconsiderada) ou Observação / Recibo
+              </label>
+              <textarea
+                id="ecd-modal-justificativa"
+                rows="3"
+                placeholder="Ex: Empresa inativa no ano-calendário, dispensada de ECD conforme IN RFB, ou nº do recibo de transmissão..."
+                class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ECBD56]"
+              >${rec.justificativa || ''}</textarea>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between gap-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+            <button
+              type="button"
+              onclick="closeEcdEcfModal(); openEditCompanyModal(${comp.id});"
+              class="text-xs font-bold text-blue-500 hover:underline"
+            >
+              🏢 Editar Cadastro da Empresa
+            </button>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                onclick="closeEcdEcfModal()"
+                class="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onclick="saveEcdEcfModal()"
+                class="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#ECBD56] text-gray-950 hover:opacity-90 transition shadow-sm"
+              >
+                Salvar Alterações
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Modo 'add': permite vincular uma empresa já existente (mesmo fora do Lucro Real) OU cadastrar uma nova empresa direto no escopo ECD/ECF
+  const availableExisting = state.companies
+    .filter(c => !normalizeRegime(c.regime).includes('Lucro Real') && !extraIds.includes(c.id))
+    .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fadeIn" onclick="closeEcdEcfModal()">
+      <div class="bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="flex items-start justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#ECBD56]/15 text-[#ECBD56]">
+              ECD / ECF • Exercício ${year}
+            </span>
+            <h3 class="text-lg font-extrabold text-gray-900 dark:text-white mt-1">Adicionar Empresa ao Controle ECD / ECF</h3>
+            <p class="text-xs text-gray-400">Vincule uma empresa já cadastrada ou cadastre uma nova empresa com seu status inicial.</p>
+          </div>
+          <button onclick="closeEcdEcfModal()" class="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition">✕</button>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Opção 1: Selecionar empresa existente -->
+          <div class="p-4 rounded-2xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 space-y-3">
+            <label class="block text-xs font-extrabold text-gray-800 dark:text-gray-200 uppercase">
+              Opção 1: Vincular Empresa Existente da Base
+            </label>
+            <select id="ecd-add-existing-id" class="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ECBD56]">
+              <option value="">-- Ou preencha abaixo para criar uma nova empresa --</option>
+              ${availableExisting.map(c => `
+                <option value="${c.id}">${c.codigo ? c.codigo + ' - ' : ''}${c.nome} (${c.regime})</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <!-- Opção 2: Cadastrar nova empresa -->
+          <div class="p-4 rounded-2xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 space-y-3">
+            <label class="block text-xs font-extrabold text-gray-800 dark:text-gray-200 uppercase">
+              Opção 2: Cadastrar Nova Empresa no Sistema
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input id="ecd-new-nome" type="text" placeholder="Nome da Empresa..." class="px-3.5 py-2 rounded-xl bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white" />
+              <input id="ecd-new-cnpj" type="text" placeholder="CNPJ (00.000.000/0001-00)" class="px-3.5 py-2 rounded-xl bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white" />
+              <input id="ecd-new-codigo" type="text" placeholder="Código (Ex: 410)" class="px-3.5 py-2 rounded-xl bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white" />
+              <input id="ecd-new-grupo" type="text" placeholder="Grupo (Ex: GERAL)" class="px-3.5 py-2 rounded-xl bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white" />
+              <select id="ecd-new-regime" class="px-3.5 py-2 rounded-xl bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-900 dark:text-white">
+                <option value="Lucro Real Trimestral">Lucro Real Trimestral</option>
+                <option value="Lucro Real Mensal">Lucro Real Mensal</option>
+                <option value="Lucro Presumido">Lucro Presumido (Obrigada ECD/ECF)</option>
+                <option value="Isenta / Imune">Isenta / Imune (Obrigada ECD/ECF)</option>
+              </select>
+              <input id="ecd-new-colaborador" type="text" placeholder="Responsável (Ex: Brayann)" value="Brayann" class="px-3.5 py-2 rounded-xl bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white" />
+            </div>
+          </div>
+
+          <!-- Status Inicial ECD / ECF e Justificativa -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Status Inicial ECD</label>
+              <select id="ecd-modal-status-ecd" class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-900 dark:text-white">
+                <option value="Pendente">🔴 Pendente</option>
+                <option value="Em Andamento">🟡 Em Andamento</option>
+                <option value="Concluída">🟢 Concluída</option>
+                <option value="Desconsiderada">⚪ Desconsiderada</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Status Inicial ECF</label>
+              <select id="ecd-modal-status-ecf" class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-900 dark:text-white">
+                <option value="Pendente">🔴 Pendente</option>
+                <option value="Em Andamento">🟡 Em Andamento</option>
+                <option value="Concluída">🟢 Concluída</option>
+                <option value="Desconsiderada">⚪ Desconsiderada</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Justificativa / Observação (Opcional ou caso Desconsiderada)</label>
+            <textarea
+              id="ecd-modal-justificativa"
+              rows="2"
+              placeholder="Informe justificativa caso desconsiderada ou observações de entrega..."
+              class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <button
+            type="button"
+            onclick="closeEcdEcfModal()"
+            class="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 transition"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onclick="saveEcdEcfModal()"
+            class="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#ECBD56] text-gray-950 hover:opacity-90 transition shadow-sm"
+          >
+            Adicionar ao ECD / ECF
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -6750,12 +8146,12 @@ function renderTarefasTab() {
       </form>
 
       <!-- Lista de Tarefas com Agrupamento por Empresa e Destaque de Atraso -->
-      <div class="space-y-6">
+      <div class="space-y-6" style="overflow: visible;">
         ${(() => {
           if (displayList.length === 0) {
             return `
-              <div class="panze-card text-center p-8 text-gray-400">
-                <p class="text-sm font-semibold">Nenhuma tarefa nesta categoria no momento!</p>
+              <div class="panze-card !p-2">
+                ${renderEmptyState('Nenhuma tarefa nesta categoria no momento!', 'Adicione uma nova tarefa no formulário acima ou alterne entre Pendentes e Concluídas.')}
               </div>
             `;
           }
@@ -6765,18 +8161,22 @@ function renderTarefasTab() {
             const overdueInfo = getTaskOverdueInfo(t.data);
             const isAtrasada = !t.concluida && overdueInfo.isOverdue;
             const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+            const isMenuOpen = state.activeTaskMenuId === t.id;
 
             return `
-              <div class="panze-card !p-4 transition flex items-start gap-3.5 relative overflow-hidden ${
-                t.concluida 
-                  ? 'opacity-60 bg-gray-50/50 dark:bg-[#11121C]/50' 
-                  : isAtrasada 
-                  ? 'bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5' 
-                  : 'hover:border-[#ECBD56]/40'
-              }">
+              <div
+                style="overflow: visible; position: relative; z-index: ${isMenuOpen ? '120' : '1'};"
+                class="panze-card !p-4 transition flex items-start gap-3.5 relative overflow-visible ${
+                  t.concluida 
+                    ? 'opacity-60 bg-gray-50/50 dark:bg-[#11121C]/50' 
+                    : isAtrasada 
+                    ? 'bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5' 
+                    : 'hover:border-[#ECBD56]/40'
+                }"
+              >
                 
                 <!-- Faixa vertical indicativa para tarefas atrasadas -->
-                ${isAtrasada ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>` : ''}
+                ${isAtrasada ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-2xl"></div>` : ''}
 
                 <button
                   onclick="toggleTaskComplete(${t.id})"
@@ -6841,7 +8241,7 @@ function renderTarefasTab() {
                 </div>
 
                 <!-- Botão de Ação Rápida de Exclusão Direta e Menu -->
-                <div class="flex items-center gap-1 shrink-0">
+                <div class="flex items-center gap-1 shrink-0" style="position: relative;">
                   <button
                     onclick="deleteTask(${t.id})"
                     class="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
@@ -6855,7 +8255,7 @@ function renderTarefasTab() {
                   </button>
 
                   <!-- Menu de Opções com 3 Pontos (...) -->
-                  <div class="relative">
+                  <div class="relative" style="position: relative;">
                     <button
                       onclick="toggleTaskMenu(${t.id}, event)"
                       class="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
@@ -6869,33 +8269,34 @@ function renderTarefasTab() {
                     </button>
 
                     <!-- Dropdown do Menu de 3 Pontos -->
-                    ${state.activeTaskMenuId === t.id ? `
+                    ${isMenuOpen ? `
                       <div
                         id="task-menu-dropdown-${t.id}"
-                        class="absolute right-0 mt-1 w-44 rounded-2xl bg-white dark:bg-[#181926] border border-gray-200 dark:border-gray-800 shadow-2xl p-1.5 z-30 animate-fadeIn"
+                        style="position: absolute; right: 0; top: calc(100% + 6px); z-index: 999; background-color: white; box-shadow: 0 20px 38px -6px rgba(0, 0, 0, 0.28), 0 8px 16px -6px rgba(0, 0, 0, 0.16);"
+                        class="w-48 rounded-2xl border border-gray-200 p-1.5 animate-fadeIn"
                         onclick="event.stopPropagation()"
                       >
                         <button
                           onclick="openEditTaskModal(${t.id})"
-                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-[#ECBD56]/15 hover:text-[#ECBD56] dark:hover:text-[#ECBD56] transition flex items-center gap-2.5"
+                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-gray-800 hover:bg-[#ECBD56]/20 hover:text-gray-950 transition flex items-center gap-2.5"
                         >
-                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                          <svg class="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                           <span>Editar Tarefa</span>
                         </button>
 
                         <button
                           onclick="toggleTaskComplete(${t.id}); closeAllTaskMenus();"
-                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition flex items-center gap-2.5"
+                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-gray-800 hover:bg-gray-100 transition flex items-center gap-2.5"
                         >
-                          <svg class="w-3.5 h-3.5 ${t.concluida ? 'text-amber-500' : 'text-emerald-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <svg class="w-3.5 h-3.5 ${t.concluida ? 'text-amber-600' : 'text-emerald-600'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                           <span>${t.concluida ? 'Marcar Pendente' : 'Marcar Concluída'}</span>
                         </button>
 
-                        <div class="my-1 border-t border-gray-100 dark:border-gray-800/80"></div>
+                        <div class="my-1 border-t border-gray-100"></div>
 
                         <button
                           onclick="deleteTask(${t.id})"
-                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition flex items-center gap-2.5"
+                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition flex items-center gap-2.5"
                         >
                           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                           <span>Excluir Tarefa</span>
@@ -6923,21 +8324,22 @@ function renderTarefasTab() {
           });
 
           // Separa as empresas que têm mais de 1 tarefa para o bloco agrupado
-          // As empresas que tiverem apenas 1 tarefa também podem ser exibidas ou mantidas com agrupamento harmonioso
           const multiTaskCompanyIds = Object.keys(companyGroups).filter(cId => companyGroups[cId].length > 1);
           const singleTaskCompanyIds = Object.keys(companyGroups).filter(cId => companyGroups[cId].length === 1);
 
-          // As de 1 tarefa podem ser exibidas no fluxo geral ou também agrupadas.
-          // O usuário pediu: "ai quando ficar mais de uma tarefa por empresa elas ficam agrupadas"
           const htmlGroups = multiTaskCompanyIds.map(cId => {
             const comp = state.companies.find(c => c.id === Number(cId));
             const tasks = companyGroups[cId];
             const compName = comp ? comp.nome : `Empresa #${cId}`;
             const compGrupo = comp && comp.grupo ? comp.grupo : '';
             const overdueInGroup = tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
+            const groupHasOpenMenu = tasks.some(t => state.activeTaskMenuId === t.id);
 
             return `
-              <div class="rounded-2xl border-2 border-[#ECBD56]/30 bg-gray-50/40 dark:bg-[#12131F]/50 p-4 space-y-3 shadow-xs">
+              <div
+                style="overflow: visible; position: relative; z-index: ${groupHasOpenMenu ? '110' : '1'};"
+                class="rounded-2xl border-2 border-[#ECBD56]/30 bg-gray-50/40 dark:bg-[#12131F]/50 p-4 space-y-3 shadow-xs overflow-visible"
+              >
                 <!-- Cabeçalho do Grupo da Empresa -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-200/70 dark:border-gray-800 gap-2">
                   <div class="flex items-center gap-2.5">
@@ -6967,7 +8369,7 @@ function renderTarefasTab() {
                 </div>
 
                 <!-- Lista interna de tarefas do grupo -->
-                <div class="space-y-2.5 pl-1 md:pl-2">
+                <div class="space-y-2.5 pl-1 md:pl-2" style="overflow: visible;">
                   ${tasks.map(t => renderTaskCard(t)).join('')}
                 </div>
               </div>
@@ -6992,7 +8394,7 @@ function renderTarefasTab() {
           let htmlRemaining = '';
           if (remainingTasks.length > 0) {
             htmlRemaining = `
-              <div class="space-y-3">
+              <div class="space-y-3" style="overflow: visible;">
                 ${multiTaskCompanyIds.length > 0 ? `
                   <div class="flex items-center gap-2 pt-2">
                     <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Demais Tarefas & Pendências</span>
@@ -7170,12 +8572,12 @@ function renderEmpresasTab(companies) {
           <table class="w-full text-left text-sm border-collapse">
             <thead>
               <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
-                <th class="py-4 px-4">Cód.</th>
-                <th class="py-4 px-6">Razão Social & Grupo</th>
-                <th class="py-4 px-3 text-center">Classe</th>
-                <th class="py-4 px-4">Regime Tributário</th>
-                <th class="py-4 px-4">Responsável</th>
-                <th class="py-4 px-4">Segmento</th>
+                ${renderSortableTh('Cód.', 'codigo', 'py-4 px-4')}
+                ${renderCompanySortHeader('Empresa & CNPJ')}
+                ${renderSortableTh('Classe', 'classe', 'py-4 px-3 text-center')}
+                ${renderSortableTh('Regime Tributário', 'regime', 'py-4 px-4')}
+                ${renderSortableTh('Responsável', 'colaborador', 'py-4 px-4')}
+                ${renderSortableTh('Segmento', 'segmento', 'py-4 px-4')}
                 <th class="py-4 px-6 text-right">Ações</th>
               </tr>
             </thead>
@@ -7948,17 +9350,18 @@ window.updateCompanyFechamento = (id, val) => {
   if (c) { c.fechamento = val; saveStorage(); render(); }
 };
 window.setPisComp = (comp) => { state.selPisComp = comp; render(); };
+window.setPisFilter = (f) => { state.pisFilter = f; render(); };
 window.updatePisStatus = (id, st) => {
   const k = `${id}_${state.selPisComp}`;
   const current = state.pisCofinsData[k] || {};
   const darf = st === 'Concluída';
-  state.pisCofinsData[k] = { ...current, status: st, darfEnviado: darf };
+  state.pisCofinsData[k] = { ...current, status: st, darfEnviado: darf, updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
 window.togglePisDarf = (id, checked) => {
   const k = `${id}_${state.selPisComp}`;
   const current = state.pisCofinsData[k] || {};
-  state.pisCofinsData[k] = { ...current, status: checked ? 'Concluída' : 'Pendente', darfEnviado: checked };
+  state.pisCofinsData[k] = { ...current, status: checked ? 'Concluída' : 'Pendente', darfEnviado: checked, updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
 window.togglePisSaldoCredor = (id, checked) => {
@@ -7968,7 +9371,8 @@ window.togglePisSaldoCredor = (id, checked) => {
     ...current,
     saldoCredor: checked,
     darfEnviado: checked ? false : current.darfEnviado,
-    status: checked ? 'Concluída' : (current.darfEnviado ? 'Concluída' : 'Pendente')
+    status: checked ? 'Concluída' : (current.darfEnviado ? 'Concluída' : 'Pendente'),
+    updatedAt: formatNowTimestamp()
   };
   saveStorage(); render();
 };
@@ -7979,37 +9383,166 @@ window.resetPisMonth = () => {
   }
 };
 window.setTrim = (t) => { state.selTrim = t; render(); };
+window.setIrpjTrimFilter = (f) => { state.irpjTrimFilter = f; render(); };
 window.toggleTrimPrejuizo = (id, checked) => {
   const k = `${id}_${state.selTrim}`;
-  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), prejuizo: checked };
+  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), prejuizo: checked, updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
 window.setTrimQuotaMode = (id, isUnica) => {
   const k = `${id}_${state.selTrim}`;
-  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), quotaUnica: isUnica };
+  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), quotaUnica: isUnica, updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
 window.toggleTrimDarfUnica = (id, checked) => {
   const k = `${id}_${state.selTrim}`;
-  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), darfUnica: checked };
+  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), darfUnica: checked, updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
 window.toggleTrimParcela = (id, pNum, checked) => {
   const k = `${id}_${state.selTrim}`;
-  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), [`p${pNum}`]: checked };
+  state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), [`p${pNum}`]: checked, updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
 window.setIrpjMes = (m) => { state.selIrpjMes = m; render(); };
+window.setIrpjMensalFilter = (f) => { state.irpjMensalFilter = f; render(); };
 window.toggleMensalPrejuizo = (id, checked) => {
   const k = `${id}_${state.selIrpjMes}`;
-  state.irpjMensalData[k] = { ...(state.irpjMensalData[k] || {}), prejuizo: checked, status: checked ? 'Concluída' : 'Pendente' };
+  state.irpjMensalData[k] = { ...(state.irpjMensalData[k] || {}), prejuizo: checked, status: checked ? 'Concluída' : 'Pendente', updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
 window.updateMensalStatus = (id, st) => {
   const k = `${id}_${state.selIrpjMes}`;
-  state.irpjMensalData[k] = { ...(state.irpjMensalData[k] || {}), status: st };
+  state.irpjMensalData[k] = { ...(state.irpjMensalData[k] || {}), status: st, updatedAt: formatNowTimestamp() };
   saveStorage(); render();
 };
+
+// ---------------- HANDLERS GLOBAIS ECD / ECF ----------------
+window.setEcdEcfYear = (y) => {
+  state.selEcdEcfYear = y;
+  render();
+};
+window.setEcdEcfFilter = (f) => {
+  state.ecdEcfFilter = f;
+  render();
+};
+window.updateEcdStatus = (id, st) => {
+  const year = state.selEcdEcfYear || '2026';
+  const k = `${id}_${year}`;
+  const current = getEcdEcfRecord(id, year);
+  state.ecdEcfData[k] = {
+    ...current,
+    ecdStatus: st,
+    updatedAt: formatNowTimestamp()
+  };
+  saveStorage();
+  if (st === 'Desconsiderada' && !state.ecdEcfData[k].justificativa) {
+    state.ecdEcfModal = { isOpen: true, mode: 'edit', companyId: id };
+  }
+  render();
+};
+window.updateEcfStatus = (id, st) => {
+  const year = state.selEcdEcfYear || '2026';
+  const k = `${id}_${year}`;
+  const current = getEcdEcfRecord(id, year);
+  state.ecdEcfData[k] = {
+    ...current,
+    ecfStatus: st,
+    updatedAt: formatNowTimestamp()
+  };
+  saveStorage();
+  if (st === 'Desconsiderada' && !state.ecdEcfData[k].justificativa) {
+    state.ecdEcfModal = { isOpen: true, mode: 'edit', companyId: id };
+  }
+  render();
+};
+window.openEcdEcfModal = (mode, companyId = null) => {
+  state.ecdEcfModal = { isOpen: true, mode, companyId };
+  render();
+};
+window.closeEcdEcfModal = () => {
+  state.ecdEcfModal = { isOpen: false, mode: 'add', companyId: null };
+  render();
+};
+window.saveEcdEcfModal = () => {
+  const { mode, companyId } = state.ecdEcfModal;
+  const year = state.selEcdEcfYear || '2026';
+  const ecdSt = document.getElementById('ecd-modal-status-ecd')?.value || 'Pendente';
+  const ecfSt = document.getElementById('ecd-modal-status-ecf')?.value || 'Pendente';
+  const just = (document.getElementById('ecd-modal-justificativa')?.value || '').trim();
+
+  if ((ecdSt === 'Desconsiderada' || ecfSt === 'Desconsiderada') && !just) {
+    alert('Por favor, informe a justificativa para marcar a obrigação como Desconsiderada.');
+    document.getElementById('ecd-modal-justificativa')?.focus();
+    return;
+  }
+
+  let targetCompanyId = companyId ? Number(companyId) : null;
+
+  if (mode === 'add') {
+    const existingIdVal = document.getElementById('ecd-add-existing-id')?.value;
+    const newNome = (document.getElementById('ecd-new-nome')?.value || '').trim();
+
+    if (existingIdVal) {
+      targetCompanyId = Number(existingIdVal);
+      if (!state.ecdEcfExtraIds.includes(targetCompanyId)) {
+        state.ecdEcfExtraIds.push(targetCompanyId);
+      }
+    } else if (newNome) {
+      const newCnpj = (document.getElementById('ecd-new-cnpj')?.value || '').trim() || '00.000.000/0001-00';
+      const newCodigo = (document.getElementById('ecd-new-codigo')?.value || '').trim() || String(state.companies.length + 1);
+      const newGrupo = (document.getElementById('ecd-new-grupo')?.value || '').trim() || 'GERAL';
+      const newRegime = document.getElementById('ecd-new-regime')?.value || 'Lucro Real Trimestral';
+      const newColab = (document.getElementById('ecd-new-colaborador')?.value || '').trim() || 'Brayann';
+
+      targetCompanyId = Date.now();
+      state.companies.unshift({
+        id: targetCompanyId,
+        codigo: newCodigo,
+        grupo: newGrupo,
+        nome: newNome,
+        cnpj: newCnpj,
+        classe: 'A',
+        regime: newRegime,
+        colaborador: newColab,
+        segmento: 'Serviços',
+        fechamento: '2026-08'
+      });
+
+      if (!normalizeRegime(newRegime).includes('Lucro Real') && !state.ecdEcfExtraIds.includes(targetCompanyId)) {
+        state.ecdEcfExtraIds.push(targetCompanyId);
+      }
+    } else {
+      alert('Selecione uma empresa existente na lista ou preencha o Nome da Empresa para cadastrar uma nova.');
+      return;
+    }
+  }
+
+  if (targetCompanyId) {
+    const key = `${targetCompanyId}_${year}`;
+    state.ecdEcfData[key] = {
+      ecdStatus: ecdSt,
+      ecfStatus: ecfSt,
+      justificativa: just,
+      updatedAt: formatNowTimestamp()
+    };
+  }
+
+  state.ecdEcfModal = { isOpen: false, mode: 'add', companyId: null };
+  saveStorage();
+  render();
+};
+window.removeEcdEcfExtraCompany = (id) => {
+  if (confirm('Remover esta empresa avulsa da listagem de ECD / ECF? (O cadastro principal da empresa será mantido)')) {
+    state.ecdEcfExtraIds = (state.ecdEcfExtraIds || []).filter(x => x !== id);
+    saveStorage();
+    render();
+  }
+};
+window.openEditCompanyModal = (id) => {
+  window.openCompanyModal('edit', id);
+};
+
 window.setTaskFilter = (f) => { state.taskFilter = f; render(); };
 window.toggleTaskComplete = (id) => {
   const t = state.tasks.find(x => x.id === id);
