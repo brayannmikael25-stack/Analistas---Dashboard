@@ -2880,10 +2880,11 @@ function renderDashboardTab(companies) {
   let conclPis = 0;
   realCompanies.forEach(c => {
     const rec = state.pisCofinsData[`${c.id}_${state.selPisComp}`];
-    if (!rec || rec.status === 'Pendente' || !rec.darfEnviado) {
-      pendingPis++;
-    } else {
+    const isDone = rec && (rec.saldoCredor || rec.status === 'Concluída' || (rec.darfEnviado && rec.status !== 'Pendente'));
+    if (isDone) {
       conclPis++;
+    } else {
+      pendingPis++;
     }
   });
 
@@ -3005,18 +3006,21 @@ function renderDashboardTab(companies) {
                   <path d="M13 16H8"></path>
                 </svg>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-gray-100/80 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 group-hover:border-[#ECBD56]/40 group-hover:text-[#F58220] dark:group-hover:text-[#ECBD56] transition-all">
-                ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}% Concluído ↗
-              </span>
+              <div class="flex items-center gap-1.5">
+                ${pendingPis > 0 ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 tabular-nums">${pendingPis} pend.</span>` : ''}
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 group-hover:border-emerald-500/40 transition-all">
+                  ${realCompanies.length ? Math.round((conclPis / realCompanies.length) * 100) : 0}% ↗
+                </span>
+              </div>
             </div>
 
             <div class="mt-4 flex items-end justify-between gap-2">
               <div>
-                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">DARFs Pendentes</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Status de Apuração</span>
                 <div class="text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">PIS / COFINS</div>
                 <div class="flex items-baseline gap-2 mt-1.5">
-                  <span class="text-3xl font-black tabular-nums text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingPis}">${pendingPis}</span>
-                  <span class="text-xs text-gray-400 font-medium">/ ${realCompanies.length} emp.</span>
+                  <span class="text-3xl font-black tabular-nums text-emerald-600 dark:text-emerald-400 animate-counter" data-counter-target="${conclPis}">${conclPis}</span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400 font-semibold">/ ${realCompanies.length} concluídos</span>
                 </div>
               </div>
 
@@ -3063,18 +3067,21 @@ function renderDashboardTab(companies) {
                   <path d="M12 18h.01"></path><path d="M8 18h.01"></path>
                 </svg>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-gray-100/80 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 group-hover:border-cyan-500/40 group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-all">
-                ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}% Concluído ↗
-              </span>
+              <div class="flex items-center gap-1.5">
+                ${pendingMensal > 0 ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 tabular-nums">${pendingMensal} pend.</span>` : ''}
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 group-hover:border-emerald-500/40 transition-all">
+                  ${mensalCompanies.length ? Math.round((conclMensal / mensalCompanies.length) * 100) : 0}% ↗
+                </span>
+              </div>
             </div>
 
             <div class="mt-4 flex items-end justify-between gap-2">
               <div>
-                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">DARFs Pendentes</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Status de Apuração</span>
                 <div class="text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">IRPJ Mensal</div>
                 <div class="flex items-baseline gap-2 mt-1.5">
-                  <span class="text-3xl font-black tabular-nums text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingMensal}">${pendingMensal}</span>
-                  <span class="text-xs text-gray-400 font-medium">/ ${mensalCompanies.length} emp.</span>
+                  <span class="text-3xl font-black tabular-nums text-emerald-600 dark:text-emerald-400 animate-counter" data-counter-target="${conclMensal}">${conclMensal}</span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400 font-semibold">/ ${mensalCompanies.length} concluídos</span>
                 </div>
               </div>
 
@@ -3117,18 +3124,21 @@ function renderDashboardTab(companies) {
                   <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
                 </svg>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-gray-100/80 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 group-hover:border-blue-500/40 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all">
-                ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}% Concluído ↗
-              </span>
+              <div class="flex items-center gap-1.5">
+                ${pendingTrim > 0 ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 tabular-nums">${pendingTrim} pend.</span>` : ''}
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 group-hover:border-emerald-500/40 transition-all">
+                  ${trimCompanies.length ? Math.round((conclTrim / trimCompanies.length) * 100) : 0}% ↗
+                </span>
+              </div>
             </div>
 
             <div class="mt-4 flex items-end justify-between gap-2">
               <div>
-                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">DARFs Pendentes</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Status de Apuração</span>
                 <div class="text-lg font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">IRPJ Trimestral</div>
                 <div class="flex items-baseline gap-2 mt-1.5">
-                  <span class="text-3xl font-black tabular-nums text-rose-500/90 dark:text-rose-400 animate-counter" data-counter-target="${pendingTrim}">${pendingTrim}</span>
-                  <span class="text-xs text-gray-400 font-medium">/ ${trimCompanies.length} emp.</span>
+                  <span class="text-3xl font-black tabular-nums text-emerald-600 dark:text-emerald-400 animate-counter" data-counter-target="${conclTrim}">${conclTrim}</span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400 font-semibold">/ ${trimCompanies.length} concluídos</span>
                 </div>
               </div>
 
