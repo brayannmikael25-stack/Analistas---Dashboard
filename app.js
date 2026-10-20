@@ -119,28 +119,63 @@ const SUPABASE_CONFIG = {
 };
 
 // Inicialização do cliente oficial do Supabase (@supabase/supabase-js)
-const supabase = (typeof window !== 'undefined' && window.supabase && window.supabase.createClient)
-  ? window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
-  : (function() {
-      console.warn("Cliente Supabase CDN ainda carregando...");
+function getSupabase() {
+  if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+    if (!window._supabaseInstance) {
+      window._supabaseInstance = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    }
+    return window._supabaseInstance;
+  }
+  return null;
+}
+
+// Proxy dinâmico para chamadas ao Supabase
+const supabase = new Proxy({}, {
+  get(target, prop) {
+    const client = getSupabase();
+    if (client && client[prop]) {
+      return typeof client[prop] === 'function' ? client[prop].bind(client) : client[prop];
+    }
+    if (prop === 'auth') {
       return {
-        auth: {
-          async getSession() { return { data: { session: null }, error: null }; },
-          async signInWithPassword() { return { data: {}, error: new Error('Supabase client loading') }; },
-          async signUp() { return { data: {}, error: new Error('Supabase client loading') }; },
-          async signOut() { return { error: null }; }
+        async getSession() {
+          const c = getSupabase();
+          return c ? c.auth.getSession() : { data: { session: null }, error: null };
         },
-        from() {
-          return {
-            select: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
-            insert: () => Promise.resolve({ data: null, error: null }),
-            update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-            delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
-            upsert: () => Promise.resolve({ data: null, error: null })
-          };
+        async signInWithPassword(args) {
+          const c = getSupabase();
+          return c ? c.auth.signInWithPassword(args) : { data: {}, error: new Error('Carregando conexão com o servidor...') };
+        },
+        async signUp(args) {
+          const c = getSupabase();
+          return c ? c.auth.signUp(args) : { data: {}, error: new Error('Carregando conexão com o servidor...') };
+        },
+        async signOut() {
+          const c = getSupabase();
+          return c ? c.auth.signOut() : { error: null };
+        },
+        async resetPasswordForEmail(email) {
+          const c = getSupabase();
+          return c ? c.auth.resetPasswordForEmail(email) : { error: null };
         }
       };
-    })();
+    }
+    if (prop === 'from') {
+      return function(table) {
+        const c = getSupabase();
+        if (c) return c.from(table);
+        return {
+          select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: [], error: null }), maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }),
+          insert: () => Promise.resolve({ data: null, error: null }),
+          update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+          delete: () => ({ eq: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }) }),
+          upsert: () => Promise.resolve({ data: null, error: null })
+        };
+      };
+    }
+    return undefined;
+  }
+});
 
 // Serviço de Autenticação Supabase Auth & Sessão Ativa
 const authService = {
@@ -308,6 +343,11 @@ const dataService = {
     }
   }
 };
+
+// Inicialização da Sessão Ativa
+const initialSession = authService.getCurrentSession();
+const initialUserKey = initialSession ? initialSession.userId : (localStorage.getItem('control_auth_user') || null);
+const initialUserData = null;
 
 // Estado Global Reativo da Aplicação
 const state = {
