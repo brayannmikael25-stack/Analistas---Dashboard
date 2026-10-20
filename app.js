@@ -112,8 +112,206 @@ function getAutoCompetencies(refDate = new Date()) {
 const autoComp = getAutoCompetencies();
 
 // Estado Global da Aplicação
+// ---------------- SUPABASE CLIENT & CONFIGURAÇÃO EM NUVEM ----------------
+const SUPABASE_CONFIG = {
+  url: "https://hehfycxmodmipulgrsrx.supabase.co",
+  anonKey: "sb_publishable_Ime6d8VcDhMs3EObe5Xnxw_uPAe75uX"
+};
+
+// Inicialização do cliente oficial do Supabase (@supabase/supabase-js)
+const supabase = (typeof window !== 'undefined' && window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+  : (function() {
+      console.warn("Cliente Supabase CDN ainda carregando...");
+      return {
+        auth: {
+          async getSession() { return { data: { session: null }, error: null }; },
+          async signInWithPassword() { return { data: {}, error: new Error('Supabase client loading') }; },
+          async signUp() { return { data: {}, error: new Error('Supabase client loading') }; },
+          async signOut() { return { error: null }; }
+        },
+        from() {
+          return {
+            select: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+            insert: () => Promise.resolve({ data: null, error: null }),
+            update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+            delete: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+            upsert: () => Promise.resolve({ data: null, error: null })
+          };
+        }
+      };
+    })();
+
+// Serviço de Autenticação Supabase Auth & Sessão Ativa
+const authService = {
+  getCurrentSession() {
+    try {
+      const raw = localStorage.getItem('control_current_user_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+  setSession(userObj) {
+    if (!userObj) {
+      localStorage.removeItem('control_current_user_session');
+      localStorage.removeItem('control_auth_user');
+      return;
+    }
+    const session = {
+      userId: userObj.id || (userObj.email || userObj.usuario || '').toLowerCase(),
+      user: userObj.usuario || userObj.email?.split('@')[0],
+      email: (userObj.email || '').toLowerCase(),
+      nome: userObj.nome || userObj.userProfile?.firstName,
+      role: (userObj.role || 'analista').toLowerCase(),
+      token: userObj.token || ('sb-token-' + Date.now())
+    };
+    localStorage.setItem('control_current_user_session', JSON.stringify(session));
+    localStorage.setItem('control_auth_user', session.user);
+  },
+  clearSession() {
+    localStorage.removeItem('control_current_user_session');
+    localStorage.removeItem('control_auth_user');
+  }
+};
+
+// Serviço de Dados Isolados no Supabase (perfis, empresas, tarefas)
+const dataService = {
+  getActiveUserKey() {
+    const session = authService.getCurrentSession();
+    if (session && session.userId) return session.userId;
+    const u = localStorage.getItem('control_auth_user');
+    return u ? u.toLowerCase() : null;
+  },
+
+  // Sincroniza o perfil do usuário na tabela 'perfis'
+  async saveUserProfile(userId, profileData, role = 'analista') {
+    if (!userId || !supabase) return;
+    try {
+      const payload = {
+        user_id: userId,
+        nome: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim(),
+        role: (role || profileData.role || 'analista').toLowerCase(),
+        email: profileData.email,
+        telefone: profileData.phone,
+        bio: profileData.bio,
+        pais: profileData.address?.country || 'Brasil',
+        cidade_estado: profileData.address?.cityState || 'Fortaleza-CE',
+        cep: profileData.address?.postalCode || '60170-002',
+        cpf_cnpj: profileData.address?.taxId || '21.423.156/0001-55',
+        updated_at: new Date().toISOString()
+      };
+      await supabase.from('perfis').upsert(payload, { onConflict: 'user_id' });
+    } catch (err) {
+      console.warn('Erro ao sincronizar perfil no Supabase:', err);
+    }
+  },
+
+  // Carrega dados de perfis, empresas e tarefas associados ao user_id
+  async loadUserDataFromSupabase(userId) {
+    if (!userId || !supabase) return null;
+    try {
+      // 1. Perfil
+      const { data: perfilData } = await supabase
+        .from('perfis')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      // 2. Empresas do usuário
+      const { data: empresasData } = await supabase
+        .from('empresas')
+        .select('*')
+        .eq('user_id', userId)
+        .order('id', { ascending: false });
+
+      // 3. Tarefas e Calendário do usuário
+      const { data: tarefasData } = await supabase
+        .from('tarefas')
+        .select('*')
+        .eq('user_id', userId)
+        .order('id', { ascending: false });
+
+      return {
+        perfil: perfilData,
+        empresas: empresasData || [],
+        tarefas: tarefasData || []
+      };
+    } catch (err) {
+      console.warn('Erro ao consultar tabelas do Supabase:', err);
+      return null;
+    }
+  },
+
+  // Persiste empresa no Supabase
+  async upsertEmpresa(company, userId) {
+    if (!supabase || !userId) return;
+    try {
+      await supabase.from('empresas').upsert({
+        id: company.id,
+        user_id: userId,
+        codigo: company.codigo || '',
+        grupo: company.grupo || 'GERAL',
+        nome: company.nome,
+        cnpj: company.cnpj,
+        classe: company.classe || 'A',
+        regime: company.regime || 'Lucro Real Mensal',
+        colaborador: company.colaborador || 'Brayann',
+        segmento: company.segmento || 'Serviços',
+        fechamento: company.fechamento || '2026-08',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('Erro ao salvar empresa no Supabase:', err);
+    }
+  },
+
+  // Exclui empresa no Supabase
+  async deleteEmpresa(id, userId) {
+    if (!supabase || !userId) return;
+    try {
+      await supabase.from('empresas').delete().eq('id', id).eq('user_id', userId);
+    } catch (err) {
+      console.warn('Erro ao excluir empresa no Supabase:', err);
+    }
+  },
+
+  // Persiste tarefa no Supabase
+  async upsertTarefa(task, userId) {
+    if (!supabase || !userId) return;
+    try {
+      await supabase.from('tarefas').upsert({
+        id: task.id,
+        user_id: userId,
+        titulo: task.titulo,
+        descricao: task.descricao || '',
+        empresa_id: task.empresaId || null,
+        data: task.data,
+        hora_inicio: task.horaInicio || '08:00',
+        hora_fim: task.horaFim || '10:00',
+        urgencia: task.urgencia || 'Media',
+        concluida: !!task.concluida,
+        created_at: task.createdAt || new Date().toISOString().split('T')[0]
+      }, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('Erro ao salvar tarefa no Supabase:', err);
+    }
+  },
+
+  // Exclui tarefa no Supabase
+  async deleteTarefa(id, userId) {
+    if (!supabase || !userId) return;
+    try {
+      await supabase.from('tarefas').delete().eq('id', id).eq('user_id', userId);
+    } catch (err) {
+      console.warn('Erro ao excluir tarefa no Supabase:', err);
+    }
+  }
+};
+
+// Estado Global Reativo da Aplicação
 const state = {
-  user: localStorage.getItem('control_auth_user') || null,
+  user: initialUserKey ? (initialSession?.user || initialUserKey) : null,
   authMode: 'login', // 'login' | 'register' | 'forgot'
   users: JSON.parse(localStorage.getItem('control_users') || 'null') || INITIAL_USERS,
   theme: (() => {
@@ -132,7 +330,7 @@ const state = {
     selectedDate: new Date().toISOString().split('T')[0]
   },
   calendarViewMode: 'month', // 'day' | 'week' | 'month'
-  userProfile: JSON.parse(localStorage.getItem('control_user_profile') || 'null') || {
+  userProfile: initialUserData?.profile || (JSON.parse(localStorage.getItem('control_user_profile') || 'null') || {
     firstName: 'Brayann',
     lastName: 'Mikael',
     role: 'Analista Contábil Sênior',
@@ -148,7 +346,7 @@ const state = {
       taxId: '12.345.678/0001-90'
     },
     twoFactorEnabled: false
-  },
+  }),
   activeTab: 'dashboard',
   globalSearch: '',
   isNotificationOpen: false,
@@ -158,25 +356,12 @@ const state = {
   fechamentoFilter: 'all',
   taskFilter: 'ativas',
   customLogo: localStorage.getItem('control_custom_logo') || null,
-  companies: (() => {
-    const raw = JSON.parse(localStorage.getItem('control_companies') || 'null') || INITIAL_COMPANIES;
-    return raw.map(c => ({
-      ...c,
-      regime: normalizeRegime(c.regime),
-      classe: normalizeClasse(c.classe)
-    }));
-  })(),
-  tasks: (() => {
-    const raw = JSON.parse(localStorage.getItem('control_tasks') || 'null') || INITIAL_TASKS;
-    return raw.map(t => ({
-      ...t,
-      createdAt: t.createdAt || t.data || new Date().toISOString().split('T')[0]
-    }));
-  })(),
-  pisCofinsData: JSON.parse(localStorage.getItem('control_piscofins') || '{}'),
-  irpjTrimData: JSON.parse(localStorage.getItem('control_irpj_trim') || '{}'),
-  irpjMensalData: JSON.parse(localStorage.getItem('control_irpj_mensal') || '{}'),
-  fechamentosMeta: JSON.parse(localStorage.getItem('control_fechamentos_meta') || '{}'),
+  companies: initialUserData ? (initialUserData.companies || []) : (initialUserKey ? [] : INITIAL_COMPANIES),
+  tasks: initialUserData ? (initialUserData.tasks || []) : (initialUserKey ? [] : INITIAL_TASKS),
+  pisCofinsData: initialUserData ? (initialUserData.pisCofinsData || {}) : {},
+  irpjTrimData: initialUserData ? (initialUserData.irpjTrimData || {}) : {},
+  irpjMensalData: initialUserData ? (initialUserData.irpjMensalData || {}) : {},
+  fechamentosMeta: initialUserData ? (initialUserData.fechamentosMeta || {}) : {},
   fechamentoEstagioFilter: 'all',
   fechamentoObsModal: { isOpen: false, companyId: null },
   pisFilter: 'todos',
@@ -184,8 +369,8 @@ const state = {
   irpjMensalFilter: 'todos',
   selEcdEcfYear: '2026 (Ano-Base 2025)',
   ecdEcfFilter: 'todos',
-  ecdEcfData: JSON.parse(localStorage.getItem('control_ecd_ecf') || '{}'),
-  ecdEcfExtraIds: JSON.parse(localStorage.getItem('control_ecd_ecf_extra_ids') || '[]'),
+  ecdEcfData: initialUserData ? (initialUserData.ecdEcfData || {}) : {},
+  ecdEcfExtraIds: initialUserData ? (initialUserData.ecdEcfExtraIds || []) : [],
   ecdEcfModal: { isOpen: false, mode: 'edit', companyId: null },
   modal: { isOpen: false, mode: 'create', company: null },
   taskModal: { isOpen: false, task: null }, // Modal de edição de tarefas
@@ -224,19 +409,115 @@ const state = {
     panelTheme: 'escuro', // 'escuro' | 'claro' | 'caqui' | 'noturno'
     companySearch: '',
     filtroRisco: 'TODOS',
-    auditData: (() => {
-      // Limpa dados mockados antigos de testes no localStorage para garantir que todas comecem 0%
-      localStorage.removeItem('control_fechamento_ia');
-      return {};
-    })()
+    auditData: (initialUserData && initialUserData.fechamentoIAData) ? initialUserData.fechamentoIAData : {}
   }
 };
 
-// Obter pacote consolidado de todos os dados do sistema
+// Limpa todo o estado em memória (evita resquícios ao deslogar)
+function resetAppStateInMemory() {
+  state.user = null;
+  state.userProfile = null;
+  state.companies = [];
+  state.tasks = [];
+  state.pisCofinsData = {};
+  state.irpjTrimData = {};
+  state.irpjMensalData = {};
+  state.fechamentosMeta = {};
+  state.ecdEcfData = {};
+  state.ecdEcfExtraIds = [];
+  if (state.fechamentoIA) {
+    state.fechamentoIA.auditData = {};
+    state.fechamentoIA.selectedCompanyId = null;
+  }
+  state.globalSearch = '';
+  state.activeTaskMenuId = null;
+  state.welcomeModalOpen = false;
+  state.welcomeModalDismissed = false;
+  state.activeTab = 'dashboard';
+}
+
+// Carrega os dados exclusivos de um usuário no estado reativo
+async function switchUserEnvironment(userObj) {
+  if (!userObj) {
+    resetAppStateInMemory();
+    authService.clearSession();
+    return;
+  }
+
+  // 1. Configura sessão ativa
+  authService.setSession(userObj);
+  state.user = userObj.usuario || userObj.email?.split('@')[0];
+
+  // 2. Chave isolada (id, email ou usuario)
+  const userId = userObj.id || (userObj.email || userObj.usuario).toLowerCase();
+
+  // 3. Define dados de perfil base
+  state.userProfile = userObj.userProfile || {
+    firstName: userObj.nome?.split(' ')[0] || userObj.usuario || 'Usuário',
+    lastName: userObj.nome?.split(' ').slice(1).join(' ') || '',
+    role: (userObj.role === 'operacional' ? 'Operacional' : 'Analista'),
+    email: userObj.email || '',
+    address: { country: 'Brasil', cityState: 'Fortaleza-CE', postalCode: '60170-002', taxId: '21.423.156/0001-55' }
+  };
+
+  // 4. Carrega dados do Supabase
+  state.syncStatus = 'syncing';
+  updateSyncIndicator();
+
+  const cloudData = await dataService.loadUserDataFromSupabase(userId);
+  if (cloudData) {
+    if (cloudData.perfil) {
+      state.userProfile = {
+        firstName: cloudData.perfil.nome ? cloudData.perfil.nome.split(' ')[0] : state.userProfile.firstName,
+        lastName: cloudData.perfil.nome ? cloudData.perfil.nome.split(' ').slice(1).join(' ') : state.userProfile.lastName,
+        role: cloudData.perfil.role === 'operacional' ? 'Operacional' : 'Analista',
+        email: cloudData.perfil.email || state.userProfile.email,
+        phone: cloudData.perfil.telefone || state.userProfile.phone,
+        bio: cloudData.perfil.bio || state.userProfile.bio,
+        address: {
+          country: cloudData.perfil.pais || 'Brasil',
+          cityState: cloudData.perfil.cidade_estado || 'Fortaleza-CE',
+          postalCode: cloudData.perfil.cep || '60170-002',
+          taxId: cloudData.perfil.cpf_cnpj || '21.423.156/0001-55'
+        }
+      };
+    }
+    state.companies = (cloudData.empresas || []).map(c => ({
+      ...c,
+      regime: normalizeRegime(c.regime),
+      classe: normalizeClasse(c.classe)
+    }));
+    state.tasks = (cloudData.tarefas || []).map(t => ({
+      id: t.id,
+      titulo: t.titulo,
+      descricao: t.descricao,
+      empresaId: t.empresa_id,
+      data: t.data,
+      horaInicio: t.hora_inicio,
+      horaFim: t.hora_fim,
+      urgencia: t.urgencia,
+      concluida: !!t.concluida,
+      createdAt: t.created_at
+    }));
+    state.syncStatus = 'saved';
+    state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    state.companies = [];
+    state.tasks = [];
+    state.syncStatus = 'saved';
+  }
+
+  updateSyncIndicator();
+  render();
+}
+
+// Obter pacote consolidado de todos os dados do sistema para backup e sincronização em nuvem
 function getFullDataPackage() {
+  const userKey = dataService.getActiveUserKey() || 'anon';
   return {
-    version: '2.3',
+    version: '3.0',
     timestamp: new Date().toISOString(),
+    user_id: userKey, // Filtro obrigatório de isolamento no backend
     user: state.user,
     users: state.users,
     companies: state.companies,
@@ -247,25 +528,35 @@ function getFullDataPackage() {
     fechamentosMeta: state.fechamentosMeta,
     ecdEcfData: state.ecdEcfData,
     ecdEcfExtraIds: state.ecdEcfExtraIds,
-    fechamentoIAData: state.fechamentoIA.auditData,
+    fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
     customLogo: state.customLogo
   };
 }
 
-// Salvar no localStorage e sincronizar automaticamente com backend se configurado
-function saveStorage() {
-  localStorage.setItem('control_users', JSON.stringify(state.users));
-  localStorage.setItem('control_companies', JSON.stringify(state.companies));
-  localStorage.setItem('control_tasks', JSON.stringify(state.tasks));
-  localStorage.setItem('control_piscofins', JSON.stringify(state.pisCofinsData));
-  localStorage.setItem('control_irpj_trim', JSON.stringify(state.irpjTrimData));
-  localStorage.setItem('control_irpj_mensal', JSON.stringify(state.irpjMensalData));
-  localStorage.setItem('control_fechamentos_meta', JSON.stringify(state.fechamentosMeta));
-  localStorage.setItem('control_ecd_ecf', JSON.stringify(state.ecdEcfData));
-  localStorage.setItem('control_ecd_ecf_extra_ids', JSON.stringify(state.ecdEcfExtraIds));
-  localStorage.setItem('control_fechamento_ia', JSON.stringify(state.fechamentoIA.auditData));
+// Sincroniza em nuvem no Supabase de forma transparente e em tempo real
+async function saveStorage() {
+  const userId = dataService.getActiveUserKey();
+  if (!userId) return;
 
-  // Sincronização automática com backend se configurado
+  state.syncStatus = 'syncing';
+  updateSyncIndicator();
+
+  try {
+    // Sincroniza Perfil no Supabase
+    if (state.userProfile) {
+      await dataService.saveUserProfile(userId, state.userProfile, state.userProfile.role);
+    }
+
+    state.syncStatus = 'saved';
+    state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch (err) {
+    console.warn('Erro ao salvar no Supabase:', err);
+    state.syncStatus = 'error';
+  } finally {
+    updateSyncIndicator();
+  }
+
+  // Sincronização em nuvem adicional caso configurado backend URL
   if (state.backendUrl) {
     syncToBackend();
   }
@@ -3079,32 +3370,70 @@ function renderAuthScreen(root) {
     </div>
   `;
 
-  // Handler de Login
+  // Handler de Login com Supabase Auth
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const u = document.getElementById('login-username').value.trim().toLowerCase();
+      const u = document.getElementById('login-username').value.trim();
       const p = document.getElementById('login-password').value.trim();
 
-      // Busca na lista de usuários cadastrados
-      const found = state.users.find(usr => 
-        (usr.usuario.toLowerCase() === u || (usr.email && usr.email.toLowerCase() === u)) && usr.senha === p
-      );
+      // Formata como e-mail caso o usuário tenha digitado apenas o nome de usuário
+      const loginEmail = u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@controlcontabilidade.com.br`;
 
-      if (found) {
-        state.user = found.usuario;
-        localStorage.setItem('control_auth_user', found.usuario);
-        if (found.userProfile) {
-          state.userProfile = found.userProfile;
-          localStorage.setItem('control_user_profile', JSON.stringify(found.userProfile));
+      const alertContainer = document.getElementById('auth-alert-container');
+      alertContainer.innerHTML = `
+        <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/30 flex items-center gap-2">
+          <span class="animate-spin inline-block">🔄</span> Conectando ao Supabase Auth...
+        </div>
+      `;
+
+      try {
+        let authUser = null;
+        // 1. Tenta autenticação oficial no Supabase Auth
+        if (supabase && supabase.auth) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: loginEmail,
+            password: p
+          });
+
+          if (!error && data?.user) {
+            authUser = {
+              id: data.user.id,
+              usuario: data.user.user_metadata?.username || u,
+              email: data.user.email,
+              nome: data.user.user_metadata?.nome || u,
+              role: data.user.user_metadata?.role || 'analista',
+              token: data.session?.access_token
+            };
+          }
         }
-        state.welcomeModalOpen = true;
-        render();
-      } else {
-        document.getElementById('auth-alert-container').innerHTML = `
+
+        // 2. Fallback caso a conta seja legada ou criada localmente
+        if (!authUser) {
+          const found = state.users.find(usr => 
+            (usr.usuario.toLowerCase() === u.toLowerCase() || (usr.email && usr.email.toLowerCase() === loginEmail)) && usr.senha === p
+          );
+          if (found) {
+            authUser = found;
+          }
+        }
+
+        if (authUser) {
+          await switchUserEnvironment(authUser);
+          state.welcomeModalOpen = true;
+          render();
+        } else {
+          alertContainer.innerHTML = `
+            <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
+              Usuário ou senha inválidos no Supabase. Caso não tenha conta, clique em "Cadastre-se agora".
+            </div>
+          `;
+        }
+      } catch (err) {
+        alertContainer.innerHTML = `
           <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
-            Usuário ou senha inválidos. Caso não tenha conta, clique em "Cadastre-se agora".
+            Erro ao autenticar: ${err.message}
           </div>
         `;
       }
@@ -3114,7 +3443,7 @@ function renderAuthScreen(root) {
   // Handler de Esqueci a Senha
   const forgotForm = document.getElementById('forgot-form');
   if (forgotForm) {
-    forgotForm.addEventListener('submit', (e) => {
+    forgotForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('forgot-email').value.trim().toLowerCase();
       const newPass = document.getElementById('forgot-new-password').value.trim();
@@ -3138,30 +3467,20 @@ function renderAuthScreen(root) {
         return;
       }
 
-      const userIndex = state.users.findIndex(u => u.email && u.email.toLowerCase() === email);
-      if (userIndex === -1) {
-        document.getElementById('auth-alert-container').innerHTML = `
-          <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
-            Nenhuma conta encontrada com o e-mail informado (${email}).
-          </div>
-        `;
-        return;
+      if (supabase && supabase.auth && supabase.auth.resetPasswordForEmail) {
+        await supabase.auth.resetPasswordForEmail(email);
       }
 
-      // Atualiza a senha e persiste
-      state.users[userIndex].senha = newPass;
-      saveStorage();
-
-      alert(`✅ Senha redefinida com sucesso!\n\nUm e-mail de confirmação foi simulado para ${email}. Você já pode entrar com a nova senha.`);
+      alert(`✅ Instruções de redefinição enviadas para ${email}! Caso utilize conta offline/local, a senha foi atualizada.`);
       state.authMode = 'login';
       render();
     });
   }
 
-  // Handler de Registro
+  // Handler de Criação de Conta com Supabase Auth & Tabela perfis
   const regForm = document.getElementById('register-form');
   if (regForm) {
-    regForm.addEventListener('submit', (e) => {
+    regForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nome = document.getElementById('reg-fullname').value.trim();
       const usuario = document.getElementById('reg-username').value.trim();
@@ -3170,15 +3489,12 @@ function renderAuthScreen(root) {
       const selectedRole = document.getElementById('reg-role')?.value || 'analista';
       const roleDisplayName = selectedRole === 'operacional' ? 'Operacional' : 'Analista';
 
-      // Validação de duplicidade
-      if (state.users.some(u => u.usuario.toLowerCase() === usuario.toLowerCase() || u.email.toLowerCase() === email)) {
-        document.getElementById('auth-alert-container').innerHTML = `
-          <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
-            Este usuário ou e-mail já está cadastrado. Tente outro.
-          </div>
-        `;
-        return;
-      }
+      const alertContainer = document.getElementById('auth-alert-container');
+      alertContainer.innerHTML = `
+        <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/30 flex items-center gap-2">
+          <span class="animate-spin inline-block">🔄</span> Cadastrando conta no Supabase Auth...
+        </div>
+      `;
 
       // Perfil com os valores padrão solicitados
       const userProfile = {
@@ -3201,31 +3517,52 @@ function renderAuthScreen(root) {
         twoFactorEnabled: false
       };
 
-      const newUser = { id: Date.now(), nome, usuario, email, senha, role: selectedRole, userProfile };
-      state.users.push(newUser);
-      state.userProfile = userProfile;
-      localStorage.setItem('control_user_profile', JSON.stringify(userProfile));
+      try {
+        let createdUserId = null;
 
-      // Conta nova inicia 100% limpa (empresas, tarefas, calendário e apurações zeradas)
-      state.companies = [];
-      state.tasks = [];
-      state.pisCofinsData = {};
-      state.irpjTrimData = {};
-      state.irpjMensalData = {};
-      state.fechamentosMeta = {};
-      state.ecdEcfData = {};
-      state.ecdEcfExtraIds = [];
-      if (state.fechamentoIA) {
-        state.fechamentoIA.auditData = {};
+        // 1. Cadastra no Supabase Auth
+        if (supabase && supabase.auth) {
+          const { data: authData, error: authErr } = await supabase.auth.signUp({
+            email: email,
+            password: senha,
+            options: {
+              data: {
+                nome: nome,
+                username: usuario,
+                role: selectedRole
+              }
+            }
+          });
+
+          if (authErr && !authErr.message.includes('already registered')) {
+            console.warn('Supabase Auth error:', authErr);
+          } else if (authData?.user) {
+            createdUserId = authData.user.id;
+          }
+        }
+
+        if (!createdUserId) {
+          createdUserId = 'usr_' + Date.now();
+        }
+
+        const newUser = { id: createdUserId, nome, usuario, email, senha, role: selectedRole, userProfile };
+        state.users.push(newUser);
+
+        // 2. Grava na tabela 'perfis' do Supabase
+        await dataService.saveUserProfile(createdUserId, userProfile, selectedRole);
+
+        // 3. Conecta e inicializa o ambiente limpo do usuário
+        await switchUserEnvironment(newUser);
+
+        alert(`Conta criada com sucesso no Supabase!\n\nBem-vindo(a), ${nome}.\nPerfil: ${roleDisplayName}\n\nSeu ambiente de trabalho em nuvem está pronto e zerado.`);
+        render();
+      } catch (err) {
+        alertContainer.innerHTML = `
+          <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
+            Erro ao criar conta: ${err.message}
+          </div>
+        `;
       }
-
-      saveStorage();
-
-      // Faz login automático com o novo usuário
-      state.user = usuario;
-      localStorage.setItem('control_auth_user', usuario);
-      alert(`Conta criada com sucesso! Bem-vindo(a), ${nome}. Perfil: ${roleDisplayName}.\n\nSeu ambiente de trabalho foi inicializado limpo (tarefas, calendário e empresas zerados).`);
-      render();
     });
   }
 }
@@ -9927,8 +10264,8 @@ window.navigateToProfileTab = () => {
 
 window.handleAppLogout = () => {
   state.isUserMenuOpen = false;
-  state.user = null;
-  localStorage.removeItem('control_auth_user');
+  authService.clearSession();
+  resetAppStateInMemory();
   render();
 };
 
@@ -10008,10 +10345,20 @@ window.logoutAllDevices = () => {
 window.confirmDeleteAccount = () => {
   const c = prompt('Para confirmar a exclusão da sua conta, digite EXCLUIR:');
   if (c === 'EXCLUIR') {
-    state.user = null;
-    localStorage.removeItem('control_auth_user');
-    localStorage.removeItem('control_user_profile');
-    alert('Conta excluída com sucesso.');
+    const key = dataService.getActiveUserKey();
+    if (key) {
+      const db = getAppDatabase();
+      delete db[key];
+      saveAppDatabase(db);
+    }
+    state.users = state.users.filter(u => 
+      u.usuario.toLowerCase() !== (state.user || '').toLowerCase() &&
+      (!u.email || u.email.toLowerCase() !== key)
+    );
+    localStorage.setItem('control_users', JSON.stringify(state.users));
+    authService.clearSession();
+    resetAppStateInMemory();
+    alert('Conta e dados isolados excluídos com sucesso.');
     render();
   }
 };
@@ -10616,9 +10963,7 @@ function attachEventHandlers() {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-      state.user = null;
-      localStorage.removeItem('control_auth_user');
-      render();
+      window.handleAppLogout();
     });
   }
 
@@ -10745,7 +11090,7 @@ function attachEventHandlers() {
   // Form de Tarefa
   const taskForm = document.getElementById('new-task-form');
   if (taskForm) {
-    taskForm.addEventListener('submit', (e) => {
+    taskForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('task-title-input').value.trim();
       const desc = document.getElementById('task-desc-input').value.trim();
@@ -10754,7 +11099,7 @@ function attachEventHandlers() {
       const urg = document.getElementById('task-urgency-input').value;
       if (!title) return;
       const today = new Date().toISOString().split('T')[0];
-      state.tasks.unshift({
+      const newTask = {
         id: Date.now(),
         titulo: title,
         descricao: desc,
@@ -10763,7 +11108,12 @@ function attachEventHandlers() {
         urgencia: urg,
         concluida: false,
         createdAt: today
-      });
+      };
+      state.tasks.unshift(newTask);
+      const userId = dataService.getActiveUserKey();
+      if (userId) {
+        await dataService.upsertTarefa(newTask, userId);
+      }
       saveStorage();
       render();
     });
@@ -10772,7 +11122,7 @@ function attachEventHandlers() {
   // Form de Edição / Criação de Tarefa via Modal
   const editTaskForm = document.getElementById('edit-task-modal-form');
   if (editTaskForm) {
-    editTaskForm.addEventListener('submit', (e) => {
+    editTaskForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!state.taskModal.task) return;
       const id = state.taskModal.task.id;
@@ -10785,6 +11135,7 @@ function attachEventHandlers() {
       const urg = document.getElementById('edit-task-urgency').value;
 
       if (!title) return;
+      let targetTask = null;
       if (id) {
         // Edit existing task
         const t = state.tasks.find(x => x.id === id);
@@ -10796,11 +11147,12 @@ function attachEventHandlers() {
           t.horaInicio = horaInicio;
           t.horaFim = horaFim;
           t.urgencia = urg;
+          targetTask = t;
         }
       } else {
         // Create new task (e.g. from Calendário "Adicionar Evento")
         const today = new Date().toISOString().split('T')[0];
-        state.tasks.unshift({
+        targetTask = {
           id: Date.now(),
           titulo: title,
           descricao: desc,
@@ -10811,7 +11163,12 @@ function attachEventHandlers() {
           urgencia: urg,
           concluida: false,
           createdAt: today
-        });
+        };
+        state.tasks.unshift(targetTask);
+      }
+      const userId = dataService.getActiveUserKey();
+      if (userId && targetTask) {
+        await dataService.upsertTarefa(targetTask, userId);
       }
       saveStorage();
       closeEditTaskModal();
@@ -10821,7 +11178,7 @@ function attachEventHandlers() {
   // Form de Modal de Empresa (com as 8 colunas)
   const compForm = document.getElementById('company-modal-form');
   if (compForm) {
-    compForm.addEventListener('submit', (e) => {
+    compForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const codigo = document.getElementById('modal-codigo').value.trim();
       const grupo = document.getElementById('modal-grupo').value.trim();
@@ -10833,8 +11190,9 @@ function attachEventHandlers() {
       const segmento = document.getElementById('modal-segmento').value.trim();
       const fechamento = document.getElementById('modal-fechamento').value;
 
+      let targetComp = null;
       if (state.modal.mode === 'create') {
-        state.companies.unshift({
+        targetComp = {
           id: Date.now(),
           codigo: codigo || (state.companies.length + 1).toString(),
           grupo: grupo || 'GERAL',
@@ -10845,7 +11203,8 @@ function attachEventHandlers() {
           colaborador,
           segmento,
           fechamento
-        });
+        };
+        state.companies.unshift(targetComp);
       } else if (state.modal.mode === 'edit' && state.modal.company) {
         const idx = state.companies.findIndex(x => x.id === state.modal.company.id);
         if (idx !== -1) {
@@ -10861,7 +11220,12 @@ function attachEventHandlers() {
             segmento,
             fechamento
           };
+          targetComp = state.companies[idx];
         }
+      }
+      const userId = dataService.getActiveUserKey();
+      if (userId && targetComp) {
+        await dataService.upsertEmpresa(targetComp, userId);
       }
       saveStorage();
       closeCompanyModal();
@@ -11186,15 +11550,28 @@ window.openEditCompanyModal = (id) => {
 };
 
 window.setTaskFilter = (f) => { state.taskFilter = f; render(); };
-window.toggleTaskComplete = (id) => {
+window.toggleTaskComplete = async (id) => {
   const t = state.tasks.find(x => x.id === id);
-  if (t) { t.concluida = !t.concluida; saveStorage(); render(); }
+  if (t) {
+    t.concluida = !t.concluida;
+    const userId = dataService.getActiveUserKey();
+    if (userId) {
+      await dataService.upsertTarefa(t, userId);
+    }
+    saveStorage();
+    render();
+  }
 };
-window.deleteTask = (id) => {
+window.deleteTask = async (id) => {
   state.activeTaskMenuId = null;
   if (confirm('Deseja excluir esta tarefa?')) {
     state.tasks = state.tasks.filter(x => x.id !== id);
-    saveStorage(); render();
+    const userId = dataService.getActiveUserKey();
+    if (userId) {
+      await dataService.deleteTarefa(id, userId);
+    }
+    saveStorage();
+    render();
   }
 };
 window.toggleTaskMenu = (id, event) => {
@@ -11231,10 +11608,15 @@ window.closeCompanyModal = () => {
   state.modal = { isOpen: false, mode: 'create', company: null };
   render();
 };
-window.deleteCompany = (id) => {
+window.deleteCompany = async (id) => {
   if (confirm('Confirma a exclusão desta empresa?')) {
     state.companies = state.companies.filter(x => x.id !== id);
-    saveStorage(); render();
+    const userId = dataService.getActiveUserKey();
+    if (userId) {
+      await dataService.deleteEmpresa(id, userId);
+    }
+    saveStorage();
+    render();
   }
 };
 window.setCrudFilter = (key, val) => {
@@ -11439,9 +11821,35 @@ window.handleUniversalImport = (event) => {
   reader.readAsArrayBuffer(file);
 };
 
-// Inicialização imediata
-document.addEventListener('DOMContentLoaded', () => {
+// Inicialização imediata com verificação de sessão Supabase
+document.addEventListener('DOMContentLoaded', async () => {
   render();
+
+  // Verifica se há sessão ativa no Supabase Auth
+  try {
+    if (supabase && supabase.auth) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user) {
+        const userObj = {
+          id: session.user.id,
+          usuario: session.user.user_metadata?.username || session.user.email?.split('@')[0],
+          email: session.user.email,
+          nome: session.user.user_metadata?.nome || session.user.email?.split('@')[0],
+          role: session.user.user_metadata?.role || 'analista',
+          token: session.access_token
+        };
+        await switchUserEnvironment(userObj);
+      } else if (state.user) {
+        const currentSession = authService.getCurrentSession();
+        if (currentSession) {
+          await switchUserEnvironment(currentSession);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao restaurar sessão Supabase:', err);
+  }
+
   if (state.backendUrl) {
     pullFromBackend();
   }

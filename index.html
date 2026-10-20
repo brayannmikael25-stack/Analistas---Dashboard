@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Control Contabilidade - Dashboard de Gestão Contábil</title>
   
-  <!-- Google Fonts: Rethink Sans -->
+  <!-- Google Fonts: Inter & JetBrains Mono (TailAdmin Design System) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Rethink+Sans:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -17,8 +17,20 @@
       darkMode: 'class',
       theme: {
         extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#3C50E0',
+              primary: '#3C50E0',
+              secondary: '#80CAEE',
+              dark: '#1C2434',
+              gray: '#64748B',
+              stroke: '#E2E8F0',
+              bodybg: '#F1F5F9'
+            }
+          },
           fontFamily: {
-            sans: ['"Rethink Sans"', 'sans-serif'],
+            sans: ['"Inter"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
           }
         }
       }
@@ -28,13 +40,28 @@
   <!-- SheetJS (xlsx) para importação e exportação de planilhas -->
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
+  <!-- PDF.js para extração e auditoria real de documentos PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+
   <!-- Chart.js para os 7 gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
-      font-family: 'Rethink Sans', sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .font-mono, .tabular-nums {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
     }
     ::-webkit-scrollbar {
       width: 6px;
@@ -52,8 +79,11 @@
     }
   </style>
 </head>
-<body class="bg-[#111116] text-gray-100 antialiased selection:bg-[#ECBD56] selection:text-[#111116]">
+<body class="bg-[#0B0F19] text-gray-100 antialiased selection:bg-[#ECBD56] selection:text-[#111116]">
   <div id="app"></div>
+
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Script principal nativo (executa tanto via file:// quanto web server) -->
   <script src="app.js"></script>
