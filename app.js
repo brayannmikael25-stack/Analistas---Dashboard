@@ -129,8 +129,8 @@ function getSupabase() {
   return null;
 }
 
-// Proxy dinâmico para chamadas ao Supabase
-const supabase = new Proxy({}, {
+// Cliente dinâmico conectado ao Supabase
+var supabaseClient = new Proxy({}, {
   get(target, prop) {
     const client = getSupabase();
     if (client && client[prop]) {
@@ -176,6 +176,7 @@ const supabase = new Proxy({}, {
     return undefined;
   }
 });
+const sb = supabaseClient;
 
 // Serviço de Autenticação Supabase Auth & Sessão Ativa
 const authService = {
