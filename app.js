@@ -177,7 +177,6 @@ var supabaseClient = new Proxy({}, {
   }
 });
 const sb = supabaseClient;
-const supabase = supabaseClient;
 
 
 // Serviço de Autenticação Supabase Auth & Sessão Ativa
@@ -224,7 +223,7 @@ const dataService = {
 
   // Sincroniza o perfil do usuário na tabela 'perfis'
   async saveUserProfile(userId, profileData, role = 'analista') {
-    if (!userId || !supabase) return;
+    if (!userId || !sb) return;
     try {
       const payload = {
         user_id: userId,
@@ -239,7 +238,7 @@ const dataService = {
         cpf_cnpj: profileData.address?.taxId || '21.423.156/0001-55',
         updated_at: new Date().toISOString()
       };
-      await supabase.from('perfis').upsert(payload, { onConflict: 'user_id' });
+      await sb.from('perfis').upsert(payload, { onConflict: 'user_id' });
     } catch (err) {
       console.warn('Erro ao sincronizar perfil no Supabase:', err);
     }
@@ -247,24 +246,24 @@ const dataService = {
 
   // Carrega dados de perfis, empresas e tarefas associados ao user_id
   async loadUserDataFromSupabase(userId) {
-    if (!userId || !supabase) return null;
+    if (!userId || !sb) return null;
     try {
       // 1. Perfil
-      const { data: perfilData } = await supabase
+      const { data: perfilData } = await sb
         .from('perfis')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
 
       // 2. Empresas do usuário
-      const { data: empresasData } = await supabase
+      const { data: empresasData } = await sb
         .from('empresas')
         .select('*')
         .eq('user_id', userId)
         .order('id', { ascending: false });
 
       // 3. Tarefas e Calendário do usuário
-      const { data: tarefasData } = await supabase
+      const { data: tarefasData } = await sb
         .from('tarefas')
         .select('*')
         .eq('user_id', userId)
@@ -283,9 +282,9 @@ const dataService = {
 
   // Persiste empresa no Supabase
   async upsertEmpresa(company, userId) {
-    if (!supabase || !userId) return;
+    if (!sb || !userId) return;
     try {
-      await supabase.from('empresas').upsert({
+      await sb.from('empresas').upsert({
         id: company.id,
         user_id: userId,
         codigo: company.codigo || '',
@@ -306,9 +305,9 @@ const dataService = {
 
   // Exclui empresa no Supabase
   async deleteEmpresa(id, userId) {
-    if (!supabase || !userId) return;
+    if (!sb || !userId) return;
     try {
-      await supabase.from('empresas').delete().eq('id', id).eq('user_id', userId);
+      await sb.from('empresas').delete().eq('id', id).eq('user_id', userId);
     } catch (err) {
       console.warn('Erro ao excluir empresa no Supabase:', err);
     }
@@ -316,9 +315,9 @@ const dataService = {
 
   // Persiste tarefa no Supabase
   async upsertTarefa(task, userId) {
-    if (!supabase || !userId) return;
+    if (!sb || !userId) return;
     try {
-      await supabase.from('tarefas').upsert({
+      await sb.from('tarefas').upsert({
         id: task.id,
         user_id: userId,
         titulo: task.titulo,
@@ -338,9 +337,9 @@ const dataService = {
 
   // Exclui tarefa no Supabase
   async deleteTarefa(id, userId) {
-    if (!supabase || !userId) return;
+    if (!sb || !userId) return;
     try {
-      await supabase.from('tarefas').delete().eq('id', id).eq('user_id', userId);
+      await sb.from('tarefas').delete().eq('id', id).eq('user_id', userId);
     } catch (err) {
       console.warn('Erro ao excluir tarefa no Supabase:', err);
     }
@@ -3500,8 +3499,8 @@ function renderAuthScreen(root) {
       try {
         let authUser = null;
         // 1. Tenta autenticação oficial no Supabase Auth
-        if (supabase && supabase.auth) {
-          const { data, error } = await supabase.auth.signInWithPassword({
+        if (sb && sb.auth) {
+          const { data, error } = await sb.auth.signInWithPassword({
             email: loginEmail,
             password: p
           });
@@ -3576,8 +3575,8 @@ function renderAuthScreen(root) {
         return;
       }
 
-      if (supabase && supabase.auth && supabase.auth.resetPasswordForEmail) {
-        await supabase.auth.resetPasswordForEmail(email);
+      if (sb && sb.auth && sb.auth.resetPasswordForEmail) {
+        await sb.auth.resetPasswordForEmail(email);
       }
 
       alert(`✅ Instruções de redefinição enviadas para ${email}! Caso utilize conta offline/local, a senha foi atualizada.`);
@@ -3630,8 +3629,8 @@ function renderAuthScreen(root) {
         let createdUserId = null;
 
         // 1. Cadastra no Supabase Auth
-        if (supabase && supabase.auth) {
-          const { data: authData, error: authErr } = await supabase.auth.signUp({
+        if (sb && sb.auth) {
+          const { data: authData, error: authErr } = await sb.auth.signUp({
             email: email,
             password: senha,
             options: {
@@ -11936,8 +11935,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Verifica se há sessão ativa no Supabase Auth
   try {
-    if (supabase && supabase.auth) {
-      const { data: { session } } = await supabase.auth.getSession();
+    if (sb && sb.auth) {
+      const { data: { session } } = await sb.auth.getSession();
       if (session && session.user) {
         const userObj = {
           id: session.user.id,
