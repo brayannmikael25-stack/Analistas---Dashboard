@@ -177,6 +177,8 @@ var supabaseClient = new Proxy({}, {
   }
 });
 const sb = supabaseClient;
+const supabase = supabaseClient;
+
 
 // Serviço de Autenticação Supabase Auth & Sessão Ativa
 const authService = {
@@ -348,7 +350,15 @@ const dataService = {
 // Inicialização da Sessão Ativa
 const initialSession = authService.getCurrentSession();
 const initialUserKey = initialSession ? initialSession.userId : (localStorage.getItem('control_auth_user') || null);
-const initialUserData = null;
+const initialUserData = initialUserKey ? (() => {
+  try {
+    const raw = localStorage.getItem(`control_user_store_${initialUserKey}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+})() : null;
+
 
 // Estado Global Reativo da Aplicação
 const state = {
@@ -542,11 +552,32 @@ async function switchUserEnvironment(userObj) {
     }));
     state.syncStatus = 'saved';
     state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  } else {
-    state.companies = [];
-    state.tasks = [];
-    state.syncStatus = 'saved';
   }
+
+  // Fallback e persistência híbrida: carrega do cache isolado deste usuário
+  const userStorageRaw = localStorage.getItem(`control_user_store_${userId}`);
+  if (userStorageRaw) {
+    try {
+      const uStore = JSON.parse(userStorageRaw);
+      // Se o Supabase retornou vazio mas o usuário tem empresas salvas/importadas localmente, restaura
+      if ((!state.companies || state.companies.length === 0) && uStore.companies && uStore.companies.length > 0) {
+        state.companies = uStore.companies;
+      }
+      if ((!state.tasks || state.tasks.length === 0) && uStore.tasks && uStore.tasks.length > 0) {
+        state.tasks = uStore.tasks;
+      }
+      if (uStore.pisCofinsData && Object.keys(uStore.pisCofinsData).length > 0) state.pisCofinsData = uStore.pisCofinsData;
+      if (uStore.irpjTrimData && Object.keys(uStore.irpjTrimData).length > 0) state.irpjTrimData = uStore.irpjTrimData;
+      if (uStore.irpjMensalData && Object.keys(uStore.irpjMensalData).length > 0) state.irpjMensalData = uStore.irpjMensalData;
+      if (uStore.fechamentosMeta && Object.keys(uStore.fechamentosMeta).length > 0) state.fechamentosMeta = uStore.fechamentosMeta;
+      if (uStore.ecdEcfData && Object.keys(uStore.ecdEcfData).length > 0) state.ecdEcfData = uStore.ecdEcfData;
+      if (uStore.ecdEcfExtraIds && uStore.ecdEcfExtraIds.length > 0) state.ecdEcfExtraIds = uStore.ecdEcfExtraIds;
+      if (uStore.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = uStore.fechamentoIAData;
+    } catch (e) {
+      console.warn('Erro ao carregar store isolado:', e);
+    }
+  }
+
 
   updateSyncIndicator();
   render();
@@ -574,7 +605,7 @@ function getFullDataPackage() {
   };
 }
 
-// Sincroniza em nuvem no Supabase de forma transparente e em tempo real
+// Sincroniza em nuvem no Supabase e no repositório isolado do usuário
 async function saveStorage() {
   const userId = dataService.getActiveUserKey();
   if (!userId) return;
@@ -582,16 +613,53 @@ async function saveStorage() {
   state.syncStatus = 'syncing';
   updateSyncIndicator();
 
+  // 1. Salva imediatamente no repositório isolado e protegido deste usuário específico
   try {
-    // Sincroniza Perfil no Supabase
+    const userPayload = {
+      userId,
+      role: (state.userProfile?.role || 'analista').toLowerCase(),
+      profile: state.userProfile,
+      companies: state.companies,
+      tasks: state.tasks,
+      pisCofinsData: state.pisCofinsData,
+      irpjTrimData: state.irpjTrimData,
+      irpjMensalData: state.irpjMensalData,
+      fechamentosMeta: state.fechamentosMeta,
+      ecdEcfData: state.ecdEcfData,
+      ecdEcfExtraIds: state.ecdEcfExtraIds,
+      fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem(`control_user_store_${userId}`, JSON.stringify(userPayload));
+  } catch (err) {
+    console.warn('Aviso ao gravar store local:', err);
+  }
+
+  // 2. Persiste e sincroniza em nuvem no Supabase
+  try {
+    // Sincroniza Perfil
     if (state.userProfile) {
       await dataService.saveUserProfile(userId, state.userProfile, state.userProfile.role);
+    }
+
+    // Sincroniza empresas em lote se houver Supabase
+    if (state.companies && state.companies.length > 0) {
+      for (const comp of state.companies.slice(0, 30)) {
+        dataService.upsertEmpresa(comp, userId);
+      }
+    }
+
+    // Sincroniza tarefas
+    if (state.tasks && state.tasks.length > 0) {
+      for (const t of state.tasks.slice(0, 30)) {
+        dataService.upsertTarefa(t, userId);
+      }
     }
 
     state.syncStatus = 'saved';
     state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   } catch (err) {
-    console.warn('Erro ao salvar no Supabase:', err);
+    console.warn('Erro ao sincronizar nuvem:', err);
     state.syncStatus = 'error';
   } finally {
     updateSyncIndicator();
