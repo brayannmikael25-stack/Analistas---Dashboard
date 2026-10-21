@@ -438,6 +438,20 @@ const state = {
   modal: { isOpen: false, mode: 'create', company: null },
   taskModal: { isOpen: false, task: null }, // Modal de edição de tarefas
   activeTaskMenuId: null, // Menu de 3 pontos ativo
+  // Estado e Filtros Avançados de Gestão de Tarefas (UX/UI Redesign)
+  taskViewMode: 'lista', // 'lista' | 'kanban'
+  isTaskFormOpen: false, // formulário retrátil fechado por padrão
+  taskSearch: '',
+  taskCompanyFilter: 'todos',
+  taskUrgencyFilter: 'todas',
+  taskResponsavelFilter: 'todos', // 'todos' | 'minhas' | ou nome do colaborador
+  selectedTaskIds: [], // seleção múltipla para ações em massa
+  taskDrawerOpen: false, // painel lateral (drawer) de detalhes
+  taskDrawerItem: null,
+  // Filtros Avançados de Fechamentos Contábeis
+  fechamentoSearch: '',
+  fechamentoColabFilter: 'todos',
+  fechamentoRegimeFilter: 'todos',
   welcomeModalOpen: false, // Modal inteligente de boas-vindas e vencimentos pós-login
   welcomeModalDismissed: false,
   // Filtros dedicados da tela de CRUD de Empresas
@@ -1761,6 +1775,50 @@ function injectDesignSystemStyles() {
     .card-progress-bar {
       background-color: var(--primary-accent) !important;
     }
+
+    /* 10. Correção de Contraste e Legibilidade do Calendário no Modo Escuro */
+    html.dark .panze-card .text-slate-700,
+    html.dark [data-theme="carbon"] .text-slate-700,
+    html.dark [data-theme="midnight"] .text-slate-700,
+    html.dark [data-theme="pureblack"] .text-slate-700 {
+      color: #E2E8F0 !important;
+    }
+
+    html.dark .panze-card [class*="bg-slate-100"] {
+      background-color: rgba(255, 255, 255, 0.08) !important;
+      color: #F1F5F9 !important;
+      border-color: rgba(255, 255, 255, 0.15) !important;
+    }
+
+    html.dark .panze-card [class*="bg-slate-100"] span {
+      color: #F1F5F9 !important;
+    }
+
+    /* Pílulas de eventos do Calendário com contraste nítido em tema escuro */
+    html.dark [class*="bg-emerald-50"],
+    html.dark [class*="bg-emerald-950"] {
+      background-color: rgba(16, 185, 129, 0.18) !important;
+      color: #6EE7B7 !important;
+      border-color: rgba(16, 185, 129, 0.35) !important;
+    }
+    html.dark [class*="bg-amber-50"],
+    html.dark [class*="bg-amber-950"] {
+      background-color: rgba(245, 158, 11, 0.18) !important;
+      color: #FDE68A !important;
+      border-color: rgba(245, 158, 11, 0.35) !important;
+    }
+    html.dark [class*="bg-blue-50"],
+    html.dark [class*="bg-blue-950"] {
+      background-color: rgba(59, 130, 246, 0.22) !important;
+      color: #BFDBFE !important;
+      border-color: rgba(59, 130, 246, 0.4) !important;
+    }
+    html.dark [class*="bg-sky-50"],
+    html.dark [class*="bg-sky-950"] {
+      background-color: rgba(14, 165, 233, 0.2) !important;
+      color: #BAE6FD !important;
+      border-color: rgba(14, 165, 233, 0.38) !important;
+    }
   `;
 }
 injectDesignSystemStyles();
@@ -2370,58 +2428,58 @@ function getRegimeBadge(regime) {
 function getRegimeBadgeLightBg(regime) {
   if (!regime) {
     return {
-      bg: 'bg-slate-100 dark:bg-meta-4',
-      text: 'text-slate-700 dark:text-slate-200',
-      border: 'border-slate-200 dark:border-strokedark',
+      bg: 'bg-slate-100 dark:bg-slate-800/90',
+      text: 'text-slate-800 dark:text-slate-200',
+      border: 'border-slate-300 dark:border-slate-700',
       dot: 'bg-slate-400'
     };
   }
   const r = regime.toLowerCase();
 
-  // Simples Nacional: Success (#10B981)
+  // Simples Nacional: Verde Esmeralda com contraste nítido
   if (r.includes('simples')) {
     return {
-      bg: 'bg-[#10B981]/10',
-      text: 'text-[#10B981]',
-      border: 'border-[#10B981]/30',
-      dot: 'bg-[#10B981]'
+      bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+      text: 'text-emerald-700 dark:text-emerald-300',
+      border: 'border-emerald-300/80 dark:border-emerald-800/60',
+      dot: 'bg-emerald-500'
     };
   }
 
-  // Lucro Presumido: Warning (#F59E0B)
+  // Lucro Presumido: Âmbar / Laranja com fundo contrastante
   if (r.includes('presumido')) {
     return {
-      bg: 'bg-[#F59E0B]/10',
-      text: 'text-[#D97706] dark:text-[#FBBF24]',
-      border: 'border-[#F59E0B]/30',
-      dot: 'bg-[#F59E0B]'
+      bg: 'bg-amber-50 dark:bg-amber-950/40',
+      text: 'text-amber-800 dark:text-amber-300',
+      border: 'border-amber-300/80 dark:border-amber-800/60',
+      dot: 'bg-amber-500'
     };
   }
 
-  // Lucro Real Trimestral: Primary Royal Blue (#3C50E0)
+  // Lucro Real Trimestral: Azul Índigo com destaque
   if (r.includes('real') && (r.includes('trimestral') || r.includes('trim'))) {
     return {
-      bg: 'bg-[#3C50E0]/10',
-      text: 'text-[#3C50E0]',
-      border: 'border-[#3C50E0]/30',
-      dot: 'bg-[#3C50E0]'
+      bg: 'bg-blue-50 dark:bg-blue-950/40',
+      text: 'text-blue-700 dark:text-blue-300',
+      border: 'border-blue-300/80 dark:border-blue-800/60',
+      dot: 'bg-blue-500'
     };
   }
 
-  // Lucro Real Mensal: Info Cyan (#80CAEE / #259AE6)
+  // Lucro Real Mensal: Azul Céu / Ciano nítido
   if (r.includes('real')) {
     return {
-      bg: 'bg-[#80CAEE]/15',
-      text: 'text-[#259AE6]',
-      border: 'border-[#80CAEE]/40',
-      dot: 'bg-[#259AE6]'
+      bg: 'bg-sky-50 dark:bg-sky-950/40',
+      text: 'text-sky-700 dark:text-sky-300',
+      border: 'border-sky-300/80 dark:border-sky-800/60',
+      dot: 'bg-sky-400'
     };
   }
 
   return {
-    bg: 'bg-slate-100 dark:bg-meta-4',
-    text: 'text-slate-700 dark:text-slate-200',
-    border: 'border-slate-200 dark:border-strokedark',
+    bg: 'bg-slate-100 dark:bg-slate-800/90',
+    text: 'text-slate-800 dark:text-slate-200',
+    border: 'border-slate-300 dark:border-slate-700',
     dot: 'bg-slate-400'
   };
 }
@@ -5450,10 +5508,16 @@ function renderFechamentoObsModal() {
 }
 
 function renderFechamentosTab(companies) {
+  // Coleta opções únicas para os selects de filtro
+  const allColabs = Array.from(new Set(companies.map(c => c.colaborador).filter(Boolean))).sort();
+  const allRegimes = Array.from(new Set(companies.map(c => c.regime).filter(Boolean))).sort();
+
   const list = companies.filter(c => {
+    // 1. Filtro de Status de Prazo (Em Dia, Atenção, Crítico)
     if (state.fechamentoFilter !== 'all' && getFechamentoStatus(c.fechamento).status !== state.fechamentoFilter) {
       return false;
     }
+    // 2. Filtro de Estágio / Gargalo
     if (state.fechamentoEstagioFilter && state.fechamentoEstagioFilter !== 'all') {
       const meta = getCompanyFechamentoMeta(c.id, c.fechamento);
       if (state.fechamentoEstagioFilter === 'com_obs') {
@@ -5461,6 +5525,23 @@ function renderFechamentosTab(companies) {
       } else if (meta.estagio !== state.fechamentoEstagioFilter) {
         return false;
       }
+    }
+    // 3. Filtro por Responsável / Analista
+    if (state.fechamentoColabFilter && state.fechamentoColabFilter !== 'todos') {
+      if (c.colaborador !== state.fechamentoColabFilter) return false;
+    }
+    // 4. Filtro por Regime Tributário
+    if (state.fechamentoRegimeFilter && state.fechamentoRegimeFilter !== 'todos') {
+      if (c.regime !== state.fechamentoRegimeFilter) return false;
+    }
+    // 5. Busca rápida por nome, CNPJ, código ou grupo
+    if (state.fechamentoSearch && state.fechamentoSearch.trim()) {
+      const q = state.fechamentoSearch.trim().toLowerCase();
+      const match = (c.nome && c.nome.toLowerCase().includes(q)) ||
+                    (c.cnpj && c.cnpj.includes(q)) ||
+                    (c.codigo && c.codigo.toString().toLowerCase().includes(q)) ||
+                    (c.grupo && c.grupo.toLowerCase().includes(q));
+      if (!match) return false;
     }
     return true;
   });
@@ -5471,6 +5552,12 @@ function renderFechamentosTab(companies) {
   const countCliente = companies.filter(c => getCompanyFechamentoMeta(c.id, c.fechamento).estagio === 'Aguardando Cliente').length;
   const countFiscalDp = companies.filter(c => getCompanyFechamentoMeta(c.id, c.fechamento).estagio === 'Aguardando Fiscal/DP').length;
   const countComObs = companies.filter(c => Boolean(getCompanyFechamentoMeta(c.id, c.fechamento).obs)).length;
+
+  const hasActiveFilters = state.fechamentoFilter !== 'all' || 
+                           (state.fechamentoEstagioFilter && state.fechamentoEstagioFilter !== 'all') ||
+                           (state.fechamentoColabFilter && state.fechamentoColabFilter !== 'todos') ||
+                           (state.fechamentoRegimeFilter && state.fechamentoRegimeFilter !== 'todos') ||
+                           Boolean(state.fechamentoSearch && state.fechamentoSearch.trim());
 
   return `
     <div class="space-y-6">
@@ -5497,32 +5584,100 @@ function renderFechamentosTab(companies) {
         </div>
       </div>
 
-      <!-- Barra de Filtro Rápido por Motivo de Parada / Estágio Operacional -->
-      <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#171825] p-3 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-xs">
-        <div class="flex flex-wrap items-center gap-1.5">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1.5">Estágio / Gargalo:</span>
-          ${[
-            { id: 'all', label: 'Todos' },
-            { id: 'Em Conciliação', label: '📋 Em Conciliação' },
-            { id: 'Aguardando Cliente', label: `⏳ Aguardando Cliente (${countCliente})` },
-            { id: 'Aguardando Fiscal/DP', label: `🔄 Aguardando Fiscal/DP (${countFiscalDp})` },
-            { id: 'Em Revisão', label: '🔍 Em Revisão' },
-            { id: 'com_obs', label: `📝 Com Nota Rápida (${countComObs})` }
-          ].map(ef => `
+      <!-- SEÇÃO DEDICADA DE FILTROS AVANÇADOS DE FECHAMENTO (BUSCA + RESPONSÁVEL + REGIME + GARGALOS) -->
+      <div class="panze-card space-y-3.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+            <span class="text-[#F58220] dark:text-[#ECBD56]">🔍</span>
+            <span>Filtros & Pesquisa de Fechamentos</span>
+          </div>
+          ${hasActiveFilters ? `
             <button
-              onclick="setFechamentoEstagioFilter('${ef.id}')"
-              class="px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                (state.fechamentoEstagioFilter || 'all') === ef.id
-                  ? 'bg-[#F58220] text-white font-bold shadow-xs'
-                  : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
-              }"
+              onclick="state.fechamentoFilter = 'all'; state.fechamentoEstagioFilter = 'all'; state.fechamentoColabFilter = 'todos'; state.fechamentoRegimeFilter = 'todos'; state.fechamentoSearch = ''; render();"
+              class="text-xs text-[#F58220] dark:text-[#ECBD56] hover:underline font-bold"
             >
-              ${ef.label}
+              Limpar Todos os Filtros
             </button>
-          `).join('')}
+          ` : ''}
         </div>
-        <div class="text-xs text-gray-400 font-medium">
-          Exibindo <strong>${list.length}</strong> de <strong>${companies.length}</strong> empresas
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Campo de Busca por Empresa, CNPJ ou Grupo -->
+          <div class="sm:col-span-2 lg:col-span-2">
+            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Buscar Empresa / CNPJ / Grupo</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </span>
+              <input
+                type="text"
+                value="${state.fechamentoSearch || ''}"
+                oninput="state.fechamentoSearch = this.value; render();"
+                placeholder="Filtrar por nome, CNPJ ou grupo..."
+                class="w-full pl-9 pr-8 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#F58220]"
+              />
+              ${state.fechamentoSearch ? `
+                <button onclick="state.fechamentoSearch = ''; render();" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-700 dark:hover:text-white text-xs">✕</button>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Filtro por Responsável / Analista -->
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Responsável</label>
+            <select
+              onchange="state.fechamentoColabFilter = this.value; render();"
+              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#F58220]"
+            >
+              <option value="todos">Todos os Responsáveis</option>
+              ${allColabs.map(col => `
+                <option value="${col}" ${state.fechamentoColabFilter === col ? 'selected' : ''}>${col}</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <!-- Filtro por Regime Tributário -->
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Regime Tributário</label>
+            <select
+              onchange="state.fechamentoRegimeFilter = this.value; render();"
+              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#F58220]"
+            >
+              <option value="todos">Todos os Regimes</option>
+              ${allRegimes.map(rg => `
+                <option value="${rg}" ${state.fechamentoRegimeFilter === rg ? 'selected' : ''}>${rg}</option>
+              `).join('')}
+            </select>
+          </div>
+        </div>
+
+        <!-- Pílulas de Atalho Rápido por Estágio Operacional / Gargalo -->
+        <div class="pt-2 border-t border-gray-100 dark:border-gray-800/80 flex flex-wrap items-center justify-between gap-2.5">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Estágio / Gargalo:</span>
+            ${[
+              { id: 'all', label: 'Todos' },
+              { id: 'Em Conciliação', label: '📋 Em Conciliação' },
+              { id: 'Aguardando Cliente', label: `⏳ Aguardando Cliente (${countCliente})` },
+              { id: 'Aguardando Fiscal/DP', label: `🔄 Aguardando Fiscal/DP (${countFiscalDp})` },
+              { id: 'Em Revisão', label: '🔍 Em Revisão' },
+              { id: 'com_obs', label: `📝 Com Nota Rápida (${countComObs})` }
+            ].map(ef => `
+              <button
+                onclick="setFechamentoEstagioFilter('${ef.id}')"
+                class="px-2.5 py-1 rounded-xl text-xs font-semibold transition ${
+                  (state.fechamentoEstagioFilter || 'all') === ef.id
+                    ? 'bg-[#F58220] text-white font-bold shadow-xs'
+                    : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
+                }"
+              >
+                ${ef.label}
+              </button>
+            `).join('')}
+          </div>
+          <div class="text-xs text-gray-400 font-medium">
+            Exibindo <strong>${list.length}</strong> de <strong>${companies.length}</strong> empresas
+          </div>
         </div>
       </div>
 
@@ -9917,16 +10072,52 @@ function renderEcdEcfModal() {
 }
 
 // ---------------- TAREFAS TAB (GOOGLE TASKS) ----------------
+// ---------------- TAREFAS TAB (REDESIGN COMPLETO UI/UX COM KANBAN, FILTROS, BULK ACTIONS E DRAWER) ----------------
 function renderTarefasTab() {
   const urgencyWeight = { 'Alta': 3, 'Media': 2, 'Baixa': 1 };
   
-  // Ordenação inteligente: 
-  // 1º: Tarefas Atrasadas (Overdue) sempre no topo com prioridade máxima
-  // 2º: Urgência (Alta -> Média -> Baixa)
-  // 3º: Proximidade da data meta
-  const activeTasks = state.tasks.filter(t => !t.concluida).sort((a, b) => {
-    const aOverdue = getTaskOverdueInfo(a.data).isOverdue;
-    const bOverdue = getTaskOverdueInfo(b.data).isOverdue;
+  // Lista de empresas únicas vinculadas às tarefas para o select de filtro
+  const taskCompanies = state.companies.slice().sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+
+  // 1. Filtragem Completa
+  let filteredTasks = state.tasks.filter(t => {
+    // Filtro por Aba (Pendentes / Concluídas) - se estiver em modo Lista
+    if (state.taskViewMode === 'lista') {
+      if (state.taskFilter === 'ativas' && t.concluida) return false;
+      if (state.taskFilter === 'concluidas' && !t.concluida) return false;
+    }
+    // Busca por título ou descrição
+    if (state.taskSearch && state.taskSearch.trim()) {
+      const q = state.taskSearch.trim().toLowerCase();
+      const match = (t.titulo && t.titulo.toLowerCase().includes(q)) ||
+                    (t.descricao && t.descricao.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    // Filtro por Empresa
+    if (state.taskCompanyFilter && state.taskCompanyFilter !== 'todos') {
+      if (Number(t.empresaId) !== Number(state.taskCompanyFilter)) return false;
+    }
+    // Filtro por Urgência / Prioridade
+    if (state.taskUrgencyFilter && state.taskUrgencyFilter !== 'todas') {
+      if (t.urgencia !== state.taskUrgencyFilter) return false;
+    }
+    // Filtro por Responsável / "Apenas Minhas Tarefas"
+    if (state.taskResponsavelFilter && state.taskResponsavelFilter !== 'todos') {
+      if (state.taskResponsavelFilter === 'minhas') {
+        const myName = (state.user || '').toLowerCase();
+        const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+        const matchesColab = comp && comp.colaborador && comp.colaborador.toLowerCase().includes(myName);
+        const matchesAuthor = t.autor && t.autor.toLowerCase().includes(myName);
+        if (!matchesColab && !matchesAuthor) return false;
+      }
+    }
+    return true;
+  });
+
+  // Ordenação inteligente: Atrasadas > Urgência > Data
+  filteredTasks.sort((a, b) => {
+    const aOverdue = !a.concluida && getTaskOverdueInfo(a.data).isOverdue;
+    const bOverdue = !b.concluida && getTaskOverdueInfo(b.data).isOverdue;
     if (aOverdue && !bOverdue) return -1;
     if (!aOverdue && bOverdue) return 1;
 
@@ -9934,384 +10125,639 @@ function renderTarefasTab() {
     if (diffUrg !== 0) return diffUrg;
     return new Date(a.data) - new Date(b.data);
   });
-  
-  const completedTasks = state.tasks.filter(t => t.concluida);
-  const displayList = state.taskFilter === 'ativas' ? activeTasks : completedTasks;
-  const overdueCount = activeTasks.filter(t => getTaskOverdueInfo(t.data).isOverdue).length;
 
-  return `
-    <div class="space-y-6 max-w-4xl mx-auto">
-      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-2 border-b border-gray-200 dark:border-gray-800">
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white uppercase">Gestão de Tarefas</h1>
-            ${overdueCount > 0 ? `
-              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
-                ${overdueCount} atrasada(s)
-              </span>
+  const totalPendentes = state.tasks.filter(t => !t.concluida).length;
+  const totalConcluidas = state.tasks.filter(t => t.concluida).length;
+  const totalAtrasadas = state.tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
+
+  const hasFilterActive = Boolean(state.taskSearch) ||
+                          state.taskCompanyFilter !== 'todos' ||
+                          state.taskUrgencyFilter !== 'todas' ||
+                          state.taskResponsavelFilter !== 'todos';
+
+  // Componente de Card Despoluído e com Hierarquia Refinada
+  const renderCleanTaskCard = (t, inKanban = false) => {
+    const overdueInfo = getTaskOverdueInfo(t.data);
+    const isAtrasada = !t.concluida && overdueInfo.isOverdue;
+    const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+    const isSelected = state.selectedTaskIds.includes(t.id);
+
+    // Borda lateral esquerda indicando o status
+    const borderLeftColor = t.concluida ? 'border-l-emerald-500' : isAtrasada ? 'border-l-rose-500' : 'border-l-blue-500';
+
+    // Pílula dinâmica de Status / Prazo única e consolidada
+    let statusPillHtml = '';
+    if (t.concluida) {
+      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60">🟢 Concluída</span>`;
+    } else if (isAtrasada) {
+      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 animate-pulse">🔴 ${overdueInfo.label}</span>`;
+    } else if (overdueInfo.isClose) {
+      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60">🟡 ${overdueInfo.label}</span>`;
+    } else {
+      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800/60">🟢 Em dia</span>`;
+    }
+
+    return `
+      <div
+        onclick="openTaskDrawer(${t.id}, event)"
+        class="panze-card !p-3.5 border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col gap-2 relative group select-none ${
+          t.concluida ? 'opacity-65 bg-gray-50/50 dark:bg-[#11121C]/50' : 'bg-white dark:bg-[#15151F]'
+        } ${isSelected ? 'ring-2 ring-blue-500' : ''}"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <!-- Checkbox para seleção em massa e conclusão -->
+          <div class="flex items-center gap-2.5 pt-0.5 shrink-0" onclick="event.stopPropagation()">
+            <input
+              type="checkbox"
+              ${isSelected ? 'checked' : ''}
+              onchange="toggleSelectTask(${t.id}, event)"
+              class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer border-gray-300 dark:border-gray-700"
+              title="Selecionar para ações em massa"
+            />
+            <button
+              onclick="toggleTaskComplete(${t.id})"
+              class="w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                t.concluida 
+                  ? 'bg-emerald-500 border-emerald-500 text-white font-bold text-xs' 
+                  : 'border-gray-300 dark:border-gray-600 hover:border-blue-500 text-transparent hover:text-gray-400'
+              }"
+              title="${t.concluida ? 'Marcar como Pendente' : 'Marcar como Concluída'}"
+            >
+              ✓
+            </button>
+          </div>
+
+          <!-- Conteúdo Principal: Título em destaque e descrição limpa -->
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-snug line-clamp-2 ${t.concluida ? 'line-through text-gray-400 dark:text-gray-500 font-medium' : ''}">
+              ${t.titulo}
+            </h4>
+            ${t.descricao ? `
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1 font-normal">
+                ${t.descricao}
+              </p>
             ` : ''}
           </div>
-          <p class="text-sm text-gray-500 dark:text-gray-400">Organize pendências com priorização automática de prazos e controle de atrasos.</p>
-        </div>
 
-        <div class="flex items-center gap-2 bg-white dark:bg-[#15151A] p-1.5 rounded-full border border-gray-200 dark:border-gray-800">
-          <button
-            onclick="setTaskFilter('ativas')"
-            class="px-4 py-1.5 rounded-full text-xs font-bold transition ${state.taskFilter === 'ativas' ? 'bg-[#ECBD56] text-gray-950' : 'text-gray-400'}"
-          >
-            Pendentes (${activeTasks.length})
-          </button>
-          <button
-            onclick="setTaskFilter('concluidas')"
-            class="px-4 py-1.5 rounded-full text-xs font-bold transition ${state.taskFilter === 'concluidas' ? 'bg-[#ECBD56] text-gray-950' : 'text-gray-400'}"
-          >
-            Concluídas (${completedTasks.length})
-          </button>
-        </div>
-      </div>
-
-      <!-- Formulário de Adicionar Tarefa -->
-      <form id="new-task-form" class="panze-card space-y-4">
-        <div class="flex items-center gap-2 font-bold text-sm text-gray-900 dark:text-white">
-          <span class="text-[#ECBD56]">➕</span>
-          <span>Criar Nova Tarefa</span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            id="task-title-input"
-            required
-            placeholder="Título da tarefa..."
-            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition"
-          />
-          <input
-            type="text"
-            id="task-desc-input"
-            placeholder="Descrição ou observações (opcional)..."
-            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition"
-          />
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center pt-1">
-          <!-- Vincular a Empresa -->
-          <div class="md:col-span-5 flex items-center gap-2">
-            <span class="text-xs font-semibold text-gray-400 whitespace-nowrap">Empresa:</span>
-            <select
-              id="task-company-input"
-              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
-            >
-              <option value="">Sem empresa vinculada (Geral)</option>
-              ${state.companies.slice().sort((a,b) => (a.nome || '').localeCompare(b.nome || '')).map(c => `
-                <option value="${c.id}">${c.codigo ? c.codigo + ' - ' : ''}${c.nome}</option>
-              `).join('')}
-            </select>
-          </div>
-
-          <!-- Data Meta -->
-          <div class="md:col-span-3 flex items-center gap-2">
-            <span class="text-xs font-semibold text-gray-400 whitespace-nowrap">Data Meta:</span>
-            <input
-              type="date"
-              id="task-date-input"
-              required
-              value="${new Date().toISOString().split('T')[0]}"
-              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
-            />
-          </div>
-
-          <!-- Urgência -->
-          <div class="md:col-span-2 flex items-center gap-2">
-            <span class="text-xs font-semibold text-gray-400 whitespace-nowrap">Urgência:</span>
-            <select
-              id="task-urgency-input"
-              class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
-            >
-              <option value="Alta">Alta</option>
-              <option value="Media" selected>Média</option>
-              <option value="Baixa">Baixa</option>
-            </select>
-          </div>
-
-          <!-- Botão Adicionar -->
-          <div class="md:col-span-2 flex justify-end">
+          <!-- Menu de Ações Rápido -->
+          <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
             <button
-              type="submit"
-              class="w-full md:w-auto px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#12131F] dark:bg-[#ECBD56] dark:text-gray-950 hover:opacity-90 transition shadow-sm text-center"
+              onclick="openEditTaskModal(${t.id})"
+              class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 transition"
+              title="Editar Tarefa"
             >
-              + Adicionar
+              ✏️
+            </button>
+            <button
+              onclick="deleteTask(${t.id})"
+              class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
+              title="Excluir Tarefa"
+            >
+              🗑️
             </button>
           </div>
         </div>
-      </form>
 
-      <!-- Lista de Tarefas com Agrupamento por Empresa e Destaque de Atraso -->
-      <div class="space-y-6" style="overflow: visible;">
-        ${(() => {
-          if (displayList.length === 0) {
-            return `
-              <div class="panze-card !p-2">
-                ${renderEmptyState('Nenhuma tarefa nesta categoria no momento!', 'Adicione uma nova tarefa no formulário acima ou alterne entre Pendentes e Concluídas.')}
+        <!-- Rodapé do Card: Despoluído (No máximo 2 tags + datas discretas) -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-800/70 text-[11px] text-gray-400">
+          <!-- 2 Badges Consolidadas: Empresa (Neutra) e Status Dinâmico -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${comp ? `
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200/80 dark:border-gray-800" title="${comp.nome}">
+                🏢 ${comp.nome.length > 22 ? comp.nome.substring(0, 20) + '...' : comp.nome}
+              </span>
+            ` : `
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-gray-200/60 dark:border-gray-800">
+                Geral
+              </span>
+            `}
+            ${statusPillHtml}
+          </div>
+
+          <!-- Metadados Discretos de Data (Criada em e Data Meta) com ícones pequenos -->
+          <div class="flex items-center gap-3 text-[10.5px] text-gray-500 dark:text-gray-400 ml-auto">
+            <span class="inline-flex items-center gap-1" title="Data de Criação">
+              <svg class="w-3 h-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>${formatBrazilianDate(t.createdAt || t.data)}</span>
+            </span>
+            <span class="inline-flex items-center gap-1 font-semibold ${isAtrasada ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-gray-700 dark:text-gray-300'}" title="Data Meta">
+              <svg class="w-3 h-3 ${isAtrasada ? 'text-rose-500' : 'text-amber-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span>${formatBrazilianDate(t.data)}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  return `
+    <div class="space-y-6 max-w-6xl mx-auto">
+      
+      <!-- TOPO: Título, Métricas Rápidas e Seletor de Visualização (Lista vs Kanban) -->
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-2 border-b border-gray-200 dark:border-gray-800">
+        <div>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase">Gestão de Tarefas</h1>
+            ${totalAtrasadas > 0 ? `
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
+                ${totalAtrasadas} atrasada(s)
+              </span>
+            ` : ''}
+          </div>
+          <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5">Organize pendências com priorização de prazos, ações em lote e fluxo Kanban.</p>
+        </div>
+
+        <div class="flex items-center gap-3 self-end md:self-auto flex-wrap">
+          <!-- Seletor de Modo de Visualização: Lista vs Kanban -->
+          <div class="inline-flex p-1 bg-gray-100 dark:bg-[#15151F] rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-bold">
+            <button
+              onclick="setTaskViewMode('lista')"
+              class="px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                state.taskViewMode === 'lista'
+                  ? 'bg-white dark:bg-[#20202F] text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              <span>Lista</span>
+            </button>
+            <button
+              onclick="setTaskViewMode('kanban')"
+              class="px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                state.taskViewMode === 'kanban'
+                  ? 'bg-white dark:bg-[#20202F] text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"></rect><rect x="14" y="3" width="7" height="18" rx="1"></rect></svg>
+              <span>Quadro / Kanban</span>
+            </button>
+          </div>
+
+          <!-- Botão Principal Retrátil: "+ Criar Nova Tarefa" -->
+          <button
+            onclick="toggleTaskFormCollapse()"
+            class="px-4 py-2 rounded-xl font-bold text-xs text-white bg-[#3C50E0] hover:bg-[#3243be] transition shadow-xs flex items-center gap-2 cursor-pointer"
+          >
+            <span class="text-base leading-none">${state.isTaskFormOpen ? '✕' : '+'}</span>
+            <span>${state.isTaskFormOpen ? 'Fechar Formulário' : 'Criar Nova Tarefa'}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 1. FORMULÁRIO DE CRIAR TAREFA RETRÁTIL (ACCORDION - FECHADO POR PADRÃO) -->
+      ${state.isTaskFormOpen ? `
+        <div class="panze-card border-2 border-blue-500/30 animate-fadeIn transition-all duration-300 space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
+            <div class="flex items-center gap-2 font-bold text-sm text-gray-900 dark:text-white">
+              <span class="text-blue-500 text-base">➕</span>
+              <span>Cadastrar Nova Tarefa / Pendência</span>
+            </div>
+            <button onclick="toggleTaskFormCollapse()" class="text-xs text-gray-400 hover:text-white">Recolher ▲</button>
+          </div>
+
+          <form id="new-task-form" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Título da Tarefa *</label>
+                <input
+                  type="text"
+                  id="task-title-input"
+                  required
+                  placeholder="Ex: Conciliar extrato bancário Bradesco e fechar faturamento..."
+                  class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition"
+                />
               </div>
-            `;
-          }
+              <div>
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Descrição / Notas de Acompanhamento</label>
+                <input
+                  type="text"
+                  id="task-desc-input"
+                  placeholder="Observações complementares para a equipe..."
+                  class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition"
+                />
+              </div>
+            </div>
 
-          // Função auxiliar para renderizar o card de cada tarefa individual
-          const renderTaskCard = (t) => {
-            const overdueInfo = getTaskOverdueInfo(t.data);
-            const isAtrasada = !t.concluida && overdueInfo.isOverdue;
-            const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
-            const isMenuOpen = state.activeTaskMenuId === t.id;
+            <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-12 gap-3 items-end pt-1">
+              <div class="sm:col-span-1 md:col-span-5">
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Empresa Vinculada</label>
+                <select
+                  id="task-company-input"
+                  class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Sem empresa vinculada (Geral)</option>
+                  ${taskCompanies.map(c => `
+                    <option value="${c.id}">${c.codigo ? c.codigo + ' - ' : ''}${c.nome}</option>
+                  `).join('')}
+                </select>
+              </div>
 
-            return `
-              <div
-                style="overflow: visible; position: relative; z-index: ${isMenuOpen ? '120' : '1'};"
-                class="panze-card !p-4 transition flex items-start gap-3.5 relative overflow-visible ${
-                  t.concluida 
-                    ? 'opacity-60 bg-gray-50/50 dark:bg-[#11121C]/50' 
-                    : isAtrasada 
-                    ? 'bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5' 
-                    : 'hover:border-[#ECBD56]/40'
+              <div class="sm:col-span-1 md:col-span-3">
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Data Meta *</label>
+                <input
+                  type="date"
+                  id="task-date-input"
+                  required
+                  value="${new Date().toISOString().split('T')[0]}"
+                  class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div class="sm:col-span-1 md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-400 mb-1">Prioridade</label>
+                <select
+                  id="task-urgency-input"
+                  class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="Alta">Alta</option>
+                  <option value="Media" selected>Média</option>
+                  <option value="Baixa">Baixa</option>
+                </select>
+              </div>
+
+              <div class="sm:col-span-3 md:col-span-2">
+                <button
+                  type="submit"
+                  class="w-full px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm text-center"
+                >
+                  Salvar Tarefa
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      ` : ''}
+
+      <!-- 2. BARRA DE PESQUISA E FILTROS RÁPIDOS ACIMA DA LISTA -->
+      <div class="panze-card !p-3.5 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <!-- Campo de Busca de Tarefas -->
+          <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </span>
+            <input
+              type="text"
+              value="${state.taskSearch || ''}"
+              oninput="state.taskSearch = this.value; render();"
+              placeholder="Pesquisar por título ou descrição da pendência..."
+              class="w-full pl-9 pr-8 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            ${state.taskSearch ? `
+              <button onclick="state.taskSearch = ''; render();" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-white text-xs">✕</button>
+            ` : ''}
+          </div>
+
+          <!-- Filtros Dropdown Rápidos -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Filtro Empresa -->
+            <select
+              onchange="state.taskCompanyFilter = this.value; render();"
+              class="px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[160px] truncate"
+            >
+              <option value="todos">Todas Empresas</option>
+              ${taskCompanies.map(c => `
+                <option value="${c.id}" ${state.taskCompanyFilter === String(c.id) ? 'selected' : ''}>${c.nome}</option>
+              `).join('')}
+            </select>
+
+            <!-- Filtro Urgência -->
+            <select
+              onchange="state.taskUrgencyFilter = this.value; render();"
+              class="px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="todas">Todas Prioridades</option>
+              <option value="Alta" ${state.taskUrgencyFilter === 'Alta' ? 'selected' : ''}>Alta</option>
+              <option value="Media" ${state.taskUrgencyFilter === 'Media' ? 'selected' : ''}>Média</option>
+              <option value="Baixa" ${state.taskUrgencyFilter === 'Baixa' ? 'selected' : ''}>Baixa</option>
+            </select>
+
+            <!-- Filtro Responsável ("Apenas Minhas Tarefas") -->
+            <select
+              onchange="state.taskResponsavelFilter = this.value; render();"
+              class="px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="todos">Todos Responsáveis</option>
+              <option value="minhas" ${state.taskResponsavelFilter === 'minhas' ? 'selected' : ''}>👤 Apenas Minhas Tarefas</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Seletor de Status (Pendentes vs Concluídas) no Modo Lista -->
+        ${state.taskViewMode === 'lista' ? `
+          <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800/80">
+            <div class="flex items-center gap-1.5">
+              <button
+                onclick="setTaskFilter('ativas')"
+                class="px-3.5 py-1 rounded-xl text-xs font-bold transition ${
+                  state.taskFilter === 'ativas'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'
                 }"
               >
-                
-                <!-- Faixa vertical indicativa para tarefas atrasadas -->
-                ${isAtrasada ? `<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500 rounded-l-2xl"></div>` : ''}
-
-                <button
-                  onclick="toggleTaskComplete(${t.id})"
-                  class="mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0 ${
-                    t.concluida ? 'bg-[#10B981] border-[#10B981] text-white' : 'border-gray-400 hover:border-[#ECBD56]'
-                  }"
-                  title="${t.concluida ? 'Marcar como Pendente' : 'Marcar como Concluída'}"
-                >
-                  ${t.concluida ? '✓' : ''}
-                </button>
-
-                <div class="flex-1 min-w-0">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <h4 class="font-bold text-sm ${t.concluida ? 'line-through text-gray-400' : isAtrasada ? 'text-rose-500 dark:text-rose-400 font-extrabold' : 'text-gray-900 dark:text-white'}">
-                      ${t.titulo}
-                    </h4>
-                    
-                    <!-- Selo de Status: Atrasada vs No Prazo -->
-                    ${isAtrasada ? `
-                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
-                        🚨 ATRASADA
-                      </span>
-                    ` : ''}
-
-                    <!-- Selo de Urgência -->
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      t.urgencia === 'Alta' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/30' :
-                      t.urgencia === 'Media' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' :
-                      'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
-                    }">
-                      ${t.urgencia}
-                    </span>
-
-                    <!-- Selo de Prazo Dinâmico -->
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold ${overdueInfo.css}">
-                      ${overdueInfo.label}
-                    </span>
-
-                    <!-- Badge da Empresa se vinculado e não estiver dentro do cabeçalho de grupo -->
-                    ${comp ? `
-                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#ECBD56]/10 text-[#ECBD56] border border-[#ECBD56]/20">
-                        🏢 ${comp.nome}
-                      </span>
-                    ` : ''}
-                  </div>
-
-                  ${t.descricao ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${t.descricao}</p>` : ''}
-                  
-                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-[11px] text-gray-400 font-medium">
-                    <!-- Data de Criação -->
-                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 border border-gray-200/60 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                      <svg class="w-3.5 h-3.5 text-blue-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                      Criada em: <strong class="text-gray-700 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.createdAt || t.data)}</strong>
-                    </span>
-
-                    <!-- Data Meta / Vencimento -->
-                    <span class="inline-flex items-center gap-1.5">
-                      <svg class="w-3.5 h-3.5 text-amber-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                      Data Meta: <strong class="text-gray-800 dark:text-gray-200 font-semibold">${formatBrazilianDate(t.data)}</strong>
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Botão de Ação Rápida de Exclusão Direta e Menu -->
-                <div class="flex items-center gap-1 shrink-0" style="position: relative;">
-                  <button
-                    onclick="deleteTask(${t.id})"
-                    class="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
-                    title="Excluir Tarefa"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M3 6h18"></path>
-                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                    </svg>
-                  </button>
-
-                  <!-- Menu de Opções com 3 Pontos (...) -->
-                  <div class="relative" style="position: relative;">
-                    <button
-                      onclick="toggleTaskMenu(${t.id}, event)"
-                      class="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
-                      title="Mais Opções da Tarefa"
-                    >
-                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="1"></circle>
-                        <circle cx="19" cy="12" r="1"></circle>
-                        <circle cx="5" cy="12" r="1"></circle>
-                      </svg>
-                    </button>
-
-                    <!-- Dropdown do Menu de 3 Pontos -->
-                    ${isMenuOpen ? `
-                      <div
-                        id="task-menu-dropdown-${t.id}"
-                        style="position: absolute; right: 0; top: calc(100% + 6px); z-index: 999; background-color: white; box-shadow: 0 20px 38px -6px rgba(0, 0, 0, 0.28), 0 8px 16px -6px rgba(0, 0, 0, 0.16);"
-                        class="w-48 rounded-2xl border border-gray-200 p-1.5 animate-fadeIn"
-                        onclick="event.stopPropagation()"
-                      >
-                        <button
-                          onclick="openEditTaskModal(${t.id})"
-                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-gray-800 hover:bg-[#ECBD56]/20 hover:text-gray-950 transition flex items-center gap-2.5"
-                        >
-                          <svg class="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                          <span>Editar Tarefa</span>
-                        </button>
-
-                        <button
-                          onclick="toggleTaskComplete(${t.id}); closeAllTaskMenus();"
-                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-gray-800 hover:bg-gray-100 transition flex items-center gap-2.5"
-                        >
-                          <svg class="w-3.5 h-3.5 ${t.concluida ? 'text-amber-600' : 'text-emerald-600'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          <span>${t.concluida ? 'Marcar Pendente' : 'Marcar Concluída'}</span>
-                        </button>
-
-                        <div class="my-1 border-t border-gray-100"></div>
-
-                        <button
-                          onclick="deleteTask(${t.id})"
-                          class="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition flex items-center gap-2.5"
-                        >
-                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                          <span>Excluir Tarefa</span>
-                        </button>
-                      </div>
-                    ` : ''}
-                  </div>
-                </div>
-              </div>
-            `;
-          };
-
-          // Agrupar tarefas: empresas com múltiplas tarefas ficam em grupos dedicados
-          const companyGroups = {};
-          const standaloneTasks = [];
-
-          displayList.forEach(t => {
-            const cId = t.empresaId ? Number(t.empresaId) : null;
-            if (cId) {
-              if (!companyGroups[cId]) companyGroups[cId] = [];
-              companyGroups[cId].push(t);
-            } else {
-              standaloneTasks.push(t);
-            }
-          });
-
-          // Separa as empresas que têm mais de 1 tarefa para o bloco agrupado
-          const multiTaskCompanyIds = Object.keys(companyGroups).filter(cId => companyGroups[cId].length > 1);
-          const singleTaskCompanyIds = Object.keys(companyGroups).filter(cId => companyGroups[cId].length === 1);
-
-          const htmlGroups = multiTaskCompanyIds.map(cId => {
-            const comp = state.companies.find(c => c.id === Number(cId));
-            const tasks = companyGroups[cId];
-            const compName = comp ? comp.nome : `Empresa #${cId}`;
-            const compGrupo = comp && comp.grupo ? comp.grupo : '';
-            const overdueInGroup = tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
-            const groupHasOpenMenu = tasks.some(t => state.activeTaskMenuId === t.id);
-
-            return `
-              <div
-                style="overflow: visible; position: relative; z-index: ${groupHasOpenMenu ? '110' : '1'};"
-                class="rounded-2xl border-2 border-[#ECBD56]/30 bg-gray-50/40 dark:bg-[#12131F]/50 p-4 space-y-3 shadow-xs overflow-visible"
+                Pendentes (${totalPendentes})
+              </button>
+              <button
+                onclick="setTaskFilter('concluidas')"
+                class="px-3.5 py-1 rounded-xl text-xs font-bold transition ${
+                  state.taskFilter === 'concluidas'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                }"
               >
-                <!-- Cabeçalho do Grupo da Empresa -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-200/70 dark:border-gray-800 gap-2">
-                  <div class="flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-xl bg-[#ECBD56]/15 text-[#ECBD56] flex items-center justify-center text-sm font-bold shadow-xs">
-                      🏢
-                    </span>
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <h3 class="font-extrabold text-sm md:text-base text-gray-900 dark:text-white uppercase tracking-tight">
-                          ${compName}
-                        </h3>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#ECBD56] text-gray-950">
-                          ${tasks.length} tarefas agrupadas
-                        </span>
-                        ${overdueInGroup > 0 ? `
-                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
-                            ${overdueInGroup} atrasada(s)
-                          </span>
-                        ` : ''}
-                      </div>
-                      ${compGrupo ? `<span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Grupo: ${compGrupo}</span>` : ''}
-                    </div>
-                  </div>
-                  <span class="text-[11px] text-gray-400 font-semibold self-start sm:self-center">
-                    Tarefas vinculadas a esta empresa
+                Concluídas (${totalConcluidas})
+              </button>
+            </div>
+
+            <!-- Selecionar Todas as da lista atual -->
+            <div class="flex items-center gap-2 text-xs">
+              ${filteredTasks.length > 0 ? `
+                <button
+                  onclick="toggleSelectAllTasks([${filteredTasks.map(t => t.id).join(',')}])"
+                  class="text-blue-500 hover:underline font-bold"
+                >
+                  ${filteredTasks.every(t => state.selectedTaskIds.includes(t.id)) ? 'Desmarcar Todas' : 'Selecionar Todas'}
+                </button>
+              ` : ''}
+              <span class="text-gray-400">Exibindo <strong>${filteredTasks.length}</strong></span>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- 3. VISUALIZAÇÃO: LISTA OU KANBAN -->
+      ${state.taskViewMode === 'lista' ? `
+        <!-- MODO LISTA -->
+        <div class="space-y-3" style="overflow: visible;">
+          ${filteredTasks.length === 0 ? `
+            <div class="panze-card !p-4">
+              ${renderEmptyState('Nenhuma tarefa encontrada com os filtros selecionados!', 'Ajuste os filtros ou crie uma nova pendência no botão acima.')}
+            </div>
+          ` : filteredTasks.map(t => renderCleanTaskCard(t)).join('')}
+        </div>
+      ` : `
+        <!-- MODO QUADRO / KANBAN (A Fazer, Em Andamento, Aguardando Cliente, Concluídas) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+          ${[
+            { id: 'a_fazer', label: '📌 A Fazer', color: 'border-t-blue-500', match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'a_fazer') },
+            { id: 'em_andamento', label: '⚡ Em Andamento', color: 'border-t-amber-500', match: (t) => !t.concluida && t.kanbanStatus === 'em_andamento' },
+            { id: 'aguardando_cliente', label: '⏳ Aguardando Cliente', color: 'border-t-purple-500', match: (t) => !t.concluida && t.kanbanStatus === 'aguardando_cliente' },
+            { id: 'concluida', label: '✅ Concluídas', color: 'border-t-emerald-500', match: (t) => t.concluida || t.kanbanStatus === 'concluida' }
+          ].map(col => {
+            const colTasks = filteredTasks.filter(col.match);
+            return `
+              <div class="bg-gray-50/80 dark:bg-[#12131F]/90 rounded-2xl border-t-4 ${col.color} border border-gray-200/80 dark:border-gray-800 p-3 flex flex-col min-h-[450px]">
+                <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-200/60 dark:border-gray-800">
+                  <h3 class="font-bold text-xs uppercase tracking-wider text-gray-800 dark:text-gray-200">${col.label}</h3>
+                  <span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300">
+                    ${colTasks.length}
                   </span>
                 </div>
 
-                <!-- Lista interna de tarefas do grupo -->
-                <div class="space-y-2.5 pl-1 md:pl-2" style="overflow: visible;">
-                  ${tasks.map(t => renderTaskCard(t)).join('')}
+                <div class="space-y-2.5 flex-1 overflow-y-auto max-h-[600px] pr-0.5">
+                  ${colTasks.map(t => `
+                    <div class="relative group/kanban">
+                      ${renderCleanTaskCard(t, true)}
+                      <!-- Dropdown rápido para mover de coluna no Kanban -->
+                      <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400 px-1" onclick="event.stopPropagation()">
+                        <span>Mover p/:</span>
+                        <div class="flex items-center gap-1">
+                          ${col.id !== 'a_fazer' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'a_fazer')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para A Fazer">A Fazer</button>` : ''}
+                          ${col.id !== 'em_andamento' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'em_andamento')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Em Andamento">Andamento</button>` : ''}
+                          ${col.id !== 'aguardando_cliente' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'aguardando_cliente')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Aguardando Cliente">Cliente</button>` : ''}
+                          ${col.id !== 'concluida' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'concluida')" class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40" title="Mover para Concluída">Concluir</button>` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  `).join('')}
+
+                  ${colTasks.length === 0 ? `
+                    <div class="p-6 text-center text-xs text-gray-400 border border-dashed border-gray-300 dark:border-gray-800 rounded-xl">
+                      Nenhuma tarefa nesta coluna
+                    </div>
+                  ` : ''}
                 </div>
               </div>
             `;
-          });
+          }).join('')}
+        </div>
+      `}
 
-          // Tarefas avulsas (sem empresa vinculada OU empresas com apenas 1 tarefa para manter fluxo limpo)
-          const remainingTasks = [
-            ...singleTaskCompanyIds.flatMap(cId => companyGroups[cId]),
-            ...standaloneTasks
-          ].sort((a, b) => {
-            const urgencyWeight = { 'Alta': 3, 'Media': 2, 'Baixa': 1 };
-            const aOverdue = getTaskOverdueInfo(a.data).isOverdue;
-            const bOverdue = getTaskOverdueInfo(b.data).isOverdue;
-            if (aOverdue && !bOverdue) return -1;
-            if (!aOverdue && bOverdue) return 1;
-            const diffUrg = (urgencyWeight[b.urgencia] || 1) - (urgencyWeight[a.urgencia] || 1);
-            if (diffUrg !== 0) return diffUrg;
-            return new Date(a.data) - new Date(b.data);
-          });
+      <!-- 4. BARRA FLUTUANTE DE AÇÕES EM MASSA (BULK ACTIONS BAR) -->
+      ${state.selectedTaskIds.length >= 2 ? `
+        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#12131F] text-white px-5 py-3 rounded-2xl shadow-2xl border border-gray-700/80 flex items-center gap-4 animate-fadeIn">
+          <div class="flex items-center gap-2 text-xs font-bold">
+            <span class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-extrabold">
+              ${state.selectedTaskIds.length}
+            </span>
+            <span>tarefas selecionadas</span>
+          </div>
 
-          let htmlRemaining = '';
-          if (remainingTasks.length > 0) {
-            htmlRemaining = `
-              <div class="space-y-3" style="overflow: visible;">
-                ${multiTaskCompanyIds.length > 0 ? `
-                  <div class="flex items-center gap-2 pt-2">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Demais Tarefas & Pendências</span>
-                    <div class="flex-1 h-px bg-gray-200 dark:bg-gray-800"></div>
+          <div class="h-4 w-px bg-gray-700"></div>
+
+          <div class="flex items-center gap-2">
+            <button
+              onclick="bulkCompleteTasks()"
+              class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+              title="Concluir todas as selecionadas"
+            >
+              <span>✓</span>
+              <span>Concluir Selecionadas</span>
+            </button>
+
+            <button
+              onclick="bulkRescheduleTasks()"
+              class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+              title="Reagendar data das selecionadas"
+            >
+              <span>📅</span>
+              <span>Reagendar Data Meta</span>
+            </button>
+
+            <button
+              onclick="bulkDeleteTasks()"
+              class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+              title="Excluir selecionadas"
+            >
+              <span>🗑️</span>
+              <span>Excluir</span>
+            </button>
+
+            <button
+              onclick="state.selectedTaskIds = []; render();"
+              class="p-1 text-gray-400 hover:text-white text-xs ml-1"
+              title="Cancelar seleção"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- 5. PAINEL LATERAL (DRAWER / MODAL DE DETALHES, HISTÓRICO E COMENTÁRIOS) -->
+      ${state.taskDrawerOpen && state.taskDrawerItem ? (() => {
+        const t = state.taskDrawerItem;
+        const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+        const overdueInfo = getTaskOverdueInfo(t.data);
+        const comentarios = t.comentarios || [];
+        const historico = t.historico || [
+          { data: formatBrazilianDate(t.createdAt || t.data), acao: 'Tarefa criada no sistema' }
+        ];
+
+        return `
+          <div class="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-fadeIn" onclick="closeTaskDrawer()">
+            <div
+              class="w-full max-w-lg bg-white dark:bg-[#161724] h-full shadow-2xl border-l border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden animate-fadeIn"
+              onclick="event.stopPropagation()"
+            >
+              <!-- Topo do Drawer -->
+              <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-4 bg-gray-50/50 dark:bg-[#12131F]/50">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 mb-1.5">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      t.urgencia === 'Alta' ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30' :
+                      t.urgencia === 'Media' ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30' :
+                      'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                    }">Prioridade ${t.urgencia}</span>
+                    <span class="text-xs text-gray-400">&bull;</span>
+                    <span class="text-xs font-semibold ${t.concluida ? 'text-emerald-500' : overdueInfo.isOverdue ? 'text-rose-500 font-bold' : 'text-blue-500'}">
+                      ${t.concluida ? 'Concluída' : overdueInfo.label}
+                    </span>
                   </div>
-                ` : ''}
-                ${remainingTasks.map(t => renderTaskCard(t)).join('')}
-              </div>
-            `;
-          }
+                  <h3 class="text-lg font-black text-gray-900 dark:text-white leading-snug">
+                    ${t.titulo}
+                  </h3>
+                </div>
 
-          return `
-            ${htmlGroups.join('')}
-            ${htmlRemaining}
-          `;
-        })()}
-      </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    onclick="openEditTaskModal(${t.id})"
+                    class="p-2 rounded-xl text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-white/5 transition"
+                    title="Editar Tarefa"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onclick="closeTaskDrawer()"
+                    class="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition"
+                    title="Fechar Painel"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <!-- Corpo do Drawer -->
+              <div class="p-6 space-y-6 flex-1 overflow-y-auto">
+                <!-- Informações e Empresa -->
+                <div class="space-y-3">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400">Dados da Pendência</h4>
+                  <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800">
+                      <span class="text-[11px] text-gray-400 block mb-0.5">Empresa Vinculada</span>
+                      <strong class="text-gray-800 dark:text-gray-200 text-xs block truncate">
+                        ${comp ? comp.nome : 'Sem empresa vinculada'}
+                      </strong>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800">
+                      <span class="text-[11px] text-gray-400 block mb-0.5">Data Meta</span>
+                      <strong class="text-gray-800 dark:text-gray-200 text-xs block">
+                        ${formatBrazilianDate(t.data)}
+                      </strong>
+                    </div>
+                  </div>
+
+                  ${t.descricao ? `
+                    <div class="p-3.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                      ${t.descricao}
+                    </div>
+                  ` : ''}
+                </div>
+
+                <!-- Histórico de Edições / Auditoria -->
+                <div class="space-y-3">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
+                    <span>Linha do Tempo & Histórico</span>
+                    <span class="text-[10px] text-gray-500 font-normal">${historico.length} evento(s)</span>
+                  </h4>
+                  <div class="space-y-2 border-l-2 border-gray-200 dark:border-gray-800 pl-3 ml-1 text-xs">
+                    ${historico.map(h => `
+                      <div class="relative group">
+                        <div class="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white dark:ring-[#161724]"></div>
+                        <div class="text-[11px] text-gray-400">${h.data}</div>
+                        <div class="text-xs text-gray-800 dark:text-gray-200 font-medium">${h.acao}</div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <!-- Comentários da Tarefa -->
+                <div class="space-y-3 pt-2">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
+                    <span>Comentários & Anotações</span>
+                    <span class="text-[10px] text-gray-500 font-normal">${comentarios.length}</span>
+                  </h4>
+
+                  <div class="space-y-2.5">
+                    ${comentarios.map(c => `
+                      <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 space-y-1">
+                        <div class="flex items-center justify-between text-[11px]">
+                          <strong class="text-blue-500 font-bold">${c.autor}</strong>
+                          <span class="text-gray-400">${c.data}</span>
+                        </div>
+                        <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">${c.texto}</p>
+                      </div>
+                    `).join('')}
+
+                    ${comentarios.length === 0 ? `
+                      <div class="text-xs text-gray-400 italic py-1">Nenhum comentário adicionado ainda.</div>
+                    ` : ''}
+                  </div>
+
+                  <!-- Caixa de Inserir Novo Comentário -->
+                  <div class="mt-3 flex gap-2">
+                    <input
+                      type="text"
+                      id="drawer-comment-input"
+                      placeholder="Escreva um comentário ou nota..."
+                      onkeydown="if(event.key === 'Enter') { addTaskComment(${t.id}, this.value); this.value = ''; }"
+                      class="flex-1 px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onclick="const el = document.getElementById('drawer-comment-input'); addTaskComment(${t.id}, el.value); el.value = '';"
+                      class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition"
+                    >
+                      Enviar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rodapé do Drawer -->
+              <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#12131F]/50 flex items-center justify-between">
+                <button
+                  onclick="deleteTask(${t.id})"
+                  class="px-3 py-1.5 rounded-lg text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition"
+                >
+                  Excluir Tarefa
+                </button>
+                <button
+                  onclick="toggleTaskComplete(${t.id})"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white transition ${
+                    t.concluida ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                  }"
+                >
+                  ${t.concluida ? 'Reabrir como Pendente' : 'Marcar como Concluída'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      })() : ''}
+
     </div>
   `;
 }
@@ -12620,10 +13066,152 @@ window.openEditCompanyModal = (id) => {
 };
 
 window.setTaskFilter = (f) => { state.taskFilter = f; render(); };
+window.setTaskViewMode = (mode) => { state.taskViewMode = mode; render(); };
+window.toggleTaskFormCollapse = () => { state.isTaskFormOpen = !state.isTaskFormOpen; render(); };
+
+// Seleção de Tarefas para Ações em Massa (Bulk Actions)
+window.toggleSelectTask = (id, event) => {
+  if (event) event.stopPropagation();
+  const idx = state.selectedTaskIds.indexOf(id);
+  if (idx === -1) {
+    state.selectedTaskIds.push(id);
+  } else {
+    state.selectedTaskIds.splice(idx, 1);
+  }
+  render();
+};
+
+window.toggleSelectAllTasks = (taskIds) => {
+  const allSelected = taskIds.length > 0 && taskIds.every(id => state.selectedTaskIds.includes(id));
+  if (allSelected) {
+    state.selectedTaskIds = [];
+  } else {
+    state.selectedTaskIds = Array.from(new Set([...state.selectedTaskIds, ...taskIds]));
+  }
+  render();
+};
+
+window.bulkCompleteTasks = async () => {
+  if (state.selectedTaskIds.length === 0) return;
+  const count = state.selectedTaskIds.length;
+  const userId = dataService.getActiveUserKey();
+  for (const id of state.selectedTaskIds) {
+    const t = state.tasks.find(x => x.id === id);
+    if (t) {
+      t.concluida = true;
+      if (userId) await dataService.upsertTarefa(t, userId);
+    }
+  }
+  state.selectedTaskIds = [];
+  saveStorage();
+  render();
+  alert(`✅ ${count} tarefa(s) concluída(s) com sucesso!`);
+};
+
+window.bulkRescheduleTasks = async () => {
+  if (state.selectedTaskIds.length === 0) return;
+  const newDate = prompt("Digite a nova Data Meta para as tarefas selecionadas (formato AAAA-MM-DD):", new Date().toISOString().split('T')[0]);
+  if (!newDate) return;
+  const userId = dataService.getActiveUserKey();
+  for (const id of state.selectedTaskIds) {
+    const t = state.tasks.find(x => x.id === id);
+    if (t) {
+      t.data = newDate;
+      t.historico = t.historico || [];
+      t.historico.push({
+        data: new Date().toLocaleString('pt-BR'),
+        acao: `Reagendada em lote para ${formatBrazilianDate(newDate)}`
+      });
+      if (userId) await dataService.upsertTarefa(t, userId);
+    }
+  }
+  state.selectedTaskIds = [];
+  saveStorage();
+  render();
+  alert(`📅 Tarefas reagendadas com sucesso para ${formatBrazilianDate(newDate)}!`);
+};
+
+window.bulkDeleteTasks = async () => {
+  if (state.selectedTaskIds.length === 0) return;
+  if (!confirm(`Confirma a exclusão de ${state.selectedTaskIds.length} tarefa(s) selecionada(s)?`)) return;
+  const userId = dataService.getActiveUserKey();
+  for (const id of state.selectedTaskIds) {
+    if (userId) await dataService.deleteTarefa(id, userId);
+  }
+  state.tasks = state.tasks.filter(x => !state.selectedTaskIds.includes(x.id));
+  state.selectedTaskIds = [];
+  saveStorage();
+  render();
+};
+
+// Painel Lateral (Drawer) de Detalhes da Tarefa
+window.openTaskDrawer = (id, event) => {
+  if (event) event.stopPropagation();
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  state.taskDrawerItem = t;
+  state.taskDrawerOpen = true;
+  render();
+};
+
+window.closeTaskDrawer = () => {
+  state.taskDrawerOpen = false;
+  state.taskDrawerItem = null;
+  render();
+};
+
+window.addTaskComment = async (taskId, commentText) => {
+  if (!commentText || !commentText.trim()) return;
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  t.comentarios = t.comentarios || [];
+  t.comentarios.push({
+    id: Date.now(),
+    autor: state.user || 'Analista',
+    data: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    texto: commentText.trim()
+  });
+  t.historico = t.historico || [];
+  t.historico.push({
+    data: new Date().toLocaleString('pt-BR'),
+    acao: `Comentário adicionado por ${state.user || 'Analista'}`
+  });
+  const userId = dataService.getActiveUserKey();
+  if (userId) await dataService.upsertTarefa(t, userId);
+  saveStorage();
+  render();
+};
+
+window.setTaskKanbanStatus = async (taskId, newStatus) => {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  t.kanbanStatus = newStatus;
+  if (newStatus === 'concluida') {
+    t.concluida = true;
+  } else {
+    t.concluida = false;
+  }
+  t.historico = t.historico || [];
+  t.historico.push({
+    data: new Date().toLocaleString('pt-BR'),
+    acao: `Movida para coluna: ${newStatus}`
+  });
+  const userId = dataService.getActiveUserKey();
+  if (userId) await dataService.upsertTarefa(t, userId);
+  saveStorage();
+  render();
+};
+
 window.toggleTaskComplete = async (id) => {
   const t = state.tasks.find(x => x.id === id);
   if (t) {
     t.concluida = !t.concluida;
+    t.kanbanStatus = t.concluida ? 'concluida' : 'a_fazer';
+    t.historico = t.historico || [];
+    t.historico.push({
+      data: new Date().toLocaleString('pt-BR'),
+      acao: t.concluida ? 'Marcada como Concluída' : 'Reaberta como Pendente'
+    });
     const userId = dataService.getActiveUserKey();
     if (userId) {
       await dataService.upsertTarefa(t, userId);
@@ -12636,6 +13224,13 @@ window.deleteTask = async (id) => {
   state.activeTaskMenuId = null;
   if (confirm('Deseja excluir esta tarefa?')) {
     state.tasks = state.tasks.filter(x => x.id !== id);
+    if (state.selectedTaskIds.includes(id)) {
+      state.selectedTaskIds = state.selectedTaskIds.filter(x => x !== id);
+    }
+    if (state.taskDrawerItem?.id === id) {
+      state.taskDrawerOpen = false;
+      state.taskDrawerItem = null;
+    }
     const userId = dataService.getActiveUserKey();
     if (userId) {
       await dataService.deleteTarefa(id, userId);
