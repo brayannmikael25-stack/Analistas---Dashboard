@@ -8802,7 +8802,7 @@ function renderPisCofinsTab(companies) {
                           </span>
                         ` : `
                           <div class="flex items-center gap-1.5">
-                            <!-- Botão de Enviar DARF com Microinteração Suave de Morphing -->
+                            <!-- Botão de Marcar DARF Enviado com Microinteração Suave de Morphing -->
                             <button
                               type="button"
                               onclick="window.runMorphAction(this, 'enviar', async () => { await window.togglePisDarfAsync(${c.id}, true); })"
@@ -8811,9 +8811,9 @@ function renderPisCofinsTab(companies) {
                                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25' 
                                   : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25'
                               }"
-                              title="${isDone ? 'DARF já enviado (Clique para reconfirmar)' : 'Enviar DARF e Concluir Apuração'}"
+                              title="${isDone ? 'DARF já registrado como enviado (Clique para reconfirmar)' : 'Marcar DARF Enviado e Concluir Apuração'}"
                             >
-                              <span>${isDone ? '✓ DARF Enviado' : '🚀 Enviar DARF'}</span>
+                              <span>${isDone ? '✓ DARF Enviado' : 'DARF Enviado'}</span>
                             </button>
 
                             <!-- Botão Secundário: Desconsiderar / Isentar com Morphing -->
@@ -9090,8 +9090,7 @@ function renderIrpjTrimTab(companies) {
                           🟣 Prejuízo Fiscal
                         </span>
                       ` : rec.quotaUnica ? `
-                        <div class="flex items-center gap-1.5">
-                          <!-- Botão Quota Única com Morphing -->
+                          <!-- Botão Marcar Quota Única com Morphing -->
                           <button
                             type="button"
                             onclick="window.runMorphAction(this, 'enviar', async () => { await window.toggleTrimDarfUnicaAsync(${c.id}, true); })"
@@ -9100,9 +9099,9 @@ function renderIrpjTrimTab(companies) {
                                 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25' 
                                 : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25'
                             }"
-                            title="${rec.darfUnica ? 'Quota Única já paga (Clique para reconfirmar)' : 'Pagar Quota Única e Finalizar'}"
+                            title="${rec.darfUnica ? 'DARF de Quota Única registrado como enviado (Clique para reconfirmar)' : 'Marcar DARF de Quota Única Enviado'}"
                           >
-                            <span>${rec.darfUnica ? '✓ Quota Única Paga' : '🚀 Pagar Quota Única'}</span>
+                            <span>${rec.darfUnica ? '✓ Quota Única Enviada' : 'DARF Quota Única'}</span>
                           </button>
 
                           <!-- Desconsiderar / Prejuízo -->
@@ -9404,7 +9403,7 @@ function renderIrpjMensalTab(companies) {
                         </span>
                       ` : `
                         <div class="flex items-center gap-1.5">
-                          <!-- Botão Enviar DARF Mensal com Morphing -->
+                          <!-- Botão Marcar DARF Enviado Mensal com Morphing -->
                           <button
                             type="button"
                             onclick="window.runMorphAction(this, 'enviar', async () => { await window.updateMensalStatusAsync(${c.id}, 'Concluída'); })"
@@ -9413,9 +9412,9 @@ function renderIrpjMensalTab(companies) {
                                 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/25' 
                                 : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25'
                             }"
-                            title="${isDone ? 'DARF já enviado (Clique para reconfirmar)' : 'Enviar DARF e Concluir Apuração'}"
+                            title="${isDone ? 'DARF já registrado como enviado (Clique para reconfirmar)' : 'Marcar DARF Enviado e Concluir Apuração'}"
                           >
-                            <span>${isDone ? '✓ DARF Enviado' : '🚀 Enviar DARF'}</span>
+                            <span>${isDone ? '✓ DARF Enviado' : 'DARF Enviado'}</span>
                           </button>
 
                           <!-- Desconsiderar / Prejuízo com Morphing -->
