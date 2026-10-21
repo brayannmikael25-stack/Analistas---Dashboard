@@ -2426,28 +2426,19 @@ function getRegimeBadgeLightBg(regime) {
   };
 }
 
-function renderLogo(heightClass = "h-10", isDarkTheme = null) {
+function renderLogo(heightClass = "h-9", isDarkTheme = null) {
   if (state.customLogo) {
     return `<img src="${state.customLogo}" alt="Control Contabilidade" class="${heightClass} object-contain" />`;
   }
   
-  const isDark = isDarkTheme !== null ? isDarkTheme : (getCurrentTheme().mode === 'dark');
-
-  // No modo escuro, envolve a imagem com um card sutil arredondado com borda suave e padding harmônico
   return `
     <div class="inline-flex items-center select-none" style="line-height: 1;">
-      <div class="${
-        isDark 
-          ? 'bg-white/95 px-3 py-1.5 rounded-xl border border-white/20 shadow-sm inline-flex items-center backdrop-blur-xs transition' 
-          : 'inline-flex items-center'
-      }">
-        <img 
-          src="logo-control.png" 
-          alt="Control Contabilidade" 
-          class="${heightClass} w-auto object-contain max-w-[170px]" 
-          onerror="this.onerror=null; this.src='favicon.png';" 
-        />
-      </div>
+      <img 
+        src="logo-control.png" 
+        alt="Control Contabilidade" 
+        class="${heightClass} w-auto object-contain max-w-[200px]" 
+        onerror="this.onerror=null; this.src='favicon.png';" 
+      />
     </div>
   `;
 }
@@ -2978,414 +2969,360 @@ function render() {
   const visibleNavTabs = isOperacional ? allNavTabs.filter(t => !t.fiscal) : allNavTabs;
 
   root.innerHTML = `
-    <div class="min-h-screen flex text-gray-800 dark:text-gray-100" style="background-color: var(--bg-main);">
+    <div class="min-h-screen flex flex-col text-gray-800 dark:text-gray-100" style="background-color: var(--bg-main);">
       
-      <!-- SIDEBAR LATERAL (DESIGN SYSTEM TAILADMIN) -->
-      <aside class="panze-sidebar hidden md:flex flex-col justify-between py-6 px-4 shrink-0 sticky top-0 h-screen select-none bg-white dark:bg-[#1C2434] border-r border-[#E2E8F0] dark:border-strokedark">
-        <div class="space-y-6">
-          <!-- Marca / Logo Topo Estilo TailAdmin com Logomarca Oficial Control Contabilidade -->
-          <div class="px-2 py-1 flex items-center justify-between cursor-pointer group" title="Control Contabilidade">
-            <div class="min-w-0 flex items-center">
-              ${renderLogo("h-8 sm:h-9")}
-            </div>
-            <label class="cursor-pointer text-[#64748B] hover:text-[#3C50E0] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-meta-4 transition-colors shrink-0 ml-1" title="Configurações / Alterar Logomarca">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-              <input type="file" id="logo-input" accept="image/*" class="hidden" />
-            </label>
-          </div>
-
-          <!-- Menu de Navegação Vertical Dividido por Categorias Estilo TailAdmin -->
-          <nav class="space-y-4" id="sidebar-nav-container">
-            <!-- Categoria 1: MENU -->
-            <div>
-              <div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD] flex items-center justify-between">
-                <span>MENU</span>
-                ${isOperacional ? `<span class="bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold px-1.5 py-0.2 rounded-full">Operacional</span>` : ''}
-              </div>
-              <div class="space-y-1">
-                ${visibleNavTabs.map(tab => {
-                  const isActive = state.activeTab === tab.id;
-                  return `
-                    <div
-                      data-tab="${tab.id}"
-                      class="panze-nav-item tab-btn ${isActive ? 'active' : ''}"
-                    >
-                      <div class="flex items-center gap-3 min-w-0">
-                        <span class="nav-icon shrink-0">${tab.icon}</span>
-                        <span class="truncate font-medium text-sm">${tab.label}</span>
-                      </div>
-                      <div class="flex items-center gap-1.5 shrink-0">
-                        ${tab.badge || ''}
-                        ${tab.count !== undefined ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F1F5F9] dark:bg-meta-4 text-[#64748B] dark:text-[#8A99AD]">${tab.count}</span>` : ''}
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-
-            <!-- Categoria 2: SUPPORT & SYNC -->
-            <div>
-              <div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD]">
-                SUPPORT
-              </div>
-              <div class="space-y-1">
-                <div
-                  onclick="document.getElementById('config-sync-btn')?.click()"
-                  class="panze-nav-item cursor-pointer"
-                  title="Configurar Sincronização em Nuvem"
-                >
-                  <div class="flex items-center gap-3 min-w-0">
-                    <span class="nav-icon shrink-0 text-[#64748B]">
-                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
-                      </svg>
-                    </span>
-                    <span class="truncate font-medium text-sm">${state.backendUrl ? 'Nuvem Conectada' : 'Sincronização Nuvem'}</span>
-                  </div>
-                  <span class="w-2 h-2 rounded-full ${state.backendUrl ? 'bg-[#10B981]' : 'bg-[#64748B]/40'}"></span>
-                </div>
-              </div>
-            </div>
-          </nav>
-        </div>
-
-        <!-- Rodapé da Sidebar: Info de Persistência e Perfil TailAdmin -->
-        <div class="pt-4 border-t border-[#E2E8F0] dark:border-strokedark space-y-3">
-          <!-- Perfil do Usuário Logado Estilo TailAdmin -->
-          <div class="flex items-center justify-between p-2 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-meta-4 transition">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-9 h-9 rounded-full bg-[#3C50E0] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-                ${state.user ? state.user.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <div class="truncate max-w-[120px]">
-                <div class="text-xs font-semibold text-[#1C2434] dark:text-white truncate leading-tight">${state.user}</div>
-                <div class="text-[11px] text-[#64748B] dark:text-[#8A99AD] flex items-center gap-1">
-                  <span>${isOperacional ? 'Operacional' : 'Analista'}</span>
-                  ${isOperacional ? `<span class="bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-semibold px-1 py-0.2 rounded-full">Teste</span>` : ''}
-                </div>
-              </div>
-            </div>
-            <button id="logout-btn" class="p-1.5 rounded-lg text-[#64748B] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" title="Sair do Sistema">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      <!-- ÁREA PRINCIPAL DIREITA (TOPBAR + CONTEÚDO) -->
-      <div class="flex-1 flex flex-col min-w-0 min-h-screen bg-[#F1F5F9] dark:bg-[#1A222C]">
+      <!-- =================================================================================== -->
+      <!-- NOVO CABEÇALHO SUPERIOR FIXO (HEADER 100% LARGURA COM FUNDO BRANCO FIXO #FFFFFF) -->
+      <!-- Permanece branco fixo independente de o sistema estar no modo Claro ou Escuro       -->
+      <!-- =================================================================================== -->
+      <header class="sticky top-0 z-40 w-full bg-white border-b border-gray-200/90 shadow-xs px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4 select-none">
         
-        <!-- HEADER / NAVBAR SUPERIOR ESTILO TAILADMIN -->
-        <header class="panze-topbar sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between gap-4 bg-white dark:bg-[#1C2434] border-b border-[#E2E8F0] dark:border-strokedark">
+        <!-- LADO ESQUERDO: Logomarca Oficial da Control Contabilidade sobre fundo branco -->
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="flex items-center cursor-pointer group" title="Control Contabilidade">
+            ${renderLogo("h-8 sm:h-9")}
+          </div>
+          <label class="cursor-pointer text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0" title="Configurações / Alterar Logomarca">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <input type="file" id="logo-input" accept="image/*" class="hidden" />
+          </label>
+        </div>
+
+        <!-- CENTRO: Campo de Busca Rápida Estilo TailAdmin -->
+        <div class="hidden md:flex items-center flex-1 max-w-md mx-4">
+          <div class="relative w-full">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+            <input
+              type="text"
+              id="global-search-input"
+              value="${state.globalSearch}"
+              placeholder="Pesquisar empresas, CNPJ, código ou grupo..."
+              class="w-full pl-10 pr-12 py-1.5 rounded-lg text-xs bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:bg-white transition"
+            />
+            <div class="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1">
+              ${state.globalSearch ? `
+                <button id="clear-search-btn" class="text-gray-400 hover:text-gray-700 text-xs mr-1">✕</button>
+              ` : ''}
+              <span class="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-mono text-gray-400 bg-white border border-gray-200 rounded">⌘K</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- LADO DIREITO: Utilitários e Ações (Contraste escuro garantido sobre fundo branco) -->
+        <div class="flex items-center gap-2.5 shrink-0">
           
-          <div class="flex items-center gap-4 flex-1 max-w-xl">
-            <!-- Campo de Busca Estilo TailAdmin com Ícone de Lupa e Atalho ⌘K -->
-            <div class="relative flex-1">
-              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-              </span>
-              <input
-                type="text"
-                id="global-search-input"
-                value="${state.globalSearch}"
-                placeholder="Pesquisar empresas, CNPJ, código ou grupo..."
-                class="w-full pl-10 pr-14 py-2 rounded-md text-xs bg-[#F1F5F9] dark:bg-[#131D2A] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white placeholder-[#64748B] dark:placeholder-[#8A99AD] focus:outline-none focus:ring-1 focus:ring-[#3C50E0] focus:border-[#3C50E0] transition"
-              />
-              <div class="absolute inset-y-0 right-0 pr-3 flex items-center gap-1.5">
-                ${state.globalSearch ? `
-                  <button id="clear-search-btn" class="text-[#64748B] hover:text-[#1C2434] dark:hover:text-white text-xs mr-1">
-                    ✕
-                  </button>
-                ` : ''}
-                <span class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-medium text-[#64748B] dark:text-[#8A99AD] bg-white dark:bg-[#1C2434] border border-[#E2E8F0] dark:border-[#2E3A47] rounded shadow-2xs">⌘K</span>
-              </div>
-            </div>
-          </div>
+          <!-- 1. Ícone Alternância de Tema (Sol / Lua) -->
+          <button
+            id="toggle-theme-btn"
+            onclick="toggleThemeMode()"
+            class="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 hover:text-gray-900 flex items-center justify-center transition cursor-pointer"
+            title="Alternar Modo Claro / Escuro"
+          >
+            ${getCurrentTheme().mode === 'dark' ? `
+              <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+            ` : `
+              <svg class="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            `}
+          </button>
 
-          <!-- Ações do Cabeçalho Superior Estilo TailAdmin -->
-          <div class="flex items-center gap-3">
-            <!-- Botão Alternar Tema (Sol / Lua) -->
+          <!-- 2. Ícone de Notificações com Badge -->
+          <div class="relative">
             <button
-              id="toggle-theme-btn"
-              onclick="toggleThemeMode()"
-              class="w-9 h-9 rounded-full bg-[#F1F5F9] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] hover:border-[#3C50E0] text-[#64748B] dark:text-[#8A99AD] hover:dark:text-white flex items-center justify-center transition cursor-pointer"
-              title="Alternar Modo Claro / Escuro"
+              id="toggle-notif-btn"
+              class="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 hover:text-gray-900 relative flex items-center justify-center transition cursor-pointer"
+              title="Central de Alertas"
             >
-              ${getCurrentTheme().mode === 'dark' ? `
-                <svg class="w-4 h-4 text-[#8A99AD] hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="5"></circle>
-                  <line x1="12" y1="1" x2="12" y2="3"></line>
-                  <line x1="12" y1="21" x2="12" y2="23"></line>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                  <line x1="1" y1="12" x2="3" y2="12"></line>
-                  <line x1="21" y1="12" x2="23" y2="12"></line>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                </svg>
-              ` : `
-                <svg class="w-4 h-4 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                </svg>
-              `}
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-[#F97316] rounded-full"></span>
             </button>
 
-            <!-- Sino de Notificações com Indicador -->
-            <div class="relative">
-              <button
-                id="toggle-notif-btn"
-                class="w-9 h-9 rounded-full bg-[#F1F5F9] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] hover:border-[#3C50E0] text-[#64748B] dark:text-[#8A99AD] hover:dark:text-white relative flex items-center justify-center transition"
-                title="Alertas de Vencimentos"
-              >
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                <span class="absolute top-2 right-2 w-2 h-2 bg-[#F97316] rounded-full"></span>
-              </button>
-
-              ${state.isNotificationOpen ? `
-                <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-md bg-white dark:bg-[#1C2434] border border-[#E2E8F0] dark:border-[#2E3A47] shadow-lg p-4 z-50">
-                  <div class="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-strokedark">
-                    <h4 class="font-bold text-sm text-[#1C2434] dark:text-white">Central de Alertas</h4>
-                    <span class="text-xs text-[#64748B]">2 alertas ativos</span>
+            ${state.isNotificationOpen ? `
+              <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl bg-white border border-gray-200 shadow-xl p-4 z-50 animate-fadeIn text-gray-800">
+                <div class="flex items-center justify-between pb-2.5 border-b border-gray-100">
+                  <h4 class="font-bold text-xs uppercase tracking-wider text-gray-900">Central de Alertas</h4>
+                  <span class="text-[11px] text-gray-500 font-semibold">2 alertas ativos</span>
+                </div>
+                <div class="mt-3 space-y-2.5 max-h-72 overflow-y-auto">
+                  <div class="p-3 rounded-lg text-xs border bg-amber-50 border-amber-200 text-amber-900">
+                    <div class="font-bold mb-1">⚠️ Prazo Tributário: Dias Úteis (Antecipação p/ Sexta)</div>
+                    <div>DARFs federais que caem em sábado ou domingo devem ser recolhidos na sexta-feira anterior útil. Limite do dia 25 neste mês: <strong>Dia ${getAdjustedTaxDueDate(25).adjustedDay}</strong>.</div>
                   </div>
-                  <div class="mt-3 space-y-2.5 max-h-72 overflow-y-auto">
-                    <div class="p-3 rounded-md text-xs border bg-[#F59E0B]/10 border-[#F59E0B]/30 text-[#D97706] dark:text-[#FBBF24]">
-                      <div class="font-bold mb-1">⚠️ Prazo Tributário: Dias Úteis (Antecipação p/ Sexta)</div>
-                      <div>DARFs federais que caem em sábado ou domingo devem ser recolhidos na sexta-feira anterior útil. Limite do dia 25 neste mês: <strong>Dia ${getAdjustedTaxDueDate(25).adjustedDay}</strong>.</div>
-                    </div>
-                    <div class="p-3 rounded-md text-xs border bg-[#3C50E0]/10 border-[#3C50E0]/30 text-[#3C50E0]">
-                      <div class="font-bold mb-1">ℹ️ Fechamento Mensal</div>
-                      <div>Competência ideal de trabalho: Mês anterior (08/2026).</div>
-                    </div>
+                  <div class="p-3 rounded-lg text-xs border bg-blue-50 border-blue-200 text-blue-900">
+                    <div class="font-bold mb-1">ℹ️ Fechamento Mensal</div>
+                    <div>Competência ideal de trabalho: Mês anterior (08/2026).</div>
                   </div>
                 </div>
-              ` : ''}
-            </div>
-
-            <!-- Dropdown Salvar / Sincronização e Backup -->
-            <div class="relative">
-              <button
-                id="backup-menu-btn"
-                class="flex items-center gap-1.5 px-3 py-2 rounded-md bg-[#F1F5F9] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-strokedark text-[#1C2434] dark:text-white text-xs font-semibold hover:border-[#3C50E0] transition"
-              >
-                <svg class="w-4 h-4 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                  <polyline points="7 3 7 8 15 8"></polyline>
-                </svg>
-                <span class="hidden sm:inline">Salvar</span>
-              </button>
-
-              <div id="backup-dropdown" class="hidden absolute right-0 mt-2 w-64 rounded-md bg-white dark:bg-[#1C2434] border border-[#E2E8F0] dark:border-strokedark shadow-lg p-2 z-50">
-                <div class="px-3 py-2 border-b border-[#E2E8F0] dark:border-strokedark text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
-                  Salvar & Backup
-                </div>
-                
-                <button id="btn-export-backup-json" class="w-full text-left px-3 py-2 rounded-md text-xs font-medium text-[#1C2434] dark:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1A222C] transition flex items-center gap-2">
-                  <span>💾</span>
-                  <div>
-                    <div class="font-semibold">Salvar backup</div>
-                    <div class="text-[10px] text-[#64748B]">Arquivo JSON com todas empresas e status</div>
-                  </div>
-                </button>
-
-                <button id="btn-export-backup-csv" class="w-full text-left px-3 py-2 rounded-md text-xs font-medium text-[#1C2434] dark:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1A222C] transition flex items-center gap-2">
-                  <span>📊</span>
-                  <div>
-                    <div class="font-semibold">Exportar Empresas (Excel / CSV)</div>
-                    <div class="text-[10px] text-[#64748B]">Tabela padrão com as 8 colunas</div>
-                  </div>
-                </button>
-
-                <div class="my-1 border-t border-[#E2E8F0] dark:border-strokedark"></div>
-
-                <label class="w-full text-left px-3 py-2 rounded-md text-xs font-medium text-[#1C2434] dark:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#1A222C] transition flex items-center gap-2 cursor-pointer">
-                  <span>📥</span>
-                  <div>
-                    <div class="font-semibold">Importar Backup</div>
-                    <div class="text-[10px] text-[#64748B]">Carregar backup gerado em outro PC</div>
-                  </div>
-                  <input type="file" id="universal-sync-file-input" accept=".json, .xlsx, .xls, .csv" class="hidden" />
-                </label>
-
-                ${state.backendUrl ? `
-                  <div class="my-1 border-t border-[#E2E8F0] dark:border-strokedark"></div>
-                  <button id="btn-force-sync" class="w-full text-left px-3 py-2 rounded-md text-xs font-bold text-[#3C50E0] hover:bg-[#F1F5F9] dark:hover:bg-[#1A222C] transition flex items-center gap-2">
-                    <span>☁️</span>
-                    <div>
-                      <div>Sincronizar Nuvem Agora</div>
-                      <div class="text-[10px] text-[#64748B] font-normal">Enviar e receber do servidor</div>
-                    </div>
-                  </button>
-                ` : ''}
               </div>
-            </div>
+            ` : ''}
+          </div>
 
-            <!-- Botão de Cadastro Rápido de Empresa TailAdmin -->
-            <button onclick="openCompanyModal('create')" class="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-[#3C50E0] hover:bg-opacity-90 text-white font-semibold text-xs shadow-sm transition">
-              <span class="text-sm leading-none">+</span>
-              <span>Nova Empresa</span>
+          <!-- 3. Botão "Salvar" com Dropdown de Backup / Sync -->
+          <div class="relative">
+            <button
+              id="backup-menu-btn"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 text-xs font-semibold transition cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              <span>Salvar</span>
             </button>
 
-            <!-- Avatar do Usuário com Menu Dropdown Completo TailAdmin -->
-            <div class="relative pl-2 border-l border-[#E2E8F0] dark:border-strokedark">
-              <button
-                id="user-profile-menu-btn"
-                onclick="toggleUserMenu(event)"
-                class="flex items-center gap-2.5 p-1 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-meta-4 transition cursor-pointer select-none"
-              >
-                <div class="w-9 h-9 rounded-full bg-[#3C50E0] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ring-2 ring-[#3C50E0]/20">
-                  ${(state.userProfile?.firstName ? state.userProfile.firstName.charAt(0) : (state.user ? state.user.charAt(0) : 'U')).toUpperCase()}
+            <div id="backup-dropdown" class="hidden absolute right-0 mt-2 w-64 rounded-xl bg-white border border-gray-200 shadow-xl p-2 z-50 text-gray-800">
+              <div class="px-3 py-1.5 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Salvar & Backup
+              </div>
+              
+              <button id="btn-export-backup-json" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-800 hover:bg-gray-50 transition flex items-center gap-2">
+                <span>💾</span>
+                <div>
+                  <div class="font-semibold">Salvar backup</div>
+                  <div class="text-[10px] text-gray-500">Arquivo JSON com todas empresas e status</div>
                 </div>
-                <div class="hidden xl:block text-left leading-tight">
-                  <span class="block text-xs font-semibold text-[#1C2434] dark:text-white">
-                    ${state.userProfile?.firstName ? `${state.userProfile.firstName} ${state.userProfile.lastName || ''}` : state.user}
-                  </span>
-                </div>
-                <svg class="w-3.5 h-3.5 text-[#64748B] dark:text-[#8A99AD] transition-transform duration-200 ${state.isUserMenuOpen ? 'rotate-180' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
               </button>
 
-              ${state.isUserMenuOpen ? `
-                <div
-                  id="user-profile-dropdown"
-                  class="absolute right-0 mt-2 w-72 rounded-xl bg-white dark:bg-[#1C2434] border border-[#E2E8F0] dark:border-strokedark shadow-xl py-2 z-50 animate-fadeIn"
-                  onclick="event.stopPropagation()"
-                >
-                  <!-- Cabeçalho do Perfil (Foto, Nome e Email) -->
-                  <div class="px-4 py-3 border-b border-[#E2E8F0] dark:border-strokedark flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-[#3C50E0] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
-                      ${(state.userProfile?.firstName ? state.userProfile.firstName.charAt(0) : 'U').toUpperCase()}
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <div class="font-bold text-xs text-[#1C2434] dark:text-white truncate">
-                        ${state.userProfile?.firstName ? `${state.userProfile.firstName} ${state.userProfile.lastName || ''}` : state.user}
-                      </div>
-                      <div class="text-[11px] text-[#64748B] dark:text-[#8A99AD] truncate">
-                        ${state.userProfile?.email || 'contato@controlcontabilidade.com.br'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Itens de Navegação do Menu Dropdown -->
-                  <div class="py-1 text-xs">
-                    <!-- Edit Profile -->
-                    <button
-                      onclick="navigateToProfileTab()"
-                      class="w-full text-left px-4 py-2.5 text-[#1C2434] dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#1A222C] flex items-center gap-2.5 transition"
-                    >
-                      <svg class="w-4 h-4 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                      </svg>
-                      <span>${state.language === 'en' ? 'Edit Profile' : state.language === 'es' ? 'Editar Perfil' : 'Editar Perfil'}</span>
-                    </button>
-
-                    <!-- Support -->
-                    <button
-                      onclick="openSupportModal()"
-                      class="w-full text-left px-4 py-2.5 text-[#1C2434] dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#1A222C] flex items-center gap-2.5 transition"
-                    >
-                      <svg class="w-4 h-4 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                      </svg>
-                      <span>${state.language === 'en' ? 'Support & Help' : state.language === 'es' ? 'Soporte y Ayuda' : 'Suporte & Manuais'}</span>
-                    </button>
-
-                    <!-- Language Submenu Item com Badge Teste -->
-                    <div class="relative">
-                      <button
-                        onclick="toggleLanguageMenu(event)"
-                        class="w-full text-left px-4 py-2.5 text-[#1C2434] dark:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#1A222C] flex items-center justify-between transition"
-                      >
-                        <div class="flex items-center gap-2.5">
-                          <svg class="w-4 h-4 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="2" y1="12" x2="22" y2="12"></line>
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                          </svg>
-                          <span>${state.language === 'en' ? 'Language' : state.language === 'es' ? 'Idioma' : 'Idioma'}</span>
-                          <span class="bg-amber-100 text-amber-700 border border-amber-300 text-[10px] font-semibold px-2 py-0.5 rounded-full">Teste</span>
-                        </div>
-                        <div class="flex items-center gap-1 text-[11px] font-semibold text-[#3C50E0]">
-                          <span>${state.language === 'en' ? '🇺🇸 EN' : state.language === 'es' ? '🇪🇸 ES' : '🇧🇷 PT'}</span>
-                          <svg class="w-3.5 h-3.5 text-[#64748B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        </div>
-                      </button>
-
-                      ${state.isLanguageMenuOpen ? `
-                        <div class="mx-3 my-1 p-1 rounded-lg bg-[#F8FAFC] dark:bg-[#121721] border border-[#E2E8F0] dark:border-strokedark space-y-0.5">
-                          <button
-                            onclick="setAppLanguage('pt-BR')"
-                            class="w-full text-left px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between ${
-                              state.language === 'pt-BR' ? 'bg-[#3C50E0] text-white' : 'text-[#1C2434] dark:text-slate-200 hover:bg-[#E2E8F0] dark:hover:bg-meta-4'
-                            }"
-                          >
-                            <span class="flex items-center gap-2"><span>🇧🇷</span> <span>Português (Brasil)</span></span>
-                            ${state.language === 'pt-BR' ? '<span>✓</span>' : ''}
-                          </button>
-                          <button
-                            onclick="setAppLanguage('en')"
-                            class="w-full text-left px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between ${
-                              state.language === 'en' ? 'bg-[#3C50E0] text-white' : 'text-[#1C2434] dark:text-slate-200 hover:bg-[#E2E8F0] dark:hover:bg-meta-4'
-                            }"
-                          >
-                            <span class="flex items-center gap-2"><span>🇺🇸</span> <span>English (US)</span></span>
-                            ${state.language === 'en' ? '<span>✓</span>' : ''}
-                          </button>
-                          <button
-                            onclick="setAppLanguage('es')"
-                            class="w-full text-left px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between ${
-                              state.language === 'es' ? 'bg-[#3C50E0] text-white' : 'text-[#1C2434] dark:text-slate-200 hover:bg-[#E2E8F0] dark:hover:bg-meta-4'
-                            }"
-                          >
-                            <span class="flex items-center gap-2"><span>🇪🇸</span> <span>Español</span></span>
-                            ${state.language === 'es' ? '<span>✓</span>' : ''}
-                          </button>
-                        </div>
-                      ` : ''}
-                    </div>
-
-                    <!-- Divider -->
-                    <div class="my-1 border-t border-[#E2E8F0] dark:border-strokedark"></div>
-
-                    <!-- Sign Out -->
-                    <button
-                      onclick="handleAppLogout()"
-                      class="w-full text-left px-4 py-2.5 text-[#EF4444] hover:bg-[#EF4444]/10 flex items-center gap-2.5 transition font-semibold"
-                    >
-                      <svg class="w-4 h-4 text-[#EF4444]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                      </svg>
-                      <span>${state.language === 'en' ? 'Sign out' : state.language === 'es' ? 'Cerrar sesión' : 'Sair da Conta'}</span>
-                    </button>
-                  </div>
+              <button id="btn-export-backup-csv" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-800 hover:bg-gray-50 transition flex items-center gap-2">
+                <span>📊</span>
+                <div>
+                  <div class="font-semibold">Exportar Empresas (Excel / CSV)</div>
+                  <div class="text-[10px] text-gray-500">Tabela padrão com as 8 colunas</div>
                 </div>
+              </button>
+
+              <div class="my-1 border-t border-gray-100"></div>
+
+              <label class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-800 hover:bg-gray-50 transition flex items-center gap-2 cursor-pointer">
+                <span>📥</span>
+                <div>
+                  <div class="font-semibold">Importar Backup</div>
+                  <div class="text-[10px] text-gray-500">Carregar backup gerado em outro PC</div>
+                </div>
+                <input type="file" id="universal-sync-file-input" accept=".json, .xlsx, .xls, .csv" class="hidden" />
+              </label>
+
+              ${state.backendUrl ? `
+                <div class="my-1 border-t border-gray-100"></div>
+                <button id="btn-force-sync" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition flex items-center gap-2">
+                  <span>☁️</span>
+                  <div>
+                    <div>Sincronizar Nuvem Agora</div>
+                    <div class="text-[10px] text-gray-500 font-normal">Enviar e receber do servidor</div>
+                  </div>
+                </button>
               ` : ''}
             </div>
           </div>
-        </header>
 
+          <!-- 4. Botão "+ Nova Empresa" -->
+          <button onclick="openCompanyModal('create')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3C50E0] hover:bg-[#3243be] text-white font-semibold text-xs shadow-xs transition cursor-pointer">
+            <span class="text-sm font-bold leading-none">+</span>
+            <span>Nova Empresa</span>
+          </button>
+
+          <!-- 5. Divisor Vertical e Perfil do Usuário Logado (Avatar e Nome) -->
+          <div class="h-6 w-px bg-gray-200 mx-1"></div>
+
+          <div class="relative">
+            <button
+              id="user-profile-menu-btn"
+              onclick="toggleUserMenu(event)"
+              class="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition cursor-pointer select-none"
+            >
+              <div class="w-8 h-8 rounded-full bg-[#3C50E0] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ring-2 ring-[#3C50E0]/20">
+                ${(state.userProfile?.firstName ? state.userProfile.firstName.charAt(0) : (state.user ? state.user.charAt(0) : 'U')).toUpperCase()}
+              </div>
+              <div class="hidden sm:block text-left leading-tight pr-1">
+                <span class="block text-xs font-bold text-gray-800">
+                  ${state.userProfile?.firstName ? `${state.userProfile.firstName} ${state.userProfile.lastName || ''}` : state.user}
+                </span>
+              </div>
+              <svg class="w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${state.isUserMenuOpen ? 'rotate-180' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+
+            ${state.isUserMenuOpen ? `
+              <div
+                id="user-profile-dropdown"
+                class="absolute right-0 mt-2 w-72 rounded-xl bg-white border border-gray-200 shadow-xl py-2 z-50 animate-fadeIn text-gray-800"
+                onclick="event.stopPropagation()"
+              >
+                <!-- Cabeçalho do Perfil -->
+                <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-[#3C50E0] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                    ${(state.userProfile?.firstName ? state.userProfile.firstName.charAt(0) : 'U').toUpperCase()}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="font-bold text-xs text-gray-900 truncate">
+                      ${state.userProfile?.firstName ? `${state.userProfile.firstName} ${state.userProfile.lastName || ''}` : state.user}
+                    </div>
+                    <div class="text-[11px] text-gray-500 truncate">
+                      ${state.userProfile?.email || 'contato@controlcontabilidade.com.br'}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Itens de Navegação -->
+                <div class="py-1 text-xs">
+                  <button
+                    onclick="navigateToProfileTab()"
+                    class="w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition"
+                  >
+                    <svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Editar Perfil</span>
+                  </button>
+
+                  <button
+                    onclick="openSupportModal()"
+                    class="w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition"
+                  >
+                    <svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>Suporte & Manuais</span>
+                  </button>
+
+                  <div class="my-1 border-t border-gray-100"></div>
+
+                  <button
+                    onclick="handleAppLogout()"
+                    class="w-full text-left px-4 py-2.5 text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition font-semibold"
+                  >
+                    <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                      <polyline points="16 17 21 12 16 7"></polyline>
+                      <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Sair da Conta</span>
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+        </div>
+      </header>
+
+      <!-- =================================================================================== -->
+      <!-- CORPO PRINCIPAL (SIDEBAR + CONTEÚDO) QUE COMEÇAM LOGO ABAIXO DA FAIXA SUPERIOR BRANCA-->
+      <!-- A alternância de modo escuro/claro afeta perfeitamente esta área abaixo da faixa   -->
+      <!-- =================================================================================== -->
+      <div class="flex-1 flex min-w-0" style="background-color: var(--bg-main);">
+        
+        <!-- SIDEBAR LATERAL (DESIGN SYSTEM TAILADMIN) -->
+        <aside class="panze-sidebar hidden md:flex flex-col justify-between py-6 px-4 shrink-0 sticky top-[57px] h-[calc(100vh-57px)] select-none bg-white dark:bg-[#1C2434] border-r border-[#E2E8F0] dark:border-strokedark overflow-y-auto">
+          <div class="space-y-6">
+            <!-- Menu de Navegação Vertical Dividido por Categorias Estilo TailAdmin -->
+            <nav class="space-y-4" id="sidebar-nav-container">
+              <!-- Categoria 1: MENU -->
+              <div>
+                <div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD] flex items-center justify-between">
+                  <span>MENU</span>
+                  ${isOperacional ? `<span class="bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold px-1.5 py-0.2 rounded-full">Operacional</span>` : ''}
+                </div>
+                <div class="space-y-1">
+                  ${visibleNavTabs.map(tab => {
+                    const isActive = state.activeTab === tab.id;
+                    return `
+                      <div
+                        data-tab="${tab.id}"
+                        class="panze-nav-item tab-btn ${isActive ? 'active' : ''}"
+                      >
+                        <div class="flex items-center gap-3 min-w-0">
+                          <span class="nav-icon shrink-0">${tab.icon}</span>
+                          <span class="truncate font-medium text-sm">${tab.label}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          ${tab.badge || ''}
+                          ${tab.count !== undefined ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F1F5F9] dark:bg-meta-4 text-[#64748B] dark:text-[#8A99AD]">${tab.count}</span>` : ''}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Categoria 2: SUPPORT & SYNC -->
+              <div>
+                <div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD]">
+                  SUPPORT
+                </div>
+                <div class="space-y-1">
+                  <div
+                    onclick="document.getElementById('config-sync-btn')?.click()"
+                    class="panze-nav-item cursor-pointer"
+                    title="Configurar Sincronização em Nuvem"
+                  >
+                    <div class="flex items-center gap-3 min-w-0">
+                      <span class="nav-icon shrink-0 text-[#64748B]">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+                        </svg>
+                      </span>
+                      <span class="truncate font-medium text-sm">${state.backendUrl ? 'Nuvem Conectada' : 'Sincronização Nuvem'}</span>
+                    </div>
+                    <span class="w-2 h-2 rounded-full ${state.backendUrl ? 'bg-[#10B981]' : 'bg-[#64748B]/40'}"></span>
+                  </div>
+                </div>
+              </div>
+            </nav>
+          </div>
+
+          <!-- Rodapé da Sidebar: Status de Sessão -->
+          <div class="pt-4 border-t border-[#E2E8F0] dark:border-strokedark space-y-2">
+            <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-white/5">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-300 truncate">
+                  ${isOperacional ? 'Painel Operacional' : 'Painel do Analista'}
+                </span>
+              </div>
+              <button onclick="handleAppLogout()" class="p-1 rounded text-gray-400 hover:text-rose-500 transition" title="Sair">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <!-- ÁREA PRINCIPAL DE CONTEÚDO (LOGO ABAIXO DO CABEÇALHO FIXO) -->
+        <div class="flex-1 flex flex-col min-w-0 min-h-[calc(100vh-57px)] bg-[#F1F5F9] dark:bg-[#1A222C]">
+        
         <!-- NAVEGAÇÃO MOBILE (Para telas pequenas) -->
-        <div class="md:hidden bg-[#12131F] px-4 py-2 border-b border-gray-800 flex items-center gap-2 overflow-x-auto">
+        <div class="md:hidden bg-white dark:bg-[#12131F] px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2 overflow-x-auto">
           ${[
             { id: 'dashboard', label: 'Dashboard', icon: '⊞', fiscal: false },
             { id: 'fechamentos', label: 'Fechamentos', icon: '📅', fiscal: true },
