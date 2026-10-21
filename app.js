@@ -1819,6 +1819,74 @@ function injectDesignSystemStyles() {
       color: #BAE6FD !important;
       border-color: rgba(14, 165, 233, 0.38) !important;
     }
+
+    /* 11. Animações Fluídas de Kanban e Transição Suave de Cards */
+    @keyframes kanbanSlideRight {
+      0% {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: translateX(38px) scale(0.96);
+        opacity: 0.6;
+      }
+      100% {
+        transform: translateX(80px) scale(0.92);
+        opacity: 0;
+      }
+    }
+
+    @keyframes kanbanSlideLeft {
+      0% {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: translateX(-38px) scale(0.96);
+        opacity: 0.6;
+      }
+      100% {
+        transform: translateX(-80px) scale(0.92);
+        opacity: 0;
+      }
+    }
+
+    @keyframes taskCompleteSuccess {
+      0% {
+        transform: scale(1);
+      }
+      40% {
+        transform: scale(1.04);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+      }
+      70% {
+        transform: translateX(25px) scale(0.98);
+        opacity: 0.7;
+      }
+      100% {
+        transform: translateX(60px) scale(0.92);
+        opacity: 0;
+      }
+    }
+
+    .anim-kanban-slide-right {
+      animation: kanbanSlideRight 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+      pointer-events: none !important;
+    }
+
+    .anim-kanban-slide-left {
+      animation: kanbanSlideLeft 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+      pointer-events: none !important;
+    }
+
+    .anim-task-complete {
+      animation: taskCompleteSuccess 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+      pointer-events: none !important;
+    }
+
+    .card-enter-smooth {
+      animation: panzeFadeIn 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
   `;
 }
 injectDesignSystemStyles();
@@ -10159,41 +10227,43 @@ function renderTarefasTab() {
 
     return `
       <div
+        id="task-card-${t.id}"
         onclick="openTaskDrawer(${t.id}, event)"
-        class="panze-card !p-3.5 border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col gap-2 relative group select-none ${
+        class="panze-card !p-3.5 border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col gap-2.5 relative group select-none ${
           t.concluida ? 'opacity-65 bg-gray-50/50 dark:bg-[#11121C]/50' : 'bg-white dark:bg-[#15151F]'
         } ${isSelected ? 'ring-2 ring-blue-500' : ''}"
       >
         <div class="flex items-start justify-between gap-3">
-          <!-- Checkbox para seleção em massa e conclusão -->
-          <div class="flex items-center gap-2.5 pt-0.5 shrink-0" onclick="event.stopPropagation()">
-            <input
-              type="checkbox"
-              ${isSelected ? 'checked' : ''}
-              onchange="toggleSelectTask(${t.id}, event)"
-              class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer border-gray-300 dark:border-gray-700"
-              title="Selecionar para ações em massa"
-            />
+          <!-- Checkbox Único e Inteligente (Conclusão Direta com clique e Seleção em Massa) -->
+          <div class="flex items-center gap-2 pt-0.5 shrink-0" onclick="event.stopPropagation()">
             <button
-              onclick="toggleTaskComplete(${t.id})"
-              class="w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+              id="task-check-btn-${t.id}"
+              onclick="animateTaskComplete(${t.id}, event)"
+              class="w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
                 t.concluida 
-                  ? 'bg-emerald-500 border-emerald-500 text-white font-bold text-xs' 
-                  : 'border-gray-300 dark:border-gray-600 hover:border-blue-500 text-transparent hover:text-gray-400'
+                  ? 'bg-emerald-500 border-emerald-500 text-white font-bold text-xs shadow-xs' 
+                  : 'border-gray-300 dark:border-gray-600 hover:border-emerald-500 hover:bg-emerald-500/10 text-transparent hover:text-emerald-500'
               }"
               title="${t.concluida ? 'Marcar como Pendente' : 'Marcar como Concluída'}"
             >
               ✓
             </button>
+            <input
+              type="checkbox"
+              ${isSelected ? 'checked' : ''}
+              onchange="toggleSelectTask(${t.id}, event)"
+              class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer border-gray-300 dark:border-gray-700 opacity-60 group-hover:opacity-100 transition-opacity"
+              title="Selecionar para ações em lote"
+            />
           </div>
 
-          <!-- Conteúdo Principal: Título em destaque e descrição limpa -->
-          <div class="flex-1 min-w-0">
-            <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-snug line-clamp-2 ${t.concluida ? 'line-through text-gray-400 dark:text-gray-500 font-medium' : ''}">
+          <!-- Conteúdo Principal: Título completo sem truncate agressivo (ocupa até 3 linhas) -->
+          <div class="flex-1 min-w-0 pr-1">
+            <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-snug line-clamp-3 break-words ${t.concluida ? 'line-through text-gray-400 dark:text-gray-500 font-medium' : ''}">
               ${t.titulo}
             </h4>
             ${t.descricao ? `
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1 font-normal">
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 font-normal leading-relaxed break-words">
                 ${t.descricao}
               </p>
             ` : ''}
@@ -10500,17 +10570,17 @@ function renderTarefasTab() {
         <!-- MODO QUADRO / KANBAN (A Fazer, Em Andamento, Aguardando Cliente, Concluídas) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
           ${[
-            { id: 'a_fazer', label: '📌 A Fazer', color: 'border-t-blue-500', match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'a_fazer') },
-            { id: 'em_andamento', label: '⚡ Em Andamento', color: 'border-t-amber-500', match: (t) => !t.concluida && t.kanbanStatus === 'em_andamento' },
-            { id: 'aguardando_cliente', label: '⏳ Aguardando Cliente', color: 'border-t-purple-500', match: (t) => !t.concluida && t.kanbanStatus === 'aguardando_cliente' },
-            { id: 'concluida', label: '✅ Concluídas', color: 'border-t-emerald-500', match: (t) => t.concluida || t.kanbanStatus === 'concluida' }
+            { id: 'a_fazer', label: '📌 A Fazer', color: 'border-t-rose-500', headerBadge: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30', titleColor: 'text-rose-600 dark:text-rose-400', match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'a_fazer') },
+            { id: 'em_andamento', label: '⚡ Em Andamento', color: 'border-t-amber-500', headerBadge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'em_andamento' },
+            { id: 'aguardando_cliente', label: '⏳ Aguardando Cliente', color: 'border-t-purple-500', headerBadge: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'aguardando_cliente' },
+            { id: 'concluida', label: '✅ Concluídas', color: 'border-t-emerald-500', headerBadge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => t.concluida || t.kanbanStatus === 'concluida' }
           ].map(col => {
             const colTasks = filteredTasks.filter(col.match);
             return `
               <div class="bg-gray-50/80 dark:bg-[#12131F]/90 rounded-2xl border-t-4 ${col.color} border border-gray-200/80 dark:border-gray-800 p-3 flex flex-col min-h-[450px]">
                 <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-200/60 dark:border-gray-800">
-                  <h3 class="font-bold text-xs uppercase tracking-wider text-gray-800 dark:text-gray-200">${col.label}</h3>
-                  <span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300">
+                  <h3 class="font-bold text-xs uppercase tracking-wider ${col.titleColor}">${col.label}</h3>
+                  <span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold ${col.headerBadge}">
                     ${colTasks.length}
                   </span>
                 </div>
@@ -10519,14 +10589,14 @@ function renderTarefasTab() {
                   ${colTasks.map(t => `
                     <div class="relative group/kanban">
                       ${renderCleanTaskCard(t, true)}
-                      <!-- Dropdown rápido para mover de coluna no Kanban -->
+                      <!-- Dropdown rápido para mover de coluna no Kanban com Animação Fluída -->
                       <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400 px-1" onclick="event.stopPropagation()">
                         <span>Mover p/:</span>
                         <div class="flex items-center gap-1">
-                          ${col.id !== 'a_fazer' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'a_fazer')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para A Fazer">A Fazer</button>` : ''}
-                          ${col.id !== 'em_andamento' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'em_andamento')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Em Andamento">Andamento</button>` : ''}
-                          ${col.id !== 'aguardando_cliente' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'aguardando_cliente')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Aguardando Cliente">Cliente</button>` : ''}
-                          ${col.id !== 'concluida' ? `<button onclick="setTaskKanbanStatus(${t.id}, 'concluida')" class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40" title="Mover para Concluída">Concluir</button>` : ''}
+                          ${col.id !== 'a_fazer' ? `<button onclick="animateMoveKanban(${t.id}, 'a_fazer')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para A Fazer">A Fazer</button>` : ''}
+                          ${col.id !== 'em_andamento' ? `<button onclick="animateMoveKanban(${t.id}, 'em_andamento')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Em Andamento">Andamento</button>` : ''}
+                          ${col.id !== 'aguardando_cliente' ? `<button onclick="animateMoveKanban(${t.id}, 'aguardando_cliente')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Aguardando Cliente">Cliente</button>` : ''}
+                          ${col.id !== 'concluida' ? `<button onclick="animateMoveKanban(${t.id}, 'concluida')" class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40" title="Mover para Concluída">Concluir</button>` : ''}
                         </div>
                       </div>
                     </div>
@@ -13180,6 +13250,57 @@ window.addTaskComment = async (taskId, commentText) => {
   if (userId) await dataService.upsertTarefa(t, userId);
   saveStorage();
   render();
+};
+
+// Animação Fluída de Deslocamento entre Colunas no Modo Kanban
+window.animateMoveKanban = async (taskId, targetStatus) => {
+  const cardEl = document.getElementById(`task-card-${taskId}`);
+  const statusOrder = { 'a_fazer': 0, 'em_andamento': 1, 'aguardando_cliente': 2, 'concluida': 3 };
+  
+  const t = state.tasks.find(x => x.id === taskId);
+  const currentStatus = t ? (t.kanbanStatus || (t.concluida ? 'concluida' : 'a_fazer')) : 'a_fazer';
+  
+  const fromIdx = statusOrder[currentStatus] ?? 0;
+  const toIdx = statusOrder[targetStatus] ?? 0;
+  const moveDirection = toIdx >= fromIdx ? 'anim-kanban-slide-right' : 'anim-kanban-slide-left';
+
+  if (cardEl) {
+    cardEl.classList.remove('anim-kanban-slide-right', 'anim-kanban-slide-left', 'anim-task-complete');
+    cardEl.classList.add(moveDirection);
+  }
+
+  // Espera a animação de saída suave (260ms) antes de persistir o novo estado
+  setTimeout(async () => {
+    await window.setTaskKanbanStatus(taskId, targetStatus);
+  }, 260);
+};
+
+// Animação Fluída de Conclusão com Pulso no Checkbox e Deslizamento para Concluídas
+window.animateTaskComplete = async (taskId, event) => {
+  if (event) event.stopPropagation();
+  const cardEl = document.getElementById(`task-card-${taskId}`);
+  const checkBtn = document.getElementById(`task-check-btn-${taskId}`);
+  const t = state.tasks.find(x => x.id === taskId);
+
+  if (!t) return;
+
+  // Se a tarefa está sendo CONCLUÍDA (indo para concluída)
+  if (!t.concluida) {
+    if (checkBtn) {
+      checkBtn.innerHTML = '✓';
+      checkBtn.className = 'w-5 h-5 rounded-md border flex items-center justify-center bg-emerald-500 border-emerald-500 text-white font-bold text-xs shadow-md scale-125 transition-all duration-200';
+    }
+    if (cardEl) {
+      cardEl.classList.remove('anim-kanban-slide-right', 'anim-kanban-slide-left');
+      cardEl.classList.add('anim-task-complete');
+    }
+    setTimeout(async () => {
+      await window.toggleTaskComplete(taskId);
+    }, 320);
+  } else {
+    // Se está sendo reaberta
+    await window.toggleTaskComplete(taskId);
+  }
 };
 
 window.setTaskKanbanStatus = async (taskId, newStatus) => {
