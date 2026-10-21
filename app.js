@@ -2426,16 +2426,22 @@ function getRegimeBadgeLightBg(regime) {
   };
 }
 
-// Renderização fiel da Logomarca Oficial da Control Contabilidade (Imagem 1)
 function renderLogo(heightClass = "h-10", isDarkTheme = null) {
   if (state.customLogo) {
     return `<img src="${state.customLogo}" alt="Control Contabilidade" class="${heightClass} object-contain" />`;
   }
   
-  // Se não especificado explicitamente, verifica o tema atual
+  return `
+    <div class="inline-flex items-center select-none" style="line-height: 1;">
+      <img src="logo-control.png" alt="Control Contabilidade" class="${heightClass} w-auto object-contain" onerror="this.onerror=null; this.src='favicon.png';" />
+    </div>
+  `;
+}
+
+function _renderLogoSvgLegacy(heightClass = "h-10", isDarkTheme = null) {
   const isDark = isDarkTheme !== null ? isDarkTheme : (getCurrentTheme().mode === 'dark');
   const textColor = isDark ? '#FFFFFF' : '#0D3B66';
-  const subtitleColor = '#F58220'; // Laranja característico da Control
+  const subtitleColor = '#F58220';
 
   return `
     <div class="inline-flex items-center select-none" style="line-height: 1;">
