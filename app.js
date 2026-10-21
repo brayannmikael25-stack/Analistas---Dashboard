@@ -10203,6 +10203,147 @@ function renderTarefasTab() {
                           state.taskUrgencyFilter !== 'todas' ||
                           state.taskResponsavelFilter !== 'todos';
 
+  // 0. Injeção de Estilos CSS para Animações Magnéticas, Elásticas e Scroll Horizontal Perfeito
+  const kanbanAnimationStyles = `
+    <style id="kanban-magnetic-styles">
+      /* Scrollbar personalizada para o container horizontal do Kanban */
+      .kanban-scroll-container::-webkit-scrollbar {
+        height: 8px;
+      }
+      .kanban-scroll-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 9999px;
+      }
+      .dark .kanban-scroll-container::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .kanban-scroll-container::-webkit-scrollbar-thumb {
+        background: rgba(60, 80, 224, 0.4);
+        border-radius: 9999px;
+      }
+      .kanban-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(60, 80, 224, 0.7);
+      }
+
+      /* Decolagem & Arco Magnético Parabólico para a Direita (Arc Launch & Elastic Snap) */
+      @keyframes magneticArcRight {
+        0% {
+          transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          opacity: 1;
+          z-index: 50;
+        }
+        25% {
+          transform: scale(0.96) translate3d(25px, -24px, 0) rotate(1.5deg);
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.25), 0 10px 10px -5px rgba(0,0,0,0.1);
+          opacity: 0.92;
+        }
+        60% {
+          transform: scale(0.94) translate3d(70px, -14px, 0) rotate(2.5deg);
+          box-shadow: 0 25px 30px -5px rgba(60,80,224,0.3);
+          opacity: 0.75;
+        }
+        85% {
+          transform: scale(0.92) translate3d(120px, 0px, 0) rotate(1deg);
+          box-shadow: 0 15px 20px -5px rgba(0,0,0,0.2);
+          opacity: 0.35;
+        }
+        100% {
+          transform: scale(0.88) translate3d(160px, 15px, 0) rotate(0deg);
+          box-shadow: 0 5px 10px rgba(0,0,0,0.05);
+          opacity: 0;
+          z-index: 50;
+        }
+      }
+
+      /* Decolagem & Arco Magnético Parabólico para a Esquerda */
+      @keyframes magneticArcLeft {
+        0% {
+          transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          opacity: 1;
+          z-index: 50;
+        }
+        25% {
+          transform: scale(0.96) translate3d(-25px, -24px, 0) rotate(-1.5deg);
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.25), 0 10px 10px -5px rgba(0,0,0,0.1);
+          opacity: 0.92;
+        }
+        60% {
+          transform: scale(0.94) translate3d(-70px, -14px, 0) rotate(-2.5deg);
+          box-shadow: 0 25px 30px -5px rgba(60,80,224,0.3);
+          opacity: 0.75;
+        }
+        85% {
+          transform: scale(0.92) translate3d(-120px, 0px, 0) rotate(-1deg);
+          box-shadow: 0 15px 20px -5px rgba(0,0,0,0.2);
+          opacity: 0.35;
+        }
+        100% {
+          transform: scale(0.88) translate3d(-160px, 15px, 0) rotate(0deg);
+          box-shadow: 0 5px 10px rgba(0,0,0,0.05);
+          opacity: 0;
+          z-index: 50;
+        }
+      }
+
+      /* Pouso Elástico Suave com Amortecimento (Elastic Snap / Spring) */
+      @keyframes elasticSnapIn {
+        0% {
+          transform: scale(0.94) translateY(-14px);
+          opacity: 0;
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+        }
+        55% {
+          transform: scale(1.025) translateY(2px);
+          opacity: 1;
+          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15);
+        }
+        75% {
+          transform: scale(0.99) translateY(-1px);
+        }
+        100% {
+          transform: scale(1) translateY(0);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+      }
+
+      /* Pulso e Brilho Esmeralda Especial ao Concluir */
+      @keyframes successCheckboxPulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+          border-color: #10B981;
+        }
+        40% {
+          transform: scale(1.3);
+          box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+          border-color: #10B981;
+        }
+        100% {
+          transform: scale(1.1);
+          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+          border-color: #10B981;
+        }
+      }
+
+      .anim-magnetic-right {
+        animation: magneticArcRight 350ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards !important;
+        pointer-events: none;
+      }
+      .anim-magnetic-left {
+        animation: magneticArcLeft 350ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards !important;
+        pointer-events: none;
+      }
+      .anim-elastic-snap {
+        animation: elasticSnapIn 360ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+      }
+      .checkbox-success-glow {
+        animation: successCheckboxPulse 320ms ease-out forwards !important;
+      }
+    </style>
+  `;
+
   // Componente de Card Despoluído e com Hierarquia Refinada
   const renderCleanTaskCard = (t, inKanban = false) => {
     const overdueInfo = getTaskOverdueInfo(t.data);
@@ -10225,11 +10366,14 @@ function renderTarefasTab() {
       statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800/60">🟢 Em dia</span>`;
     }
 
+    const isKanban = state.taskViewMode === 'kanban';
+    const cardPaddingClass = isKanban ? '!p-3.5' : '!py-4 !px-5 min-h-[105px]';
+
     return `
       <div
         id="task-card-${t.id}"
         onclick="openTaskDrawer(${t.id}, event)"
-        class="panze-card !p-3.5 border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col gap-2.5 relative group select-none ${
+        class="panze-card ${cardPaddingClass} border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col justify-between gap-3 relative group select-none ${
           t.concluida ? 'opacity-65 bg-gray-50/50 dark:bg-[#11121C]/50' : 'bg-white dark:bg-[#15151F]'
         } ${isSelected ? 'ring-2 ring-blue-500' : ''}"
       >
@@ -10320,8 +10464,11 @@ function renderTarefasTab() {
     `;
   };
 
+  const containerWidthClass = state.taskViewMode === 'kanban' ? 'w-full max-w-full' : 'max-w-6xl mx-auto';
+
   return `
-    <div class="space-y-6 max-w-6xl mx-auto">
+    ${kanbanAnimationStyles}
+    <div class="space-y-6 ${containerWidthClass}">
       
       <!-- TOPO: Título, Métricas Rápidas e Seletor de Visualização (Lista vs Kanban) -->
       <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-2 border-b border-gray-200 dark:border-gray-800">
@@ -10567,50 +10714,52 @@ function renderTarefasTab() {
           ` : filteredTasks.map(t => renderCleanTaskCard(t)).join('')}
         </div>
       ` : `
-        <!-- MODO QUADRO / KANBAN (A Fazer, Em Andamento, Aguardando Cliente, Concluídas) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-          ${[
-            { id: 'a_fazer', label: '📌 A Fazer', color: 'border-t-rose-500', headerBadge: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30', titleColor: 'text-rose-600 dark:text-rose-400', match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'a_fazer') },
-            { id: 'em_andamento', label: '⚡ Em Andamento', color: 'border-t-amber-500', headerBadge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'em_andamento' },
-            { id: 'aguardando_cliente', label: '⏳ Aguardando Cliente', color: 'border-t-purple-500', headerBadge: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'aguardando_cliente' },
-            { id: 'concluida', label: '✅ Concluídas', color: 'border-t-emerald-500', headerBadge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => t.concluida || t.kanbanStatus === 'concluida' }
-          ].map(col => {
-            const colTasks = filteredTasks.filter(col.match);
-            return `
-              <div class="bg-gray-50/80 dark:bg-[#12131F]/90 rounded-2xl border-t-4 ${col.color} border border-gray-200/80 dark:border-gray-800 p-3 flex flex-col min-h-[450px]">
-                <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-200/60 dark:border-gray-800">
-                  <h3 class="font-bold text-xs uppercase tracking-wider ${col.titleColor}">${col.label}</h3>
-                  <span class="px-2 py-0.5 rounded-full text-[11px] font-extrabold ${col.headerBadge}">
-                    ${colTasks.length}
-                  </span>
-                </div>
+        <!-- MODO QUADRO / KANBAN (A Fazer, Em Andamento, Aguardando Cliente, Concluídas) COM SCROLL HORIZONTAL FLUIDO -->
+        <div class="overflow-x-auto pb-4 pt-1 kanban-scroll-container">
+          <div class="flex items-start gap-4 min-w-full w-max">
+            ${[
+              { id: 'a_fazer', label: '📌 A Fazer', color: 'border-t-rose-500', headerBadge: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30', titleColor: 'text-rose-600 dark:text-rose-400', match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'a_fazer') },
+              { id: 'em_andamento', label: '⚡ Em Andamento', color: 'border-t-amber-500', headerBadge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'em_andamento' },
+              { id: 'aguardando_cliente', label: '⏳ Aguardando Cliente', color: 'border-t-purple-500', headerBadge: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'aguardando_cliente' },
+              { id: 'concluida', label: '✅ Concluídas', color: 'border-t-emerald-500', headerBadge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => t.concluida || t.kanbanStatus === 'concluida' }
+            ].map(col => {
+              const colTasks = filteredTasks.filter(col.match);
+              return `
+                <div class="w-[335px] sm:w-[350px] shrink-0 bg-gray-50/80 dark:bg-[#12131F]/90 rounded-2xl border-t-4 ${col.color} border border-gray-200/80 dark:border-gray-800 p-3.5 flex flex-col min-h-[480px]">
+                  <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-200/60 dark:border-gray-800">
+                    <h3 class="font-bold text-xs uppercase tracking-wider ${col.titleColor}">${col.label}</h3>
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${col.headerBadge}">
+                      ${colTasks.length}
+                    </span>
+                  </div>
 
-                <div class="space-y-2.5 flex-1 overflow-y-auto max-h-[600px] pr-0.5">
-                  ${colTasks.map(t => `
-                    <div class="relative group/kanban">
-                      ${renderCleanTaskCard(t, true)}
-                      <!-- Dropdown rápido para mover de coluna no Kanban com Animação Fluída -->
-                      <div class="mt-1 flex items-center justify-between text-[10px] text-gray-400 px-1" onclick="event.stopPropagation()">
-                        <span>Mover p/:</span>
-                        <div class="flex items-center gap-1">
-                          ${col.id !== 'a_fazer' ? `<button onclick="animateMoveKanban(${t.id}, 'a_fazer')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para A Fazer">A Fazer</button>` : ''}
-                          ${col.id !== 'em_andamento' ? `<button onclick="animateMoveKanban(${t.id}, 'em_andamento')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Em Andamento">Andamento</button>` : ''}
-                          ${col.id !== 'aguardando_cliente' ? `<button onclick="animateMoveKanban(${t.id}, 'aguardando_cliente')" class="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white" title="Mover para Aguardando Cliente">Cliente</button>` : ''}
-                          ${col.id !== 'concluida' ? `<button onclick="animateMoveKanban(${t.id}, 'concluida')" class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/40" title="Mover para Concluída">Concluir</button>` : ''}
+                  <div class="space-y-3 flex-1 overflow-y-auto max-h-[620px] pr-1">
+                    ${colTasks.map(t => `
+                      <div class="relative group/kanban">
+                        ${renderCleanTaskCard(t, true)}
+                        <!-- Atalhos de Mover com Animação Magnética / Elástica -->
+                        <div class="mt-1.5 flex items-center justify-between text-[10px] text-gray-400 px-1" onclick="event.stopPropagation()">
+                          <span class="font-medium text-gray-400">Mover p/:</span>
+                          <div class="flex items-center gap-1">
+                            ${col.id !== 'a_fazer' ? `<button onclick="animateMoveKanban(${t.id}, 'a_fazer')" class="px-2 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white transition hover:scale-105 active:scale-95" title="Mover para A Fazer">A Fazer</button>` : ''}
+                            ${col.id !== 'em_andamento' ? `<button onclick="animateMoveKanban(${t.id}, 'em_andamento')" class="px-2 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white transition hover:scale-105 active:scale-95" title="Mover para Em Andamento">Andamento</button>` : ''}
+                            ${col.id !== 'aguardando_cliente' ? `<button onclick="animateMoveKanban(${t.id}, 'aguardando_cliente')" class="px-2 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white transition hover:scale-105 active:scale-95" title="Mover para Aguardando Cliente">Cliente</button>` : ''}
+                            ${col.id !== 'concluida' ? `<button onclick="animateMoveKanban(${t.id}, 'concluida')" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 hover:bg-emerald-500/40 font-bold transition hover:scale-105 active:scale-95" title="Mover para Concluída">Concluir ✓</button>` : ''}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  `).join('')}
+                    `).join('')}
 
-                  ${colTasks.length === 0 ? `
-                    <div class="p-6 text-center text-xs text-gray-400 border border-dashed border-gray-300 dark:border-gray-800 rounded-xl">
-                      Nenhuma tarefa nesta coluna
-                    </div>
-                  ` : ''}
+                    ${colTasks.length === 0 ? `
+                      <div class="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-300 dark:border-gray-800 rounded-xl">
+                        Nenhuma tarefa nesta coluna
+                      </div>
+                    ` : ''}
+                  </div>
                 </div>
-              </div>
-            `;
-          }).join('')}
+              `;
+            }).join('')}
+          </div>
         </div>
       `}
 
@@ -13252,7 +13401,7 @@ window.addTaskComment = async (taskId, commentText) => {
   render();
 };
 
-// Animação Fluída de Deslocamento entre Colunas no Modo Kanban
+// Animação Magnética e Elástica de Alta Fidelidade (Arc Launch & Elastic Snap)
 window.animateMoveKanban = async (taskId, targetStatus) => {
   const cardEl = document.getElementById(`task-card-${taskId}`);
   const statusOrder = { 'a_fazer': 0, 'em_andamento': 1, 'aguardando_cliente': 2, 'concluida': 3 };
@@ -13262,20 +13411,40 @@ window.animateMoveKanban = async (taskId, targetStatus) => {
   
   const fromIdx = statusOrder[currentStatus] ?? 0;
   const toIdx = statusOrder[targetStatus] ?? 0;
-  const moveDirection = toIdx >= fromIdx ? 'anim-kanban-slide-right' : 'anim-kanban-slide-left';
+  const isMovingToConcluida = targetStatus === 'concluida';
+  const moveDirection = toIdx >= fromIdx ? 'anim-magnetic-right' : 'anim-magnetic-left';
+
+  // Se estiver movendo para CONCLUÍDA: aciona primeiro o feedback de Check (✓) e contorno esmeralda pulsante
+  if (isMovingToConcluida) {
+    const checkBtn = document.getElementById(`task-check-btn-${taskId}`);
+    if (checkBtn) {
+      checkBtn.innerHTML = '✓';
+      checkBtn.classList.remove('text-transparent', 'border-gray-300', 'dark:border-gray-600');
+      checkBtn.classList.add('bg-emerald-500', 'border-emerald-500', 'text-white', 'checkbox-success-glow');
+    }
+  }
 
   if (cardEl) {
-    cardEl.classList.remove('anim-kanban-slide-right', 'anim-kanban-slide-left', 'anim-task-complete');
+    cardEl.classList.remove('anim-magnetic-right', 'anim-magnetic-left', 'anim-elastic-snap', 'anim-kanban-slide-right', 'anim-kanban-slide-left');
+    // Adiciona classe de trajetória parabólica magnética (decolagem, escala 0.96 e arco suave)
     cardEl.classList.add(moveDirection);
   }
 
-  // Espera a animação de saída suave (260ms) antes de persistir o novo estado
+  // Duração de transição rápida (320ms - 350ms)
   setTimeout(async () => {
     await window.setTaskKanbanStatus(taskId, targetStatus);
-  }, 260);
+    
+    // Efeito de Encaixe Elástico (Elastic Snap / Pouso amortecido) no novo card renderizado
+    setTimeout(() => {
+      const landedCard = document.getElementById(`task-card-${taskId}`);
+      if (landedCard) {
+        landedCard.classList.add('anim-elastic-snap');
+      }
+    }, 40);
+  }, 330);
 };
 
-// Animação Fluída de Conclusão com Pulso no Checkbox e Deslizamento para Concluídas
+// Animação Fluída de Conclusão Magnética com Pulso no Checkbox e Encaixe em Concluídas
 window.animateTaskComplete = async (taskId, event) => {
   if (event) event.stopPropagation();
   const cardEl = document.getElementById(`task-card-${taskId}`);
@@ -13284,21 +13453,28 @@ window.animateTaskComplete = async (taskId, event) => {
 
   if (!t) return;
 
-  // Se a tarefa está sendo CONCLUÍDA (indo para concluída)
+  // Se a tarefa está sendo CONCLUÍDA
   if (!t.concluida) {
     if (checkBtn) {
       checkBtn.innerHTML = '✓';
-      checkBtn.className = 'w-5 h-5 rounded-md border flex items-center justify-center bg-emerald-500 border-emerald-500 text-white font-bold text-xs shadow-md scale-125 transition-all duration-200';
+      checkBtn.classList.remove('text-transparent', 'border-gray-300', 'dark:border-gray-600');
+      checkBtn.classList.add('bg-emerald-500', 'border-emerald-500', 'text-white', 'checkbox-success-glow');
     }
     if (cardEl) {
-      cardEl.classList.remove('anim-kanban-slide-right', 'anim-kanban-slide-left');
-      cardEl.classList.add('anim-task-complete');
+      cardEl.classList.remove('anim-magnetic-right', 'anim-magnetic-left', 'anim-elastic-snap');
+      cardEl.classList.add('anim-magnetic-right');
     }
     setTimeout(async () => {
       await window.toggleTaskComplete(taskId);
-    }, 320);
+      setTimeout(() => {
+        const landedCard = document.getElementById(`task-card-${taskId}`);
+        if (landedCard) {
+          landedCard.classList.add('anim-elastic-snap');
+        }
+      }, 40);
+    }, 330);
   } else {
-    // Se está sendo reaberta
+    // Se está sendo reaberta como pendente
     await window.toggleTaskComplete(taskId);
   }
 };
