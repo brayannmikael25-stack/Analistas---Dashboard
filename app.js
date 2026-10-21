@@ -2431,9 +2431,23 @@ function renderLogo(heightClass = "h-10", isDarkTheme = null) {
     return `<img src="${state.customLogo}" alt="Control Contabilidade" class="${heightClass} object-contain" />`;
   }
   
+  const isDark = isDarkTheme !== null ? isDarkTheme : (getCurrentTheme().mode === 'dark');
+
+  // No modo escuro, envolve a imagem com um card sutil arredondado com borda suave e padding harmônico
   return `
     <div class="inline-flex items-center select-none" style="line-height: 1;">
-      <img src="logo-control.png" alt="Control Contabilidade" class="${heightClass} w-auto object-contain" onerror="this.onerror=null; this.src='favicon.png';" />
+      <div class="${
+        isDark 
+          ? 'bg-white/95 px-3 py-1.5 rounded-xl border border-white/20 shadow-sm inline-flex items-center backdrop-blur-xs transition' 
+          : 'inline-flex items-center'
+      }">
+        <img 
+          src="logo-control.png" 
+          alt="Control Contabilidade" 
+          class="${heightClass} w-auto object-contain max-w-[170px]" 
+          onerror="this.onerror=null; this.src='favicon.png';" 
+        />
+      </div>
     </div>
   `;
 }
