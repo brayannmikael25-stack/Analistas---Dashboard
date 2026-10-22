@@ -429,6 +429,28 @@ const authService = {
   }
 };
 
+// Pontua uma entrada individual de apuração fiscal (suporta mapa plano "101_08/2026" ou mapa aninhado)
+function scoreTaxMap(mapObj) {
+  if (!mapObj || typeof mapObj !== 'object') return 0;
+  let pts = 0;
+  Object.values(mapObj).forEach(val => {
+    if (!val || typeof val !== 'object') return;
+    if ('status' in val || 'darfEnviado' in val || 'saldoCredor' in val || 'prejuizo' in val || 'irpjSuspenso' in val) {
+      if (val.status === 'Concluída' || val.saldoCredor || val.prejuizo || val.irpjSuspenso || val.darfEnviado) pts += 35;
+      if (val.darfEnviado) pts += 10;
+      if (val.status === 'Em análise') pts += 15;
+    } else {
+      Object.values(val).forEach(sub => {
+        if (sub && typeof sub === 'object') {
+          if (sub.status === 'Concluída' || sub.saldoCredor || sub.prejuizo || sub.irpjSuspenso || sub.darfEnviado) pts += 35;
+          if (sub.darfEnviado) pts += 10;
+        }
+      });
+    }
+  });
+  return pts;
+}
+
 // Calcula um score de progresso real do pacote de dados para nunca deixar um estado "zerado/inicial" sobrescrever progresso real entre PCs
 function calculateDataProgressScore(pkg) {
   if (!pkg || typeof pkg !== 'object') return 0;
@@ -440,65 +462,55 @@ function calculateDataProgressScore(pkg) {
     score += (companies.length - 30) * 150;
   }
 
-  // Pontua apurações de PIS/COFINS concluídas (ex: PC 1 tem 15/15 = 525 pts vs PC 2 inicial 5/15 = 175 pts)
-  const pisMap = pkg.pisCofinsData || {};
-  Object.values(pisMap).forEach(compMap => {
-    if (!compMap || typeof compMap !== 'object') return;
-    Object.values(compMap).forEach(entry => {
-      if (!entry || typeof entry !== 'object') return;
-      if (entry.status === 'Concluída' || entry.saldoCredor || entry.darfEnviado) score += 35;
-      if (entry.darfEnviado) score += 10;
-    });
-  });
+  // 1. Apurações Fiscais (PIS/COFINS, IRPJ Trimestral e IRPJ Mensal - chaves planas "${id}_${comp}")
+  score += scoreTaxMap(pkg.pisCofinsData);
+  score += scoreTaxMap(pkg.irpjTrimData);
+  score += scoreTaxMap(pkg.irpjMensalData);
 
-  // Pontua apurações de IRPJ Trimestral concluídas
-  const trimMap = pkg.irpjTrimData || {};
-  Object.values(trimMap).forEach(compMap => {
-    if (!compMap || typeof compMap !== 'object') return;
-    Object.values(compMap).forEach(entry => {
-      if (!entry || typeof entry !== 'object') return;
-      if (entry.status === 'Concluída' || entry.prejuizo || entry.darfEnviado) score += 35;
-    });
-  });
-
-  // Pontua apurações de IRPJ Mensal concluídas
-  const mensalMap = pkg.irpjMensalData || {};
-  Object.values(mensalMap).forEach(compMap => {
-    if (!compMap || typeof compMap !== 'object') return;
-    Object.values(compMap).forEach(entry => {
-      if (!entry || typeof entry !== 'object') return;
-      if (entry.status === 'Concluída' || entry.irpjSuspenso || entry.darfEnviado) score += 35;
-    });
-  });
-
-  // Pontua tarefas concluídas, em andamento, comentários e histórico (ex: PC 1 tem 11 concluídas / 7 pendentes vs inicial 8 concluídas / 10 pendentes)
+  // 2. Tarefas concluídas, em andamento, comentários e histórico (ex: PC 1 tem 11 concluídas / 7 pendentes vs inicial 8 concluídas / 10 pendentes)
   const tasks = Array.isArray(pkg.tasks) ? pkg.tasks : [];
   tasks.forEach(t => {
     if (!t) return;
     if (t.concluida || t.kanbanStatus === 'concluida') score += 30;
-    else if (t.kanbanStatus === 'em_andamento' || t.kanbanStatus === 'revisao') score += 15;
-    if (Array.isArray(t.comentarios) && t.comentarios.length > 0) score += t.comentarios.length * 10;
-    if (Array.isArray(t.historico) && t.historico.length > 1) score += (t.historico.length - 1) * 5;
+    else if (t.kanbanStatus === 'em_andamento' || t.kanbanStatus === 'revisao' || t.kanbanStatus === 'aguardando_cliente') score += 15;
+    if (Array.isArray(t.comentarios) && t.comentarios.length > 0) score += t.comentarios.length * 15;
+    if (Array.isArray(t.historico) && t.historico.length > 1) score += (t.historico.length - 1) * 8;
   });
 
-  // Pontua arquivos enviados e auditorias no módulo Fechamento IA
+  // 3. Arquivos enviados e auditorias no módulo Fechamento IA (arquivosUpload é objeto { balancete: {...}, dre: {...} })
   const iaMap = pkg.fechamentoIAData || (pkg.fechamentoIA && pkg.fechamentoIA.auditData) || {};
   Object.values(iaMap).forEach(compEntry => {
     if (!compEntry || typeof compEntry !== 'object') return;
-    if (compEntry.hasActivity) score += 60;
-    if (Array.isArray(compEntry.arquivosUpload)) {
-      compEntry.arquivosUpload.forEach(arq => {
-        if (arq && (arq.enviado || arq.naoSeAplica || arq.fileName)) score += 25;
+    if (compEntry.status === 'CONCLUIDO') score += 100;
+    if (compEntry.hasActivity || (compEntry.dreLinhas && compEntry.dreLinhas.length > 0)) score += 60;
+    if (compEntry.arquivosUpload && typeof compEntry.arquivosUpload === 'object') {
+      const uploadItems = Array.isArray(compEntry.arquivosUpload)
+        ? compEntry.arquivosUpload
+        : Object.values(compEntry.arquivosUpload);
+      uploadItems.forEach(arq => {
+        if (arq && (arq.enviado || arq.naoSeAplica || arq.nome || arq.fileName || (Array.isArray(arq.arquivos) && arq.arquivos.length > 0))) {
+          score += 40;
+        }
+      });
+    }
+    if (Array.isArray(compEntry.itensAuditoria)) {
+      compEntry.itensAuditoria.forEach(item => {
+        if (item && (item.resolvido || (item.justificativa && item.justificativa.trim().length > 0))) score += 15;
       });
     }
   });
 
-  // Pontua metadados de Fechamento Contábil e ECD/ECF
+  // 4. Metadados de Fechamento Contábil e ECD/ECF
   const fechMeta = pkg.fechamentosMeta || {};
   score += Object.keys(fechMeta).length * 25;
 
   const ecdMap = pkg.ecdEcfData || {};
   score += Object.keys(ecdMap).length * 25;
+
+  // 5. Progresso de fechamento contábil nas próprias empresas
+  companies.forEach(c => {
+    if (c && Number(c.fechamento) > 0) score += Number(c.fechamento) * 5;
+  });
 
   return score;
 }
@@ -510,8 +522,13 @@ function summarizeDataPackage(pkg) {
   const pendingTasks = tasks.filter(t => !t.concluida && t.kanbanStatus !== 'concluida').length;
   const completedTasks = tasks.length - pendingTasks;
   const compKey = (typeof state !== 'undefined' && state.selPisComp) ? state.selPisComp : autoComp.monthlyComp;
-  const pisCompMap = (pkg?.pisCofinsData && pkg.pisCofinsData[compKey]) || {};
-  const pisDone = Object.values(pisCompMap).filter(p => p && (p.status === 'Concluída' || p.saldoCredor)).length;
+  const pisMap = pkg?.pisCofinsData || {};
+  let pisDone = 0;
+  Object.entries(pisMap).forEach(([k, v]) => {
+    if (k.endsWith(`_${compKey}`) && v && (v.status === 'Concluída' || v.saldoCredor || v.darfEnviado)) {
+      pisDone += 1;
+    }
+  });
   return { companiesCount, pendingTasks, completedTasks, pisDone, score: calculateDataProgressScore(pkg) };
 }
 
@@ -1289,22 +1306,39 @@ async function switchUserEnvironment(userObj) {
     }
   }
 
-  // 7. Reconciliação inteligente entre Nuvem (Supabase) e Cache Local (localStorage)
-  // Quem tiver maior progresso real (ex: 15/15 PIS/COFINS e 7 tarefas no PC 1 vs 5/15 e 10 tarefas iniciais no PC 2) vence automaticamente!
+  // 7. Reconciliação 100% Automática entre Nuvem (Supabase) e Cache Local (localStorage)
+  const factoryBaselineScore = calculateDataProgressScore({
+    companies: INITIAL_COMPANIES,
+    tasks: INITIAL_TASKS,
+    pisCofinsData: INITIAL_PIS_COFINS,
+    irpjTrimData: INITIAL_IRPJ_TRIM,
+    irpjMensalData: INITIAL_IRPJ_MENSAL
+  });
+
   const localScore = bestLocalStore ? calculateDataProgressScore(bestLocalStore) : 0;
   const cloudScore = cloudPackage ? calculateDataProgressScore(cloudPackage) : 0;
   const localTime = bestLocalStore?.updatedAt ? new Date(bestLocalStore.updatedAt).getTime() : 0;
   const cloudTime = cloudPackage?.updatedAt ? new Date(cloudPackage.updatedAt).getTime() : 0;
 
+  const localHasRealWork = Boolean(bestLocalStore && (bestLocalStore.isUserModified || localScore > factoryBaselineScore || (bestLocalStore.companies?.length && bestLocalStore.companies.length !== 30)));
+  const cloudHasRealWork = Boolean(cloudPackage && (cloudPackage.isUserModified || cloudScore > factoryBaselineScore || (cloudPackage.companies?.length && cloudPackage.companies.length !== 30)));
+
   let needsCloudPush = false;
+  let isInitialSeed = false;
 
   if (cloudPackage && cloudPackage.companies && cloudPackage.companies.length > 0) {
-    if (localScore > cloudScore) {
-      // O PC atual tem mais progresso real (ex: PC 1 com 15/15 PIS/COFINS, 7 tarefas pendentes, envios IA) -> aplica Local e envia p/ Nuvem!
+    if (localHasRealWork && !cloudHasRealWork) {
+      // PC 1 tem progresso real (ex: 15/15 PIS/COFINS, 7 tarefas) e a nuvem só tinha o padrão inicial -> envia automático do PC 1 p/ Nuvem!
       applyPackageToState(bestLocalStore);
       needsCloudPush = true;
-    } else if (cloudScore > localScore) {
-      // A nuvem tem mais progresso real -> aplica Nuvem neste PC!
+    } else if (cloudHasRealWork && !localHasRealWork) {
+      // Nuvem tem progresso real e este PC (PC 2) só tinha o padrão inicial -> puxa automático da Nuvem p/ este PC!
+      applyPackageToState(cloudPackage);
+      needsCloudPush = false;
+    } else if (localScore > cloudScore && !cloudPackage.isUserModified) {
+      applyPackageToState(bestLocalStore);
+      needsCloudPush = true;
+    } else if (cloudScore > localScore && !bestLocalStore?.isUserModified) {
       applyPackageToState(cloudPackage);
       needsCloudPush = false;
     } else if (localTime > cloudTime && bestLocalStore) {
@@ -1331,12 +1365,13 @@ async function switchUserEnvironment(userObj) {
       fechamentoIAData: {}
     });
     needsCloudPush = true;
+    isInitialSeed = true;
   }
 
   if (needsCloudPush) {
-    await saveStorage({ replaceCompanies: true });
+    await saveStorage({ replaceCompanies: true, isInitialSeed });
   } else {
-    saveLocalCacheOnly(userId, cloudPackage?.updatedAt || new Date().toISOString());
+    saveLocalCacheOnly(userId, cloudPackage?.updatedAt || new Date().toISOString(), Boolean(cloudPackage?.isUserModified || cloudHasRealWork));
     state.syncStatus = 'saved';
     state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
@@ -1345,12 +1380,13 @@ async function switchUserEnvironment(userObj) {
   render();
 }
 
-function saveLocalCacheOnly(userId, timestampIso) {
+function saveLocalCacheOnly(userId, timestampIso, isUserModified = true) {
   if (!userId) return;
   try {
     state.lastUpdatedAt = timestampIso;
     const userPayload = {
       schemaVersion: CURRENT_SYNC_SCHEMA_VERSION,
+      isUserModified: Boolean(isUserModified),
       userId,
       role: (state.userProfile?.role || 'analista').toLowerCase(),
       profile: state.userProfile,
@@ -1377,7 +1413,7 @@ function saveLocalCacheOnly(userId, timestampIso) {
   }
 }
 
-// Botão direto 1: Força o envio imediato de TODOS os dados deste computador (PC 1) para a nuvem Supabase
+// Botão auxiliar (no menu Salvar): Força o envio imediato de TODOS os dados deste computador para a nuvem Supabase
 window.forcePushToSupabase = async function() {
   const userId = dataService.getActiveUserKey() || 'brayann';
   state.syncStatus = 'syncing';
@@ -1396,12 +1432,11 @@ window.forcePushToSupabase = async function() {
     `⬆️ DADOS ENVIADOS DESTE PC PARA A NUVEM COM SUCESSO!\n\n` +
     `• Empresas ativas: ${summary.companiesCount}\n` +
     `• PIS/COFINS concluídos: ${summary.pisDone}\n` +
-    `• Tarefas pendentes: ${summary.pendingTasks} (${summary.completedTasks} concluídas)\n\n` +
-    `Agora basta abrir o outro computador (PC 2) ou clicar em "⬇️ Puxar da Nuvem" nele!`
+    `• Tarefas pendentes: ${summary.pendingTasks} (${summary.completedTasks} concluídas)`
   );
 };
 
-// Botão direto 2: Força o download imediato dos dados salvos na nuvem Supabase para este computador (PC 2)
+// Botão auxiliar (no menu Salvar): Força o download imediato dos dados salvos na nuvem Supabase para este computador
 window.forcePullFromSupabase = async function() {
   const userId = dataService.getActiveUserKey() || 'brayann';
   state.syncStatus = 'syncing';
@@ -1411,7 +1446,7 @@ window.forcePullFromSupabase = async function() {
   if (!cloudData || (!cloudData.syncState && (!cloudData.empresas || cloudData.empresas.length === 0))) {
     state.syncStatus = 'error';
     updateSyncIndicator();
-    alert('⚠️ Nenhum dado encontrado na nuvem ainda. No PC 1, clique primeiro em "⬆️ Enviar p/ Nuvem".');
+    alert('⚠️ Nenhum dado encontrado na nuvem ainda.');
     return;
   }
 
@@ -1426,7 +1461,7 @@ window.forcePullFromSupabase = async function() {
   };
 
   applyPackageToState(cloudPkg);
-  saveLocalCacheOnly(userId, cloudPkg.updatedAt || new Date().toISOString());
+  saveLocalCacheOnly(userId, cloudPkg.updatedAt || new Date().toISOString(), true);
   state.syncStatus = 'saved';
   state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   updateSyncIndicator();
@@ -1448,7 +1483,7 @@ window.forcePullFromSupabase = async function() {
   );
 };
 
-// Sincronização bidirecional inteligente com o Supabase (compara score de progresso + timestamp)
+// Sincronização bidirecional 100% automática em tempo real com o Supabase
 window.syncWithSupabaseNow = async function(showFeedback = false) {
   const userId = dataService.getActiveUserKey() || 'brayann';
   if (!state.user) return;
@@ -1465,7 +1500,7 @@ window.syncWithSupabaseNow = async function(showFeedback = false) {
       await saveStorage({ replaceCompanies: true, isManualPush: showFeedback });
       if (showFeedback) {
         const s = summarizeDataPackage({ companies: state.companies, tasks: state.tasks, pisCofinsData: state.pisCofinsData });
-        alert(`☁️ Dados deste PC enviados para a nuvem!\n• ${s.companiesCount} empresas\n• ${s.pisDone} PIS/COFINS concluídos\n• ${s.pendingTasks} tarefas pendentes.`);
+        alert(`☁️ Sincronizado automaticamente!\n• ${s.companiesCount} empresas\n• ${s.pisDone} PIS/COFINS concluídos\n• ${s.pendingTasks} tarefas pendentes.`);
       }
       return;
     }
@@ -1492,15 +1527,31 @@ window.syncWithSupabaseNow = async function(showFeedback = false) {
       fechamentoIAData: state.fechamentoIA?.auditData
     };
 
+    const factoryBaselineScore = calculateDataProgressScore({
+      companies: INITIAL_COMPANIES,
+      tasks: INITIAL_TASKS,
+      pisCofinsData: INITIAL_PIS_COFINS,
+      irpjTrimData: INITIAL_IRPJ_TRIM,
+      irpjMensalData: INITIAL_IRPJ_MENSAL
+    });
+
     const localScore = calculateDataProgressScore(localPkg);
     const cloudScore = calculateDataProgressScore(cloudPkg);
     const cloudTime = ss?.updatedAt ? new Date(ss.updatedAt).getTime() : 0;
     const localTime = state.lastUpdatedAt ? new Date(state.lastUpdatedAt).getTime() : 0;
 
-    // Se a nuvem tem mais progresso real (ou mesmo progresso com timestamp mais novo), puxa da nuvem para este PC
-    if (cloudPkg.companies.length > 0 && (cloudScore > localScore || (cloudScore === localScore && cloudTime > localTime))) {
+    const localHasRealWork = Boolean(localScore > factoryBaselineScore || (localPkg.companies?.length && localPkg.companies.length !== 30));
+    const cloudHasRealWork = Boolean(ss?.isUserModified || cloudScore > factoryBaselineScore || (cloudPkg.companies?.length && cloudPkg.companies.length !== 30));
+
+    // Decisão automática inteligente:
+    // 1. Se este PC (PC 1) tem progresso real (15/15 PIS/COFINS, 7 tarefas) e a nuvem ainda está com menos progresso (ou padrão inicial) -> Envia automático deste PC para a nuvem!
+    const shouldPushLocalToCloud = (localHasRealWork && !cloudHasRealWork) || (localScore > cloudScore && !ss?.isManualPush && (!ss?.isUserModified || localTime >= cloudTime));
+    // 2. Se a nuvem tem mais progresso real (ou já está sincronizada e recebeu uma alteração mais recente de outro PC) -> Puxa automático da nuvem para este PC!
+    const shouldPullCloudToLocal = cloudPkg.companies.length > 0 && !shouldPushLocalToCloud && (cloudScore > localScore || (cloudHasRealWork && cloudTime > localTime));
+
+    if (shouldPullCloudToLocal) {
       applyPackageToState(cloudPkg);
-      saveLocalCacheOnly(userId, ss?.updatedAt || new Date().toISOString());
+      saveLocalCacheOnly(userId, ss?.updatedAt || new Date().toISOString(), true);
       state.syncStatus = 'saved';
       state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       updateSyncIndicator();
@@ -1508,24 +1559,22 @@ window.syncWithSupabaseNow = async function(showFeedback = false) {
       if (showFeedback) {
         const cs = summarizeDataPackage(cloudPkg);
         alert(
-          `☁️ Dados recebidos da nuvem com sucesso!\n\n` +
+          `☁️ Sincronizado com sucesso!\n\n` +
           `• Empresas: ${cs.companiesCount}\n` +
           `• PIS/COFINS concluídos: ${cs.pisDone}\n` +
           `• Tarefas pendentes: ${cs.pendingTasks}`
         );
       }
-    } else if (localScore > cloudScore || showFeedback) {
-      // Se este PC (ex: PC 1) tem mais progresso real que a nuvem (ou clicou em sincronizar), envia imediatamente para a nuvem!
+    } else if (shouldPushLocalToCloud || showFeedback) {
       await saveStorage({ replaceCompanies: true, isManualPush: showFeedback });
       render();
       if (showFeedback) {
         const s = summarizeDataPackage(localPkg);
         alert(
-          `☁️ Dados deste PC enviados para a nuvem com sucesso!\n\n` +
+          `☁️ Sincronizado com sucesso!\n\n` +
           `• Empresas salvas: ${s.companiesCount}\n` +
           `• PIS/COFINS concluídos: ${s.pisDone}\n` +
-          `• Tarefas pendentes: ${s.pendingTasks}\n\n` +
-          `O outro computador já receberá essa atualização automaticamente!`
+          `• Tarefas pendentes: ${s.pendingTasks}`
         );
       }
     }
@@ -1557,7 +1606,7 @@ function getFullDataPackage() {
   };
 }
 
-// Sincroniza em nuvem no Supabase e no repositório isolado do usuário
+// Sincroniza em nuvem no Supabase e no repositório isolado do usuário automaticamente a cada alteração
 async function saveStorage(options = {}) {
   const userId = dataService.getActiveUserKey() || 'brayann';
   if (!userId) return;
@@ -1575,9 +1624,11 @@ async function saveStorage(options = {}) {
 
   const nowIso = new Date().toISOString();
   state.lastUpdatedAt = nowIso;
+  const isUserModified = !options.isInitialSeed;
 
   const syncPackage = {
     schemaVersion: CURRENT_SYNC_SCHEMA_VERSION,
+    isUserModified,
     isManualPush: Boolean(options.isManualPush),
     companies: state.companies,
     tasks: state.tasks,
@@ -1592,7 +1643,7 @@ async function saveStorage(options = {}) {
   };
 
   // 1. Salva imediatamente no repositório isolado deste usuário (tanto por ID quanto por e-mail/usuário)
-  saveLocalCacheOnly(userId, nowIso);
+  saveLocalCacheOnly(userId, nowIso, isUserModified);
 
   // 2. Persiste e sincroniza em nuvem no Supabase (TODAS as empresas, tarefas com Kanban e estado de apurações)
   try {
@@ -4147,34 +4198,16 @@ function render() {
             ` : ''}
           </div>
 
-          <!-- 2.5 Indicador / Botões Rápidos de Sincronização em Nuvem (Supabase) -->
-          <div class="flex items-center gap-1">
-            <button
-              id="sync-indicator"
-              onclick="syncWithSupabaseNow(true)"
-              title="Clique para sincronizar automaticamente com o Supabase"
-              class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
-            >
-              <span>☁️</span>
-              <span class="hidden sm:inline">${state.syncStatus === 'syncing' ? 'Sincronizando...' : (state.lastSyncTime ? 'Nuvem OK (' + state.lastSyncTime + ')' : 'Sincronizar')}</span>
-            </button>
-            <button
-              onclick="forcePushToSupabase()"
-              title="Enviar TODOS os dados deste PC para a Nuvem agora (use no PC 1)"
-              class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition cursor-pointer"
-            >
-              <span>⬆️</span>
-              <span class="hidden lg:inline">Enviar PC</span>
-            </button>
-            <button
-              onclick="forcePullFromSupabase()"
-              title="Baixar TODOS os dados da Nuvem para este PC agora (use no PC 2)"
-              class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition cursor-pointer"
-            >
-              <span>⬇️</span>
-              <span class="hidden lg:inline">Puxar Nuvem</span>
-            </button>
-          </div>
+          <!-- 2.5 Indicador Automático de Sincronização em Nuvem (Supabase) -->
+          <button
+            id="sync-indicator"
+            onclick="syncWithSupabaseNow(true)"
+            title="Sincronização automática em tempo real ativa com o Supabase"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+          >
+            <span>☁️</span>
+            <span class="hidden sm:inline">${state.syncStatus === 'syncing' ? 'Sincronizando...' : (state.lastSyncTime ? 'Nuvem OK (' + state.lastSyncTime + ')' : 'Sincronizar')}</span>
+          </button>
 
           <!-- 3. Botão "Salvar" com Dropdown de Backup / Sync -->
           <div class="relative">
@@ -14858,12 +14891,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('Erro ao restaurar sessão Supabase:', err);
   }
 
-  // Sincronização automática ao alternar para a aba/janela ou em segundo plano
+  // Sincronização 100% automática em tempo real (Realtime + foco + verificação a cada 5s)
   const isAnyModalOpen = () => Boolean(
     (state.modal && state.modal.isOpen) ||
     (state.taskModal && state.taskModal.isOpen) ||
     state.selectedChecklistTaskId
   );
+
+  // Canal Supabase Realtime: atualiza a tela instantaneamente quando outro PC salva qualquer alteração
+  try {
+    if (sb && typeof sb.channel === 'function') {
+      sb.channel('control_live_sync_channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'control_sync' }, () => {
+          if (state.user && !isAnyModalOpen()) {
+            window.syncWithSupabaseNow(false);
+          }
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
+          if (state.user && !isAnyModalOpen()) {
+            window.syncWithSupabaseNow(false);
+          }
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tarefas' }, () => {
+          if (state.user && !isAnyModalOpen()) {
+            window.syncWithSupabaseNow(false);
+          }
+        })
+        .subscribe();
+    }
+  } catch (e) {
+    // Segue com polling automático de 5s abaixo
+  }
 
   window.addEventListener('focus', () => {
     if (state.user && !isAnyModalOpen()) {
@@ -14881,7 +14939,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.visibilityState === 'visible' && state.user && !isAnyModalOpen()) {
       window.syncWithSupabaseNow(false);
     }
-  }, 20000);
+  }, 5000);
 
   if (state.backendUrl) {
     pullFromBackend();
