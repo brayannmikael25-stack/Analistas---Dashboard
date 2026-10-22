@@ -2,16 +2,38 @@
 // CONTROL CONTABILIDADE - APLICAÇÃO SPA NATIVA v2.1
 // ==========================================
 
-// Dados iniciais base de empresas
+// Dados reais recuperados do backup oficial (Control_Backup_Completo_2026-10-15.json)
 const INITIAL_COMPANIES = [
-  { id: 1, codigo: "001", grupo: "CONSTRUTORAS", nome: "ALFA ENGENHARIA E CONSTRUCOES LTDA", cnpj: "14.285.912/0001-44", classe: "A", regime: "Lucro Real Mensal", colaborador: "Brayann", segmento: "Construção Civil", fechamento: "2026-08" },
-  { id: 2, codigo: "002", grupo: "ALIMENTOS", nome: "BETA DISTRIBUIDORA DE ALIMENTOS SA", cnpj: "23.491.018/0001-92", classe: "A", regime: "Lucro Real Trimestral", colaborador: "Brayann", segmento: "Comércio Atacadista", fechamento: "2026-08" },
-  { id: 3, codigo: "003", grupo: "TRANSPORTES", nome: "GAMMA LOGISTICA E TRANSPORTES LTDA", cnpj: "08.771.234/0001-15", classe: "B", regime: "Lucro Real Mensal", colaborador: "Carlos", segmento: "Transportes", fechamento: "2026-07" },
-  { id: 4, codigo: "004", grupo: "TECNOLOGIA", nome: "DELTA SERVICOS TECNOLOGICOS LTDA", cnpj: "31.902.441/0001-09", classe: "B", regime: "Lucro Real Trimestral", colaborador: "Mariana", segmento: "Tecnologia", fechamento: "2026-08" },
-  { id: 5, codigo: "005", grupo: "METALURGIA", nome: "EPSILON INDUSTRIA METALURGICA SA", cnpj: "19.382.716/0001-50", classe: "A", regime: "Lucro Real Mensal", colaborador: "Brayann", segmento: "Indústria", fechamento: "2026-06" },
-  { id: 6, codigo: "006", grupo: "SAUDE", nome: "ZETA FARMACEUTICA LTDA", cnpj: "05.123.987/0001-63", classe: "C", regime: "Lucro Presumido", colaborador: "Juliana", segmento: "Farmacêutico", fechamento: "2026-08" },
-  { id: 7, codigo: "007", grupo: "VAREJO", nome: "THETA VAREJO E MODA LTDA", cnpj: "42.819.321/0001-77", classe: "C", regime: "Simples Nacional", colaborador: "Carlos", segmento: "Comércio Varejista", fechamento: "2026-05" },
-  { id: 8, codigo: "008", grupo: "SAUDE", nome: "OMEGA CLINICA MEDICA INTEGRADA", cnpj: "27.654.321/0001-88", classe: "B", regime: "Lucro Real Trimestral", colaborador: "Mariana", segmento: "Saúde", fechamento: "2026-08" }
+  { id: 1791492316057, codigo: "226", grupo: "DMOURA", nome: "S A CRUZ COMERCIAL DE MEDICAMENTOS LTDA", cnpj: "51.567.009/0001-10", classe: "C", regime: "Lucro Presumido", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 1790948819430, codigo: "231", grupo: "M. Landim", nome: "WM CONSTRUCOES LTDA", cnpj: "02.364.381/0001-13", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
+  { id: 1790948750840, codigo: "216", grupo: "M. Landim", nome: "RG2 TERRAPLENAGEM LTDA", cnpj: "10.417.584/0001-59", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
+  { id: 1790948709233, codigo: "9468", grupo: "M. Landim", nome: "SOLIDA ENGENHARIA LTDA", cnpj: "14.108.584/0001-28", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
+  { id: 1790945532378, codigo: "4523", grupo: "UNIQUIMICA", nome: "UNIQUIMICA LTDA", cnpj: "28.279.873/0001-02", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Outros", fechamento: "2026-08" },
+  { id: 1790945532379, codigo: "391", grupo: "GREEN", nome: "GREEN X SUSTENTABILIDADE E INSTALACOES ELETRICAS LTDA", cnpj: "05.095.843/0001-32", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-08" },
+  { id: 1790945532380, codigo: "5", grupo: "336", nome: "LUNAR", cnpj: "LUNAR SERVICOS TERRAPLENAGEM E LOCACAO LTDA", classe: "A", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-09" },
+  { id: 1790945532381, codigo: "68", grupo: "68", nome: "K TEK SOLUCOES DE ENGENHARIA LTDA", cnpj: "29.871.297/0001-42", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-08" },
+  { id: 1790945532382, codigo: "254", grupo: "CONNECT", nome: "CONNECT SERVICOS LTDA", cnpj: "11.553.714/0001-43", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
+  { id: 1790945532383, codigo: "406", grupo: "ACRIMAX", nome: "MARIA LUCIANA FERREIRA PAULINO LTDA", cnpj: "03.021.917/0001-60", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Industria / Comércio", fechamento: "2026-06" },
+  { id: 1790945532384, codigo: "566", grupo: "DION", nome: "M A COMERCIAL DE MEDICAMENTOS LTDA", cnpj: "21.593.391/0001-75", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 1790945532385, codigo: "9440", grupo: "SENA", nome: "M J DE SENA & CIA LTDA", cnpj: "10.483.915/0001-59", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 1790945532386, codigo: "9732", grupo: "JUNIOR", nome: "ANTONIO LEOCADIO LIMA FILHO", cnpj: "07.028.193/0001-38", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
+  { id: 1790945532387, codigo: "139", grupo: "ADAIU", nome: "CARLOS ADAIU DE LIMA LTDA", cnpj: "33.917.166/0001-26", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 1790945532388, codigo: "13", grupo: "252", nome: "CONNECT", cnpj: "CONNECT EMPREENDIMENTOS LTDA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
+  { id: 1790945532389, codigo: "14", grupo: "253", nome: "CONNECT", cnpj: "CONNECT TERCEIRIZACAO LTDA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
+  { id: 1790945532391, codigo: "16", grupo: "2101", nome: "JUNIOR", cnpj: "VAI GAS COMERCIO DE GAS LTDA", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
+  { id: 1790945532392, codigo: "17", grupo: "9733", nome: "JUNIOR", cnpj: "ALLF COMERCIO DE GAS EIRELI", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
+  { id: 1790945532393, codigo: "18", grupo: "501", nome: "---", cnpj: "TECH E INFRAESTRUTURA E TECNOLOGIA LTDA", classe: "D", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
+  { id: 1790945532394, codigo: "19", grupo: "393", nome: "GREEN", cnpj: "CAVALCANTE & CAVALCANTE S/S LTDA", classe: "D", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Outros", fechamento: "2025-12" },
+  { id: 1790945532395, codigo: "20", grupo: "392", nome: "GREEN", cnpj: "TECI INFRAESTRUTURA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Outros", fechamento: "2025-12" },
+  { id: 1790945532396, codigo: "21", grupo: "364", nome: "EDUARDO", cnpj: "LUCCA BACELAR ENGENHARIA LTDA", classe: "D", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
+  { id: 1790945532397, codigo: "22", grupo: "503", nome: "---", cnpj: "FGW CONSTRUTORA LTDA", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
+  { id: 1790945532398, codigo: "23", grupo: "197", nome: "---", cnpj: "IBIFARMA", classe: "E", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Farmácia", fechamento: "2026-08" },
+  { id: 1790945532399, codigo: "87", grupo: "PRIORIDADE", nome: "PRIORIDADE SEGURANCA LTDA", cnpj: "44.343.328/0001-86", classe: "A", regime: "Lucro Real Mensal", colaborador: "DEBORA", segmento: "Serviços", fechamento: "2026-08" },
+  { id: 1790945532400, codigo: "99", grupo: "PRIORIDADE", nome: "PRIORIDADE SERVICOS TERCEIRIZADOS LTDA", cnpj: "45.543.801/0001-31", classe: "B", regime: "Lucro Real Trimestral", colaborador: "DEBORA", segmento: "Serviços", fechamento: "2026-06" },
+  { id: 1790945532402, codigo: "53", grupo: "GRAÇA", nome: "MARIA DAS GRACAS MELO PALHARES LTDA", cnpj: "03.391.598/0001-85", classe: "A", regime: "Lucro Real Mensal", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-08" },
+  { id: 1790945532403, codigo: "182", grupo: "RICARDUS", nome: "MEDICALL BRASIL COMERCIO E SERVICOS LTDA", cnpj: "29.245.742/0001-69", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 1790945532404, codigo: "275", grupo: "RICARDUS", nome: "SP COMERCIO FARMACEUTICO LTDA", cnpj: "63.926.386/0001-87", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Farmácia", fechamento: "2026-06" },
+  { id: 1790945532405, codigo: "106", grupo: "DMOURA", nome: "DMOURA & S A CRUZ LTDA", cnpj: "46.382.272/0001-02", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Farmácia", fechamento: "2026-06" }
 ];
 
 const INITIAL_USERS = [
@@ -19,11 +41,42 @@ const INITIAL_USERS = [
 ];
 
 const INITIAL_TASKS = [
-  { id: 1, titulo: "Conferir apuração de PIS/COFINS Alfa Engenharia", descricao: "Validar notas de entrada de materiais e créditos extemporâneos.", data: "2026-10-02", urgencia: "Alta", concluida: false, createdAt: "2026-09-28" },
-  { id: 2, titulo: "Emitir DARF IRPJ Trimestral Beta Distribuidora", descricao: "Verificar se cliente optou por Quota Única ou 3 Parcelas.", data: "2026-10-05", urgencia: "Alta", concluida: false, createdAt: "2026-10-01" },
-  { id: 3, titulo: "Solicitar extratos bancários pendentes Delta Tecnologia", descricao: "Contatar financeiro para conciliação da conta Santander.", data: "2026-10-10", urgencia: "Media", concluida: false, createdAt: "2026-10-03" },
-  { id: 4, titulo: "Reunião de alinhamento com a diretoria", descricao: "Apresentação dos indicadores do fechamento do 3º trimestre.", data: "2026-10-15", urgencia: "Baixa", concluida: false, createdAt: "2026-10-08" }
+  { id: 1792175203715, titulo: "Lançar ajuste na D.R.E - Connect Serviços", descricao: "Ajuste de resultado na D.R.E - comp 09/2026", data: "2026-10-20", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
+  { id: 1792097491310, titulo: "Atualizações de Sistema com ControlHUB", descricao: "", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-15" },
+  { id: 1792096873512, titulo: "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL", descricao: "", data: "2026-10-19", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-15" },
+  { id: 1792096845705, titulo: "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL", descricao: "", data: "2026-10-18", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-15" },
+  { id: 1792096821200, titulo: "PERD/COMP - CONNECT SERVIÇOS", descricao: "", data: "2026-10-16", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-15" },
+  { id: 1791470607574, titulo: "Fechamento - Lunar Serviços", descricao: "Fechamento Lunar - 09/2026", data: "2026-10-08", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-08" },
+  { id: 1791466827501, titulo: "Fechamento Connect Serviços", descricao: "Fechamento mês 7 e 8", data: "2026-10-08", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-08", empresaId: 1790945532382 },
+  { id: 1791383253712, titulo: "Fechamentos - Pendentes", descricao: "Concluir fechamentos de balanços", data: "2026-10-08", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-08" },
+  { id: 1791383223457, titulo: "K tek - aumento de capital social", descricao: "", data: "2026-10-31", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-31" },
+  { id: 1791205267693, titulo: "Documentação TECI - Marcus consultor", descricao: "Enviar doc BPO para o Marcos de Junho para frente, grupo Green", data: "2026-10-05", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-05" },
+  { id: 1791204663158, titulo: "Reunião Frigotop e MJ de Sena", descricao: "Marcar reunião fechamento trimestral - Marcus Consultor", data: "2026-10-21", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16", empresaId: null },
+  { id: 1790969232414, titulo: "Connect Terceirização", descricao: "Empréstimo Finame", data: "2026-11-05", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-05" },
+  { id: 1790957847529, titulo: "Connect Terceirização - IRPJ ganho de capital", descricao: "Imposto sobre venda de imóveis detalhado no e-mail, imposto competência 09/2026", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-06" },
+  { id: 1790949339646, titulo: "Fechamento M A COMERCIAL 06/2026", descricao: "Fechamento M A COMERCIAL 06/2026", data: "2026-10-16", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
+  { id: 1790947975020, titulo: "Lunar - Empréstimos", descricao: "Provisionar longo e curto prazo de novos empréstimos", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-06" },
+  { id: 1790947931740, titulo: "Folha - Grupo Prioridade", descricao: "Lançar folhas grupo prioridade", data: "2026-10-16", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
+  { id: 1790947901077, titulo: "K tek - atualização 08/2026", descricao: "Notas canceladas 08/2026", data: "2026-10-09", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-09" },
+  { id: 1790947528461, titulo: "Teci 03/2026", descricao: "Ajuste de saldo inicial e fechamento 03/2026", data: "2026-11-30", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-11-30" }
 ];
+
+const INITIAL_PIS_COFINS = {
+  "1790945532378_09/2026": { status: "Concluída", darfEnviado: false, saldoCredor: true, updatedAt: "20/10 às 08:20" },
+  "1790945532386_09/2026": { status: "Concluída", darfEnviado: false, updatedAt: "19/10 às 16:15", saldoCredor: true },
+  "1790945532382_09/2026": { status: "Concluída", darfEnviado: true },
+  "1790945532381_09/2026": { status: "Análise", darfEnviado: false },
+  "1790945532383_09/2026": { status: "Concluída", darfEnviado: false, saldoCredor: true, updatedAt: "20/10 às 08:37" },
+  "1790945532379_09/2026": { saldoCredor: true, darfEnviado: false, status: "Concluída", updatedAt: "20/10 às 08:37" }
+};
+
+const INITIAL_IRPJ_TRIM = {
+  "1790945532382_3º Trim 2026": { darfUnica: true, quotaUnica: true }
+};
+
+const INITIAL_IRPJ_MENSAL = {
+  "1790945532378_09/2026": { status: "Pendente" }
+};
 
 const MONTH_COMPETENCIES = [];
 for (const yr of [2026, 2027]) {
@@ -195,11 +248,8 @@ function generateSafeId(offset = 0) {
 
 function normalizeSafeDbId(rawId, fallbackOffset = 0) {
   const num = Number(rawId);
-  if (Number.isInteger(num) && num > 0 && num <= 2000000000) {
+  if (Number.isSafeInteger(num) && num > 0) {
     return num;
-  }
-  if (!isNaN(num) && num > 2000000000) {
-    return (Math.abs(Math.floor(num)) % 1800000000) + 10000 + fallbackOffset;
   }
   return generateSafeId(fallbackOffset);
 }
@@ -745,11 +795,11 @@ const state = {
   fechamentoFilter: 'all',
   taskFilter: 'ativas',
   customLogo: localStorage.getItem('control_custom_logo') || null,
-  companies: initialUserData ? (initialUserData.companies || []) : (initialUserKey ? [] : INITIAL_COMPANIES),
-  tasks: initialUserData ? (initialUserData.tasks || []) : (initialUserKey ? [] : INITIAL_TASKS),
-  pisCofinsData: initialUserData ? (initialUserData.pisCofinsData || {}) : {},
-  irpjTrimData: initialUserData ? (initialUserData.irpjTrimData || {}) : {},
-  irpjMensalData: initialUserData ? (initialUserData.irpjMensalData || {}) : {},
+  companies: (initialUserData && initialUserData.companies && initialUserData.companies.length > 0) ? initialUserData.companies : INITIAL_COMPANIES,
+  tasks: (initialUserData && initialUserData.tasks && initialUserData.tasks.length > 0) ? initialUserData.tasks : INITIAL_TASKS,
+  pisCofinsData: (initialUserData && initialUserData.pisCofinsData && Object.keys(initialUserData.pisCofinsData).length > 0) ? initialUserData.pisCofinsData : { ...INITIAL_PIS_COFINS },
+  irpjTrimData: (initialUserData && initialUserData.irpjTrimData && Object.keys(initialUserData.irpjTrimData).length > 0) ? initialUserData.irpjTrimData : { ...INITIAL_IRPJ_TRIM },
+  irpjMensalData: (initialUserData && initialUserData.irpjMensalData && Object.keys(initialUserData.irpjMensalData).length > 0) ? initialUserData.irpjMensalData : { ...INITIAL_IRPJ_MENSAL },
   fechamentosMeta: initialUserData ? (initialUserData.fechamentosMeta || {}) : {},
   fechamentoEstagioFilter: 'all',
   fechamentoObsModal: { isOpen: false, companyId: null },
@@ -994,9 +1044,28 @@ async function switchUserEnvironment(userObj) {
     }
   }
 
-  // Se restauramos dados que estavam apenas localmente (ou se ainda não estavam no Supabase), sincroniza na nuvem agora!
+  // 6. Se a conta ainda estiver vazia (ou apenas com empresas fictícias antigas), restaura automaticamente o Backup Oficial da pasta e salva no Supabase!
+  const hasOnlyDemoCompanies = state.companies && state.companies.length > 0 && state.companies.every(c => Number(c.id) <= 8);
+  if (!state.companies || state.companies.length === 0 || hasOnlyDemoCompanies) {
+    state.companies = INITIAL_COMPANIES.map(c => ({ ...c }));
+    if (!state.tasks || state.tasks.length === 0 || state.tasks.every(t => Number(t.id) <= 4)) {
+      state.tasks = INITIAL_TASKS.map(t => ({ ...t }));
+    }
+    if (!state.pisCofinsData || Object.keys(state.pisCofinsData).length === 0) {
+      state.pisCofinsData = { ...INITIAL_PIS_COFINS };
+    }
+    if (!state.irpjTrimData || Object.keys(state.irpjTrimData).length === 0) {
+      state.irpjTrimData = { ...INITIAL_IRPJ_TRIM };
+    }
+    if (!state.irpjMensalData || Object.keys(state.irpjMensalData).length === 0) {
+      state.irpjMensalData = { ...INITIAL_IRPJ_MENSAL };
+    }
+    restoredFromLocal = true;
+  }
+
+  // Se restauramos dados do backup/local (ou se ainda não estavam no Supabase), sincroniza na nuvem agora!
   if (restoredFromLocal || !loadedFromCloud) {
-    await saveStorage();
+    await saveStorage({ replaceCompanies: true });
   }
 
   updateSyncIndicator();
