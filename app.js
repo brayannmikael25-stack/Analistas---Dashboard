@@ -527,17 +527,34 @@ const dataService = {
     }
   },
 
-  // Carrega dados de perfis, empresas, tarefas e estado de apurações buscando o registro mais recente entre dispositivos
+  // Carrega dados de control_sync, perfis, empresas, tarefas e estado de apurações buscando o registro mais recente entre dispositivos
   async loadUserDataFromSupabase(userId, userObj = null) {
     if (!userId || !sb) return null;
     try {
       const candidateKeys = this.getCandidateUserKeys(userId, userObj);
       const candidateSet = new Set(candidateKeys.map(k => String(k).toLowerCase()));
 
-      // 1. Perfis: busca todos os perfis e filtra os que pertencem ao usuário (sem usar maybeSingle)
       let perfilData = null;
       const syncStateCandidates = [];
 
+      // 0. Tabela dedicada control_sync (JSONB por usuário - rápida e imune a conflitos de tipo)
+      try {
+        const { data: syncRows, error: syncErr } = await sb.from('control_sync').select('*').limit(100);
+        if (!syncErr && Array.isArray(syncRows) && syncRows.length > 0) {
+          const matchingSync = syncRows.filter(r => candidateSet.has(String(r.user_key || '').toLowerCase()));
+          const rowsToUse = matchingSync.length > 0 ? matchingSync : syncRows;
+          for (const row of rowsToUse) {
+            const pkg = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
+            if (pkg && typeof pkg === 'object') {
+              syncStateCandidates.push(pkg);
+            }
+          }
+        }
+      } catch (e) {
+        // segue para tabelas auxiliares caso control_sync ainda não tenha sido criada
+      }
+
+      // 1. Perfis: busca todos os perfis e filtra os que pertencem ao usuário (sem usar maybeSingle)
       const { data: allProfiles } = await sb.from('perfis').select('*').limit(100);
       if (Array.isArray(allProfiles) && allProfiles.length > 0) {
         const matchingProfiles = allProfiles.filter(p => {
@@ -764,9 +781,34 @@ const dataService = {
   // Salva o pacote completo de apurações (PIS/COFINS, IRPJ, Fechamentos, ECD/ECF, IA e empresas/tarefas) no Supabase
   async saveCloudSyncState(userId, syncPackage) {
     if (!sb || !userId || !syncPackage) return false;
+    let savedOk = false;
+    const nowIso = new Date().toISOString();
+
+    // 1. Salva na tabela dedicada control_sync (JSONB por chave do usuário: ID, e-mail e username)
+    try {
+      const session = authService.getCurrentSession();
+      const keysToSave = Array.from(new Set([
+        String(userId).toLowerCase(),
+        session?.user ? String(session.user).toLowerCase() : null,
+        session?.email ? String(session.email).toLowerCase() : null
+      ].filter(Boolean)));
+
+      const rows = keysToSave.map(k => ({
+        user_key: k,
+        payload: syncPackage,
+        updated_at: nowIso
+      }));
+
+      const { error: csErr } = await sb.from('control_sync').upsert(rows, { onConflict: 'user_key' });
+      if (!csErr) savedOk = true;
+    } catch (e) {
+      // Caso control_sync ainda não exista, continua no fallback abaixo
+    }
+
+    // 2. Salva também na linha oculta __CONTROL_SYNC_STATE__ da tabela tarefas
     try {
       const serialized = JSON.stringify(syncPackage);
-      const today = new Date().toISOString().split('T')[0];
+      const today = nowIso.split('T')[0];
       const syncRow = {
         id: this.getSyncRecordId(userId),
         user_id: userId,
@@ -782,7 +824,6 @@ const dataService = {
       };
       const { error } = await sb.from('tarefas').upsert(syncRow, { onConflict: 'id' });
 
-      // Atualiza também qualquer outra linha __CONTROL_SYNC_STATE__ existente para manter todos os computadores em sincronia
       const { data: existingSyncRows } = await sb.from('tarefas').select('id').eq('titulo', SYNC_TASK_TITLE).limit(20);
       if (Array.isArray(existingSyncRows)) {
         for (const r of existingSyncRows) {
@@ -792,14 +833,11 @@ const dataService = {
         }
       }
 
-      if (error) {
-        console.warn('Aviso ao gravar estado de sincronização em tarefas:', error.message);
-        return false;
-      }
-      return true;
+      if (!error) savedOk = true;
+      return savedOk;
     } catch (err) {
       console.warn('Erro ao gravar estado de sincronização no Supabase:', err);
-      return false;
+      return savedOk;
     }
   },
 
