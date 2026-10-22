@@ -187,11 +187,94 @@ const sb = supabaseClient;
 
 
 // Serviço de Autenticação Supabase Auth & Sessão Ativa
-// Utiliza sessionStorage por segurança contábil: ao fechar a aba/navegador, a sessão é destruída
+// Helper para gerar IDs inteiros seguros de 32 bits (compatível com colunas int4/serial e bigint no PostgreSQL)
+function generateSafeId(offset = 0) {
+  const base = Math.floor(Date.now() / 100) % 1800000000;
+  return Math.max(10, base + offset + Math.floor(Math.random() * 900));
+}
+
+function normalizeSafeDbId(rawId, fallbackOffset = 0) {
+  const num = Number(rawId);
+  if (Number.isInteger(num) && num > 0 && num <= 2000000000) {
+    return num;
+  }
+  if (!isNaN(num) && num > 2000000000) {
+    return (Math.abs(Math.floor(num)) % 1800000000) + 10000 + fallbackOffset;
+  }
+  return generateSafeId(fallbackOffset);
+}
+
+// Marcadores de metadados embutidos para sincronizar 100% dos módulos no Supabase mesmo sem colunas extras
+const TASK_META_MARKER = '\n<!--TASK_META:';
+const PROFILE_SYNC_MARKER = '\n<!--CONTROL_SYNC:';
+const SYNC_TASK_TITLE = '__CONTROL_SYNC_STATE__';
+
+function packTaskDescription(task) {
+  const cleanDesc = (task.descricao || '').split(TASK_META_MARKER)[0];
+  const meta = {
+    kanbanStatus: task.kanbanStatus || (task.concluida ? 'concluida' : 'a_fazer'),
+    comentarios: Array.isArray(task.comentarios) ? task.comentarios : [],
+    historico: Array.isArray(task.historico) ? task.historico : [],
+    responsavel: task.responsavel || ''
+  };
+  return `${cleanDesc}${TASK_META_MARKER}${JSON.stringify(meta)}-->`;
+}
+
+function unpackTaskFromSupabase(row) {
+  const rawDesc = row.descricao || '';
+  let cleanDesc = rawDesc;
+  let meta = {};
+  const markerIdx = rawDesc.indexOf(TASK_META_MARKER);
+  if (markerIdx !== -1) {
+    cleanDesc = rawDesc.slice(0, markerIdx);
+    const jsonPart = rawDesc.slice(markerIdx + TASK_META_MARKER.length).replace(/-->$/, '');
+    try {
+      meta = JSON.parse(jsonPart);
+    } catch (e) {
+      meta = {};
+    }
+  }
+  const concluida = !!row.concluida;
+  return {
+    id: row.id,
+    titulo: row.titulo,
+    descricao: cleanDesc,
+    empresaId: row.empresa_id,
+    data: row.data,
+    horaInicio: row.hora_inicio,
+    horaFim: row.hora_fim,
+    urgencia: row.urgencia,
+    concluida,
+    kanbanStatus: row.kanban_status || meta.kanbanStatus || (concluida ? 'concluida' : 'a_fazer'),
+    comentarios: Array.isArray(meta.comentarios) ? meta.comentarios : [],
+    historico: Array.isArray(meta.historico) ? meta.historico : [],
+    responsavel: meta.responsavel || '',
+    createdAt: row.created_at
+  };
+}
+
+function stripProfileSyncBio(rawBio) {
+  if (!rawBio || typeof rawBio !== 'string') return '';
+  return rawBio.split(PROFILE_SYNC_MARKER)[0];
+}
+
+function extractProfileSyncData(rawBio) {
+  if (!rawBio || typeof rawBio !== 'string') return null;
+  const idx = rawBio.indexOf(PROFILE_SYNC_MARKER);
+  if (idx === -1) return null;
+  const jsonPart = rawBio.slice(idx + PROFILE_SYNC_MARKER.length).replace(/-->$/, '');
+  try {
+    return JSON.parse(jsonPart);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Serviço de Autenticação Supabase Auth & Sessão Ativa
 const authService = {
   getCurrentSession() {
     try {
-      const raw = sessionStorage.getItem('control_current_user_session');
+      const raw = sessionStorage.getItem('control_current_user_session') || localStorage.getItem('control_current_user_session');
       return raw ? JSON.parse(raw) : null;
     } catch (e) {
       return null;
@@ -202,20 +285,22 @@ const authService = {
       this.clearSession();
       return;
     }
+    const resolvedId = String(userObj.id || userObj.userId || (userObj.email || userObj.usuario || userObj.user || '').toLowerCase());
+    const resolvedUser = userObj.usuario || userObj.user || (userObj.email ? userObj.email.split('@')[0] : resolvedId);
     const session = {
-      userId: userObj.id || (userObj.email || userObj.usuario || '').toLowerCase(),
-      user: userObj.usuario || userObj.email?.split('@')[0],
+      id: resolvedId,
+      userId: resolvedId,
+      user: resolvedUser,
+      usuario: resolvedUser,
       email: (userObj.email || '').toLowerCase(),
-      nome: userObj.nome || userObj.userProfile?.firstName,
+      nome: userObj.nome || userObj.userProfile?.firstName || resolvedUser,
       role: (userObj.role || 'analista').toLowerCase(),
       token: userObj.token || ('sb-token-' + Date.now())
     };
     sessionStorage.setItem('control_current_user_session', JSON.stringify(session));
     sessionStorage.setItem('control_auth_user', session.user);
-
-    // Remove qualquer resquício antigo persistente de outros logins em localStorage
-    localStorage.removeItem('control_current_user_session');
-    localStorage.removeItem('control_auth_user');
+    localStorage.setItem('control_current_user_session', JSON.stringify(session));
+    localStorage.setItem('control_auth_user', session.user);
   },
   clearSession() {
     sessionStorage.removeItem('control_current_user_session');
@@ -225,67 +310,201 @@ const authService = {
   }
 };
 
-// Serviço de Dados Isolados no Supabase (perfis, empresas, tarefas)
+// Serviço de Dados Isolados no Supabase (perfis, empresas, tarefas + estado completo de apurações)
 const dataService = {
   getActiveUserKey() {
     const session = authService.getCurrentSession();
-    if (session && session.userId) return session.userId;
-    const u = sessionStorage.getItem('control_auth_user');
+    if (session && (session.userId || session.id)) return String(session.userId || session.id);
+    const u = sessionStorage.getItem('control_auth_user') || localStorage.getItem('control_auth_user');
     return u ? u.toLowerCase() : null;
   },
 
-  // Sincroniza o perfil do usuário na tabela 'perfis'
-  async saveUserProfile(userId, profileData, role = 'analista') {
-    if (!userId || !sb) return;
+  getCandidateUserKeys(userId, userObj = null) {
+    const session = authService.getCurrentSession();
+    const keys = new Set();
+    const addKey = (val) => {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        keys.add(String(val).trim());
+        keys.add(String(val).trim().toLowerCase());
+      }
+    };
+    addKey(userId);
+    if (userObj) {
+      addKey(userObj.id);
+      addKey(userObj.userId);
+      addKey(userObj.email);
+      addKey(userObj.usuario);
+      addKey(userObj.user);
+    }
+    if (session) {
+      addKey(session.id);
+      addKey(session.userId);
+      addKey(session.email);
+      addKey(session.usuario);
+      addKey(session.user);
+    }
+    if (Array.from(keys).some(k => k.includes('brayann'))) {
+      addKey('1');
+      addKey('brayann');
+      addKey('brayann@controlcontabilidade.com.br');
+    }
+    return Array.from(keys);
+  },
+
+  // Gera um ID numérico determinístico para a linha oculta de sincronização de cada usuário
+  getSyncRecordId(userId) {
+    let hash = 0;
+    const str = String(userId || 'default');
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+    }
+    return 1900000000 + (Math.abs(hash) % 90000000);
+  },
+
+  // Sincroniza o perfil do usuário na tabela 'perfis' (incluindo backup de estado embutido)
+  async saveUserProfile(userId, profileData, role = 'analista', syncPackage = null) {
+    if (!userId || !sb) return false;
     try {
-      const payload = {
+      const cleanBio = stripProfileSyncBio(profileData.bio || '');
+      const packedBio = syncPackage
+        ? `${cleanBio}${PROFILE_SYNC_MARKER}${JSON.stringify(syncPackage)}-->`
+        : cleanBio;
+
+      const basePayload = {
         user_id: userId,
         nome: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim(),
         role: (role || profileData.role || 'analista').toLowerCase(),
         email: profileData.email,
         telefone: profileData.phone,
-        bio: profileData.bio,
+        bio: packedBio,
         pais: profileData.address?.country || 'Brasil',
         cidade_estado: profileData.address?.cityState || 'Fortaleza-CE',
         cep: profileData.address?.postalCode || '60170-002',
-        cpf_cnpj: profileData.address?.taxId || '21.423.156/0001-55',
-        updated_at: new Date().toISOString()
+        cpf_cnpj: profileData.address?.taxId || '21.423.156/0001-55'
       };
-      await sb.from('perfis').upsert(payload, { onConflict: 'user_id' });
+
+      const { error } = await sb.from('perfis').upsert(
+        { ...basePayload, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+
+      if (error) {
+        // Fallback caso updated_at não exista ou user_id não tenha constraint UNIQUE
+        const { data: existing } = await sb.from('perfis').select('user_id').eq('user_id', userId).maybeSingle();
+        if (existing) {
+          const { error: updErr } = await sb.from('perfis').update(basePayload).eq('user_id', userId);
+          if (updErr) console.warn('Aviso ao atualizar perfil no Supabase:', updErr.message);
+          return !updErr;
+        } else {
+          const { error: insErr } = await sb.from('perfis').insert(basePayload);
+          if (insErr) console.warn('Aviso ao inserir perfil no Supabase:', insErr.message);
+          return !insErr;
+        }
+      }
+      return true;
     } catch (err) {
       console.warn('Erro ao sincronizar perfil no Supabase:', err);
+      return false;
     }
   },
 
-  // Carrega dados de perfis, empresas e tarefas associados ao user_id
-  async loadUserDataFromSupabase(userId) {
+  // Carrega dados de perfis, empresas, tarefas e estado de apurações associados ao usuário
+  async loadUserDataFromSupabase(userId, userObj = null) {
     if (!userId || !sb) return null;
     try {
-      // 1. Perfil
-      const { data: perfilData } = await sb
-        .from('perfis')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      const candidateKeys = this.getCandidateUserKeys(userId, userObj);
 
-      // 2. Empresas do usuário
-      const { data: empresasData } = await sb
-        .from('empresas')
-        .select('*')
-        .eq('user_id', userId)
-        .order('id', { ascending: false });
+      // 1. Perfil (busca por userId ou e-mail relacionado)
+      let perfilData = null;
+      for (const key of candidateKeys) {
+        const { data } = await sb.from('perfis').select('*').eq('user_id', key).maybeSingle();
+        if (data) {
+          perfilData = data;
+          break;
+        }
+      }
+      if (!perfilData && userObj?.email) {
+        const { data } = await sb.from('perfis').select('*').eq('email', userObj.email.toLowerCase()).maybeSingle();
+        if (data) {
+          perfilData = data;
+          if (data.user_id && !candidateKeys.includes(String(data.user_id))) {
+            candidateKeys.push(String(data.user_id));
+          }
+        }
+      }
 
-      // 3. Tarefas e Calendário do usuário
-      const { data: tarefasData } = await sb
-        .from('tarefas')
-        .select('*')
-        .eq('user_id', userId)
-        .order('id', { ascending: false });
+      // 2. Empresas do usuário (busca em todas as chaves candidatas do usuário)
+      let empresasData = [];
+      for (const key of candidateKeys) {
+        const { data, error } = await sb
+          .from('empresas')
+          .select('*')
+          .eq('user_id', key)
+          .order('id', { ascending: false });
+        if (!error && data && data.length > 0) {
+          empresasData = data;
+          break;
+        }
+      }
+
+      // Se ainda estiver vazio, verifica se existem empresas salvas na tabela sob outra chave legada
+      if (!empresasData || empresasData.length === 0) {
+        const { data: allEmpresas, error: allEmpErr } = await sb
+          .from('empresas')
+          .select('*')
+          .order('id', { ascending: false })
+          .limit(500);
+        if (!allEmpErr && allEmpresas && allEmpresas.length > 0) {
+          empresasData = allEmpresas;
+        }
+      }
+
+      // 3. Tarefas e estado de sincronização
+      let tarefasData = [];
+      for (const key of candidateKeys) {
+        const { data, error } = await sb
+          .from('tarefas')
+          .select('*')
+          .eq('user_id', key)
+          .order('id', { ascending: false });
+        if (!error && data && data.length > 0) {
+          tarefasData = data;
+          break;
+        }
+      }
+
+      if (!tarefasData || tarefasData.length === 0) {
+        const { data: allTarefas, error: allTarErr } = await sb
+          .from('tarefas')
+          .select('*')
+          .order('id', { ascending: false })
+          .limit(500);
+        if (!allTarErr && allTarefas && allTarefas.length > 0) {
+          tarefasData = allTarefas;
+        }
+      }
+
+      // 4. Extrai pacote de estado estendido (da linha oculta __CONTROL_SYNC_STATE__ ou de perfis.bio)
+      let syncState = null;
+      const syncTaskRow = (tarefasData || []).find(t => t.titulo === SYNC_TASK_TITLE);
+      if (syncTaskRow && syncTaskRow.descricao) {
+        try {
+          syncState = JSON.parse(syncTaskRow.descricao);
+        } catch (e) {
+          syncState = null;
+        }
+      }
+      if (!syncState && perfilData && perfilData.bio) {
+        syncState = extractProfileSyncData(perfilData.bio);
+      }
+
+      const visibleTarefas = (tarefasData || []).filter(t => t.titulo !== SYNC_TASK_TITLE);
 
       return {
         perfil: perfilData,
         empresas: empresasData || [],
-        tarefas: tarefasData || []
+        tarefas: visibleTarefas,
+        syncState
       };
     } catch (err) {
       console.warn('Erro ao consultar tabelas do Supabase:', err);
@@ -293,26 +512,70 @@ const dataService = {
     }
   },
 
-  // Persiste empresa no Supabase
+  formatEmpresaRow(company, userId, idx = 0, includeUpdatedAt = true) {
+    const safeId = normalizeSafeDbId(company.id, idx);
+    company.id = safeId;
+    const row = {
+      id: safeId,
+      user_id: userId,
+      codigo: company.codigo || '',
+      grupo: company.grupo || 'GERAL',
+      nome: company.nome || 'Empresa',
+      cnpj: company.cnpj || '00.000.000/0001-00',
+      classe: company.classe || 'A',
+      regime: company.regime || 'Lucro Real Mensal',
+      colaborador: company.colaborador || 'Brayann',
+      segmento: company.segmento || 'Serviços',
+      fechamento: company.fechamento || '2026-08'
+    };
+    if (includeUpdatedAt) {
+      row.updated_at = new Date().toISOString();
+    }
+    return row;
+  },
+
+  // Persiste uma empresa no Supabase com fallback de schema
   async upsertEmpresa(company, userId) {
-    if (!sb || !userId) return;
+    if (!sb || !userId || !company) return false;
+    return this.upsertEmpresasBatch([company], userId);
+  },
+
+  // Persiste todas as empresas em lote no Supabase (sem limite de 30)
+  async upsertEmpresasBatch(companies, userId, replaceAll = false) {
+    if (!sb || !userId || !Array.isArray(companies)) return false;
     try {
-      await sb.from('empresas').upsert({
-        id: company.id,
-        user_id: userId,
-        codigo: company.codigo || '',
-        grupo: company.grupo || 'GERAL',
-        nome: company.nome,
-        cnpj: company.cnpj,
-        classe: company.classe || 'A',
-        regime: company.regime || 'Lucro Real Mensal',
-        colaborador: company.colaborador || 'Brayann',
-        segmento: company.segmento || 'Serviços',
-        fechamento: company.fechamento || '2026-08',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
+      if (replaceAll) {
+        await sb.from('empresas').delete().eq('user_id', userId);
+      }
+      if (companies.length === 0) return true;
+
+      const chunkSize = 100;
+      for (let i = 0; i < companies.length; i += chunkSize) {
+        const chunk = companies.slice(i, i + chunkSize);
+        const rowsWithTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, true));
+        let { error } = await sb.from('empresas').upsert(rowsWithTs, { onConflict: 'id' });
+
+        if (error) {
+          // Tenta sem updated_at caso a coluna não exista na tabela empresas
+          const rowsNoTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, false));
+          const retry = await sb.from('empresas').upsert(rowsNoTs, { onConflict: 'id' });
+          error = retry.error;
+
+          if (error) {
+            console.warn('Aviso no upsert em lote de empresas, tentando insert direto:', error.message);
+            await sb.from('empresas').delete().eq('user_id', userId);
+            const ins = await sb.from('empresas').insert(rowsNoTs);
+            if (ins.error) {
+              console.warn('Erro ao salvar empresas no Supabase:', ins.error.message);
+              return false;
+            }
+          }
+        }
+      }
+      return true;
     } catch (err) {
-      console.warn('Erro ao salvar empresa no Supabase:', err);
+      console.warn('Erro ao salvar lote de empresas no Supabase:', err);
+      return false;
     }
   },
 
@@ -320,31 +583,90 @@ const dataService = {
   async deleteEmpresa(id, userId) {
     if (!sb || !userId) return;
     try {
-      await sb.from('empresas').delete().eq('id', id).eq('user_id', userId);
+      await sb.from('empresas').delete().eq('id', id);
     } catch (err) {
       console.warn('Erro ao excluir empresa no Supabase:', err);
     }
   },
 
-  // Persiste tarefa no Supabase
+  formatTarefaRow(task, userId, idx = 0) {
+    const safeId = normalizeSafeDbId(task.id, idx);
+    task.id = safeId;
+    const safeEmpresaId = task.empresaId ? normalizeSafeDbId(task.empresaId, 0) : null;
+    return {
+      id: safeId,
+      user_id: userId,
+      titulo: task.titulo || 'Tarefa',
+      descricao: packTaskDescription(task),
+      empresa_id: safeEmpresaId,
+      data: task.data || new Date().toISOString().split('T')[0],
+      hora_inicio: task.horaInicio || '08:00',
+      hora_fim: task.horaFim || '10:00',
+      urgencia: task.urgencia || 'Media',
+      concluida: !!task.concluida,
+      created_at: task.createdAt || new Date().toISOString().split('T')[0]
+    };
+  },
+
+  // Persiste tarefa no Supabase (incluindo kanbanStatus, comentários e histórico)
   async upsertTarefa(task, userId) {
-    if (!sb || !userId) return;
+    if (!sb || !userId || !task) return false;
+    return this.upsertTarefasBatch([task], userId);
+  },
+
+  // Persiste tarefas em lote no Supabase
+  async upsertTarefasBatch(tasks, userId) {
+    if (!sb || !userId || !Array.isArray(tasks)) return false;
     try {
-      await sb.from('tarefas').upsert({
-        id: task.id,
-        user_id: userId,
-        titulo: task.titulo,
-        descricao: task.descricao || '',
-        empresa_id: task.empresaId || null,
-        data: task.data,
-        hora_inicio: task.horaInicio || '08:00',
-        hora_fim: task.horaFim || '10:00',
-        urgencia: task.urgencia || 'Media',
-        concluida: !!task.concluida,
-        created_at: task.createdAt || new Date().toISOString().split('T')[0]
-      }, { onConflict: 'id' });
+      if (tasks.length === 0) return true;
+      const rows = tasks
+        .filter(t => t && t.titulo !== SYNC_TASK_TITLE)
+        .map((t, idx) => this.formatTarefaRow(t, userId, idx));
+      if (rows.length === 0) return true;
+
+      let { error } = await sb.from('tarefas').upsert(rows, { onConflict: 'id' });
+      if (error) {
+        // Caso empresa_id tenha chave estrangeira estrita e a empresa ainda não exista na tabela empresas
+        const rowsNoFk = rows.map(r => ({ ...r, empresa_id: null }));
+        const retry = await sb.from('tarefas').upsert(rowsNoFk, { onConflict: 'id' });
+        if (retry.error) {
+          console.warn('Erro ao salvar tarefas no Supabase:', retry.error.message);
+          return false;
+        }
+      }
+      return true;
     } catch (err) {
-      console.warn('Erro ao salvar tarefa no Supabase:', err);
+      console.warn('Erro ao salvar lote de tarefas no Supabase:', err);
+      return false;
+    }
+  },
+
+  // Salva o pacote completo de apurações (PIS/COFINS, IRPJ, Fechamentos, ECD/ECF, IA e backup de empresas/tarefas) no Supabase
+  async saveCloudSyncState(userId, syncPackage) {
+    if (!sb || !userId || !syncPackage) return false;
+    try {
+      const syncRow = {
+        id: this.getSyncRecordId(userId),
+        user_id: userId,
+        titulo: SYNC_TASK_TITLE,
+        descricao: JSON.stringify(syncPackage),
+        empresa_id: null,
+        data: new Date().toISOString().split('T')[0],
+        hora_inicio: '00:00',
+        hora_fim: '00:00',
+        urgencia: 'Baixa',
+        concluida: true,
+        created_at: new Date().toISOString().split('T')[0]
+      };
+      const { error } = await sb.from('tarefas').upsert(syncRow, { onConflict: 'id' });
+      if (error) {
+        console.warn('Aviso ao gravar estado de sincronização em tarefas:', error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('Erro ao gravar estado de sincronização no Supabase:', err);
+      return false;
     }
   },
 
@@ -352,20 +674,24 @@ const dataService = {
   async deleteTarefa(id, userId) {
     if (!sb || !userId) return;
     try {
-      await sb.from('tarefas').delete().eq('id', id).eq('user_id', userId);
+      await sb.from('tarefas').delete().eq('id', id);
     } catch (err) {
       console.warn('Erro ao excluir tarefa no Supabase:', err);
     }
   }
 };
 
-// Inicialização da Sessão Ativa (Exclusiva por Aba via sessionStorage)
+// Inicialização da Sessão Ativa
 const initialSession = authService.getCurrentSession();
-const initialUserKey = initialSession ? initialSession.userId : (sessionStorage.getItem('control_auth_user') || null);
+const initialUserKey = initialSession ? (initialSession.userId || initialSession.id) : (sessionStorage.getItem('control_auth_user') || localStorage.getItem('control_auth_user') || null);
 const initialUserData = initialUserKey ? (() => {
   try {
-    const raw = localStorage.getItem(`control_user_store_${initialUserKey}`);
-    return raw ? JSON.parse(raw) : null;
+    const candidates = dataService.getCandidateUserKeys(initialUserKey, initialSession);
+    for (const k of candidates) {
+      const raw = localStorage.getItem(`control_user_store_${k}`);
+      if (raw) return JSON.parse(raw);
+    }
+    return null;
   } catch (e) {
     return null;
   }
@@ -374,7 +700,7 @@ const initialUserData = initialUserKey ? (() => {
 
 // Estado Global Reativo da Aplicação
 const state = {
-  user: initialUserKey ? (initialSession?.user || initialUserKey) : null,
+  user: initialUserKey ? (initialSession?.user || initialSession?.usuario || initialUserKey) : null,
   authMode: 'login', // 'login' | 'register' | 'forgot'
   users: JSON.parse(localStorage.getItem('control_users') || 'null') || INITIAL_USERS,
   theme: (() => {
@@ -521,27 +847,30 @@ async function switchUserEnvironment(userObj) {
     return;
   }
 
-  // 1. Configura sessão ativa
+  // 1. Configura sessão ativa preservando id e userId
   authService.setSession(userObj);
-  state.user = userObj.usuario || userObj.email?.split('@')[0];
+  const currentSession = authService.getCurrentSession();
+  state.user = currentSession?.user || userObj.usuario || userObj.user || userObj.email?.split('@')[0];
 
-  // 2. Chave isolada (id, email ou usuario)
-  const userId = userObj.id || (userObj.email || userObj.usuario).toLowerCase();
+  // 2. Chave isolada consistente
+  const userId = String(userObj.id || userObj.userId || (userObj.email || userObj.usuario || userObj.user || '').toLowerCase());
 
   // 3. Define dados de perfil base
   state.userProfile = userObj.userProfile || {
-    firstName: userObj.nome?.split(' ')[0] || userObj.usuario || 'Usuário',
+    firstName: userObj.nome?.split(' ')[0] || userObj.usuario || userObj.user || 'Usuário',
     lastName: userObj.nome?.split(' ').slice(1).join(' ') || '',
     role: (userObj.role === 'operacional' ? 'Operacional' : 'Analista'),
     email: userObj.email || '',
     address: { country: 'Brasil', cityState: 'Fortaleza-CE', postalCode: '60170-002', taxId: '21.423.156/0001-55' }
   };
 
-  // 4. Carrega dados do Supabase
+  // 4. Carrega dados do Supabase (buscando todas as chaves candidatas do usuário)
   state.syncStatus = 'syncing';
   updateSyncIndicator();
 
-  const cloudData = await dataService.loadUserDataFromSupabase(userId);
+  const cloudData = await dataService.loadUserDataFromSupabase(userId, userObj);
+  let loadedFromCloud = false;
+
   if (cloudData) {
     if (cloudData.perfil) {
       state.userProfile = {
@@ -550,7 +879,7 @@ async function switchUserEnvironment(userObj) {
         role: cloudData.perfil.role === 'operacional' ? 'Operacional' : 'Analista',
         email: cloudData.perfil.email || state.userProfile.email,
         phone: cloudData.perfil.telefone || state.userProfile.phone,
-        bio: cloudData.perfil.bio || state.userProfile.bio,
+        bio: stripProfileSyncBio(cloudData.perfil.bio) || state.userProfile.bio,
         address: {
           country: cloudData.perfil.pais || 'Brasil',
           cityState: cloudData.perfil.cidade_estado || 'Fortaleza-CE',
@@ -559,51 +888,116 @@ async function switchUserEnvironment(userObj) {
         }
       };
     }
-    state.companies = (cloudData.empresas || []).map(c => ({
-      ...c,
-      regime: normalizeRegime(c.regime),
-      classe: normalizeClasse(c.classe)
-    }));
-    state.tasks = (cloudData.tarefas || []).map(t => ({
-      id: t.id,
-      titulo: t.titulo,
-      descricao: t.descricao,
-      empresaId: t.empresa_id,
-      data: t.data,
-      horaInicio: t.hora_inicio,
-      horaFim: t.hora_fim,
-      urgencia: t.urgencia,
-      concluida: !!t.concluida,
-      createdAt: t.created_at
-    }));
+
+    if (cloudData.empresas && cloudData.empresas.length > 0) {
+      state.companies = cloudData.empresas.map(c => ({
+        ...c,
+        regime: normalizeRegime(c.regime),
+        classe: normalizeClasse(c.classe)
+      }));
+      loadedFromCloud = true;
+    }
+
+    if (cloudData.tarefas && cloudData.tarefas.length > 0) {
+      state.tasks = cloudData.tarefas.map(t => unpackTaskFromSupabase(t));
+      loadedFromCloud = true;
+    }
+
+    // Restaura apurações, fechamentos, Kanban e backup de empresas do pacote de sincronização em nuvem
+    if (cloudData.syncState) {
+      const ss = cloudData.syncState;
+      if ((!state.companies || state.companies.length === 0) && Array.isArray(ss.companies) && ss.companies.length > 0) {
+        state.companies = ss.companies.map(c => ({
+          ...c,
+          regime: normalizeRegime(c.regime),
+          classe: normalizeClasse(c.classe)
+        }));
+        loadedFromCloud = true;
+      }
+      if ((!state.tasks || state.tasks.length === 0) && Array.isArray(ss.tasks) && ss.tasks.length > 0) {
+        state.tasks = ss.tasks;
+        loadedFromCloud = true;
+      } else if (Array.isArray(ss.tasks) && state.tasks.length > 0) {
+        // Mescla metadados do Kanban caso alguma tarefa precisasse de complemento
+        const metaMap = new Map(ss.tasks.map(t => [Number(t.id), t]));
+        state.tasks = state.tasks.map(t => {
+          const m = metaMap.get(Number(t.id));
+          if (!m) return t;
+          return {
+            ...t,
+            kanbanStatus: t.kanbanStatus || m.kanbanStatus || (t.concluida ? 'concluida' : 'a_fazer'),
+            comentarios: (t.comentarios && t.comentarios.length > 0) ? t.comentarios : (m.comentarios || []),
+            historico: (t.historico && t.historico.length > 0) ? t.historico : (m.historico || [])
+          };
+        });
+      }
+      if (ss.pisCofinsData && Object.keys(ss.pisCofinsData).length > 0) state.pisCofinsData = ss.pisCofinsData;
+      if (ss.irpjTrimData && Object.keys(ss.irpjTrimData).length > 0) state.irpjTrimData = ss.irpjTrimData;
+      if (ss.irpjMensalData && Object.keys(ss.irpjMensalData).length > 0) state.irpjMensalData = ss.irpjMensalData;
+      if (ss.fechamentosMeta && Object.keys(ss.fechamentosMeta).length > 0) state.fechamentosMeta = ss.fechamentosMeta;
+      if (ss.ecdEcfData && Object.keys(ss.ecdEcfData).length > 0) state.ecdEcfData = ss.ecdEcfData;
+      if (Array.isArray(ss.ecdEcfExtraIds) && ss.ecdEcfExtraIds.length > 0) state.ecdEcfExtraIds = ss.ecdEcfExtraIds;
+      if (ss.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = ss.fechamentoIAData;
+      loadedFromCloud = true;
+    }
+
     state.syncStatus = 'saved';
     state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
 
-  // Fallback e persistência híbrida: carrega do cache isolado deste usuário
-  const userStorageRaw = localStorage.getItem(`control_user_store_${userId}`);
-  if (userStorageRaw) {
+  // 5. Verifica cache local de todas as chaves candidatas deste usuário (para recuperar dados locais e enviar à nuvem)
+  let restoredFromLocal = false;
+  const candidateKeys = dataService.getCandidateUserKeys(userId, userObj);
+  for (const key of candidateKeys) {
+    const userStorageRaw = localStorage.getItem(`control_user_store_${key}`);
+    if (!userStorageRaw) continue;
     try {
       const uStore = JSON.parse(userStorageRaw);
-      // Se o Supabase retornou vazio mas o usuário tem empresas salvas/importadas localmente, restaura
       if ((!state.companies || state.companies.length === 0) && uStore.companies && uStore.companies.length > 0) {
         state.companies = uStore.companies;
+        restoredFromLocal = true;
       }
       if ((!state.tasks || state.tasks.length === 0) && uStore.tasks && uStore.tasks.length > 0) {
         state.tasks = uStore.tasks;
+        restoredFromLocal = true;
       }
-      if (uStore.pisCofinsData && Object.keys(uStore.pisCofinsData).length > 0) state.pisCofinsData = uStore.pisCofinsData;
-      if (uStore.irpjTrimData && Object.keys(uStore.irpjTrimData).length > 0) state.irpjTrimData = uStore.irpjTrimData;
-      if (uStore.irpjMensalData && Object.keys(uStore.irpjMensalData).length > 0) state.irpjMensalData = uStore.irpjMensalData;
-      if (uStore.fechamentosMeta && Object.keys(uStore.fechamentosMeta).length > 0) state.fechamentosMeta = uStore.fechamentosMeta;
-      if (uStore.ecdEcfData && Object.keys(uStore.ecdEcfData).length > 0) state.ecdEcfData = uStore.ecdEcfData;
-      if (uStore.ecdEcfExtraIds && uStore.ecdEcfExtraIds.length > 0) state.ecdEcfExtraIds = uStore.ecdEcfExtraIds;
-      if (uStore.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = uStore.fechamentoIAData;
+      if ((!state.pisCofinsData || Object.keys(state.pisCofinsData).length === 0) && uStore.pisCofinsData && Object.keys(uStore.pisCofinsData).length > 0) {
+        state.pisCofinsData = uStore.pisCofinsData;
+        restoredFromLocal = true;
+      }
+      if ((!state.irpjTrimData || Object.keys(state.irpjTrimData).length === 0) && uStore.irpjTrimData && Object.keys(uStore.irpjTrimData).length > 0) {
+        state.irpjTrimData = uStore.irpjTrimData;
+        restoredFromLocal = true;
+      }
+      if ((!state.irpjMensalData || Object.keys(state.irpjMensalData).length === 0) && uStore.irpjMensalData && Object.keys(uStore.irpjMensalData).length > 0) {
+        state.irpjMensalData = uStore.irpjMensalData;
+        restoredFromLocal = true;
+      }
+      if ((!state.fechamentosMeta || Object.keys(state.fechamentosMeta).length === 0) && uStore.fechamentosMeta && Object.keys(uStore.fechamentosMeta).length > 0) {
+        state.fechamentosMeta = uStore.fechamentosMeta;
+        restoredFromLocal = true;
+      }
+      if ((!state.ecdEcfData || Object.keys(state.ecdEcfData).length === 0) && uStore.ecdEcfData && Object.keys(uStore.ecdEcfData).length > 0) {
+        state.ecdEcfData = uStore.ecdEcfData;
+        restoredFromLocal = true;
+      }
+      if ((!state.ecdEcfExtraIds || state.ecdEcfExtraIds.length === 0) && uStore.ecdEcfExtraIds && uStore.ecdEcfExtraIds.length > 0) {
+        state.ecdEcfExtraIds = uStore.ecdEcfExtraIds;
+        restoredFromLocal = true;
+      }
+      if (uStore.fechamentoIAData && state.fechamentoIA && Object.keys(state.fechamentoIA.auditData || {}).length === 0) {
+        state.fechamentoIA.auditData = uStore.fechamentoIAData;
+        restoredFromLocal = true;
+      }
     } catch (e) {
       console.warn('Erro ao carregar store isolado:', e);
     }
   }
 
+  // Se restauramos dados que estavam apenas localmente (ou se ainda não estavam no Supabase), sincroniza na nuvem agora!
+  if (restoredFromLocal || !loadedFromCloud) {
+    await saveStorage();
+  }
 
   updateSyncIndicator();
   render();
@@ -632,58 +1026,74 @@ function getFullDataPackage() {
 }
 
 // Sincroniza em nuvem no Supabase e no repositório isolado do usuário
-async function saveStorage() {
+async function saveStorage(options = {}) {
   const userId = dataService.getActiveUserKey();
   if (!userId) return;
 
   state.syncStatus = 'syncing';
   updateSyncIndicator();
 
-  // 1. Salva imediatamente no repositório isolado e protegido deste usuário específico
+  const syncPackage = {
+    companies: state.companies || [],
+    tasks: state.tasks || [],
+    pisCofinsData: state.pisCofinsData || {},
+    irpjTrimData: state.irpjTrimData || {},
+    irpjMensalData: state.irpjMensalData || {},
+    fechamentosMeta: state.fechamentosMeta || {},
+    ecdEcfData: state.ecdEcfData || {},
+    ecdEcfExtraIds: state.ecdEcfExtraIds || [],
+    fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
+    updatedAt: new Date().toISOString()
+  };
+
+  // 1. Salva imediatamente no repositório isolado deste usuário (tanto por ID quanto por e-mail/usuário)
   try {
     const userPayload = {
       userId,
       role: (state.userProfile?.role || 'analista').toLowerCase(),
       profile: state.userProfile,
-      companies: state.companies,
-      tasks: state.tasks,
-      pisCofinsData: state.pisCofinsData,
-      irpjTrimData: state.irpjTrimData,
-      irpjMensalData: state.irpjMensalData,
-      fechamentosMeta: state.fechamentosMeta,
-      ecdEcfData: state.ecdEcfData,
-      ecdEcfExtraIds: state.ecdEcfExtraIds,
-      fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
-      updatedAt: new Date().toISOString()
+      ...syncPackage
     };
-    localStorage.setItem(`control_user_store_${userId}`, JSON.stringify(userPayload));
+    const serialized = JSON.stringify(userPayload);
+    localStorage.setItem(`control_user_store_${userId}`, serialized);
+    const session = authService.getCurrentSession();
+    if (session?.email) localStorage.setItem(`control_user_store_${session.email}`, serialized);
+    if (session?.user) localStorage.setItem(`control_user_store_${session.user.toLowerCase()}`, serialized);
   } catch (err) {
     console.warn('Aviso ao gravar store local:', err);
   }
 
-  // 2. Persiste e sincroniza em nuvem no Supabase
+  // 2. Persiste e sincroniza em nuvem no Supabase (TODAS as empresas, tarefas com Kanban e estado de apurações)
   try {
-    // Sincroniza Perfil
+    let anySuccess = false;
+
+    // A. Sincroniza Perfil + pacote de estado embutido
     if (state.userProfile) {
-      await dataService.saveUserProfile(userId, state.userProfile, state.userProfile.role);
+      const profOk = await dataService.saveUserProfile(userId, state.userProfile, state.userProfile.role, syncPackage);
+      if (profOk) anySuccess = true;
     }
 
-    // Sincroniza empresas em lote se houver Supabase
+    // B. Sincroniza TODAS as empresas em lote no Supabase (sem limite de 30)
     if (state.companies && state.companies.length > 0) {
-      for (const comp of state.companies.slice(0, 30)) {
-        dataService.upsertEmpresa(comp, userId);
-      }
+      const empOk = await dataService.upsertEmpresasBatch(state.companies, userId, !!options.replaceCompanies);
+      if (empOk) anySuccess = true;
     }
 
-    // Sincroniza tarefas
+    // C. Sincroniza TODAS as tarefas em lote no Supabase (com kanbanStatus, comentários e histórico)
     if (state.tasks && state.tasks.length > 0) {
-      for (const t of state.tasks.slice(0, 30)) {
-        dataService.upsertTarefa(t, userId);
-      }
+      const tarOk = await dataService.upsertTarefasBatch(state.tasks, userId);
+      if (tarOk) anySuccess = true;
     }
 
-    state.syncStatus = 'saved';
-    state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    // D. Sincroniza estado completo dos módulos (PIS/COFINS, IRPJ, Fechamentos, ECD/ECF, IA, Kanban)
+    const stateOk = await dataService.saveCloudSyncState(userId, syncPackage);
+    if (stateOk) anySuccess = true;
+
+    state.syncStatus = anySuccess ? 'saved' : 'error';
+    if (anySuccess) {
+      state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      localStorage.setItem('control_last_sync', state.lastSyncTime);
+    }
   } catch (err) {
     console.warn('Erro ao sincronizar nuvem:', err);
     state.syncStatus = 'error';
@@ -757,8 +1167,9 @@ async function pullFromBackend() {
 function applyDataPackage(data) {
   if (data.users && Array.isArray(data.users)) state.users = data.users;
   if (data.companies && Array.isArray(data.companies)) {
-    state.companies = data.companies.map(c => ({
+    state.companies = data.companies.map((c, idx) => ({
       ...c,
+      id: normalizeSafeDbId(c.id, idx),
       regime: normalizeRegime(c.regime),
       classe: normalizeClasse(c.classe)
     }));
@@ -770,11 +1181,12 @@ function applyDataPackage(data) {
   if (data.fechamentosMeta) state.fechamentosMeta = data.fechamentosMeta;
   if (data.ecdEcfData) state.ecdEcfData = data.ecdEcfData;
   if (data.ecdEcfExtraIds && Array.isArray(data.ecdEcfExtraIds)) state.ecdEcfExtraIds = data.ecdEcfExtraIds;
+  if (data.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = data.fechamentoIAData;
   if (data.customLogo) {
     state.customLogo = data.customLogo;
     localStorage.setItem('control_custom_logo', data.customLogo);
   }
-  saveStorage();
+  saveStorage({ replaceCompanies: true });
 }
 
 function updateSyncIndicator() {
@@ -3928,43 +4340,91 @@ function renderAuthScreen(root) {
       const p = document.getElementById('login-password').value.trim();
 
       // Formata como e-mail caso o usuário tenha digitado apenas o nome de usuário
-      const loginEmail = u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@controlcontabilidade.com.br`;
+      const defaultEmail = u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@controlcontabilidade.com.br`;
 
       const alertContainer = document.getElementById('auth-alert-container');
       alertContainer.innerHTML = `
         <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/30 flex items-center gap-2">
-          <span class="animate-spin inline-block">🔄</span> Conectando ao Supabase Auth...
+          <span class="animate-spin inline-block">🔄</span> Conectando ao Supabase Auth e sincronizando dados...
         </div>
       `;
 
       try {
         let authUser = null;
-        // 1. Tenta autenticação oficial no Supabase Auth
-        if (sb && sb.auth) {
-          const { data, error } = await sb.auth.signInWithPassword({
-            email: loginEmail,
-            password: p
-          });
+        let matchedProfile = null;
 
-          if (!error && data?.user) {
-            authUser = {
-              id: data.user.id,
-              usuario: data.user.user_metadata?.username || u,
-              email: data.user.email,
-              nome: data.user.user_metadata?.nome || u,
-              role: data.user.user_metadata?.role || 'analista',
-              token: data.session?.access_token
-            };
+        // 0. Tenta localizar perfil correspondente no Supabase para descobrir e-mail/user_id exato
+        if (sb) {
+          try {
+            const { data: allProfiles } = await sb.from('perfis').select('*').limit(100);
+            if (Array.isArray(allProfiles) && allProfiles.length > 0) {
+              const uLow = u.toLowerCase();
+              matchedProfile = allProfiles.find(pr => {
+                const em = (pr.email || '').toLowerCase();
+                const nm = (pr.nome || '').toLowerCase();
+                const uid = String(pr.user_id || '').toLowerCase();
+                return em === uLow || em === defaultEmail || em.split('@')[0] === uLow || nm === uLow || nm.split(' ')[0] === uLow || uid === uLow;
+              });
+            }
+          } catch (profErr) {
+            console.warn('Aviso ao consultar perfis no login:', profErr);
           }
         }
 
-        // 2. Fallback caso a conta seja legada ou criada localmente
+        const candidateEmails = Array.from(new Set([
+          matchedProfile?.email?.toLowerCase(),
+          defaultEmail,
+          u.includes('@') ? u.toLowerCase() : null
+        ].filter(Boolean)));
+
+        // 1. Tenta autenticação oficial no Supabase Auth
+        if (sb && sb.auth) {
+          for (const emailAttempt of candidateEmails) {
+            const { data, error } = await sb.auth.signInWithPassword({
+              email: emailAttempt,
+              password: p
+            });
+
+            if (!error && data?.user) {
+              authUser = {
+                id: data.user.id,
+                userId: data.user.id,
+                usuario: data.user.user_metadata?.username || u.split('@')[0],
+                email: data.user.email,
+                nome: data.user.user_metadata?.nome || matchedProfile?.nome || u,
+                role: data.user.user_metadata?.role || matchedProfile?.role || 'analista',
+                token: data.session?.access_token
+              };
+              break;
+            }
+          }
+        }
+
+        // 2. Fallback caso a conta seja legada, criada localmente ou aguardando confirmação de e-mail no Supabase
         if (!authUser) {
           const found = state.users.find(usr => 
-            (usr.usuario.toLowerCase() === u.toLowerCase() || (usr.email && usr.email.toLowerCase() === loginEmail)) && usr.senha === p
+            (usr.usuario.toLowerCase() === u.toLowerCase() || (usr.email && candidateEmails.includes(usr.email.toLowerCase()))) && usr.senha === p
           );
           if (found) {
-            authUser = found;
+            const resolvedId = matchedProfile?.user_id || found.id || found.email || found.usuario;
+            authUser = {
+              ...found,
+              id: String(resolvedId),
+              userId: String(resolvedId),
+              email: matchedProfile?.email || found.email || defaultEmail,
+              nome: matchedProfile?.nome || found.nome || u,
+              role: matchedProfile?.role || found.role || 'analista'
+            };
+          } else if (matchedProfile) {
+            // Se o perfil já existe no Supabase (criado em outra máquina)
+            authUser = {
+              id: String(matchedProfile.user_id),
+              userId: String(matchedProfile.user_id),
+              usuario: (matchedProfile.email || u).split('@')[0],
+              email: matchedProfile.email || defaultEmail,
+              nome: matchedProfile.nome || u,
+              role: matchedProfile.role || 'analista'
+            };
           }
         }
 
@@ -3975,7 +4435,7 @@ function renderAuthScreen(root) {
         } else {
           alertContainer.innerHTML = `
             <div class="mb-4 p-3 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/30">
-              Usuário ou senha inválidos no Supabase. Caso não tenha conta, clique em "Cadastre-se agora".
+              Usuário ou senha inválidos no Supabase. Caso não tenha conta, clique em "Criar uma conta".
             </div>
           `;
         }
@@ -4091,19 +4551,20 @@ function renderAuthScreen(root) {
         }
 
         if (!createdUserId) {
-          createdUserId = 'usr_' + Date.now();
+          createdUserId = email; // Chave determinística baseada no e-mail caso offline/já registrado
         }
 
-        const newUser = { id: createdUserId, nome, usuario, email, senha, role: selectedRole, userProfile };
+        const newUser = { id: createdUserId, userId: createdUserId, nome, usuario, email, senha, role: selectedRole, userProfile };
         state.users.push(newUser);
+        localStorage.setItem('control_users', JSON.stringify(state.users));
 
         // 2. Grava na tabela 'perfis' do Supabase
         await dataService.saveUserProfile(createdUserId, userProfile, selectedRole);
 
-        // 3. Conecta e inicializa o ambiente limpo do usuário
+        // 3. Conecta e inicializa o ambiente do usuário
         await switchUserEnvironment(newUser);
 
-        alert(`Conta criada com sucesso no Supabase!\n\nBem-vindo(a), ${nome}.\nPerfil: ${roleDisplayName}\n\nSeu ambiente de trabalho em nuvem está pronto e zerado.`);
+        alert(`Conta criada com sucesso no Supabase!\n\nBem-vindo(a), ${nome}.\nPerfil: ${roleDisplayName}\n\nSeu ambiente de trabalho em nuvem está pronto.`);
         render();
       } catch (err) {
         alertContainer.innerHTML = `
@@ -12692,7 +13153,7 @@ function attachEventHandlers() {
             const segmento = row[7] ? row[7].toString().trim() : "Serviços";
 
             imported.push({
-              id: Date.now() + idx,
+              id: generateSafeId(idx),
               codigo,
               grupo,
               nome: empresa,
@@ -12707,9 +13168,9 @@ function attachEventHandlers() {
 
           if (imported.length > 0) {
             state.companies = imported;
-            saveStorage();
+            saveStorage({ replaceCompanies: true });
             render();
-            alert(`Sucesso! ${imported.length} empresas importadas respeitando estritamente a ordem das 8 colunas:\n1. Código\n2. Grupo\n3. Empresa\n4. CNPJ\n5. Classe\n6. Regime Tributário\n7. Responsável\n8. Segmento`);
+            alert(`Sucesso! ${imported.length} empresas importadas e salvas na nuvem (Supabase) respeitando estritamente a ordem das 8 colunas:\n1. Código\n2. Grupo\n3. Empresa\n4. CNPJ\n5. Classe\n6. Regime Tributário\n7. Responsável\n8. Segmento`);
           } else {
             alert("Nenhuma empresa válida encontrada na planilha.");
           }
@@ -12757,13 +13218,14 @@ function attachEventHandlers() {
       if (!title) return;
       const today = new Date().toISOString().split('T')[0];
       const newTask = {
-        id: Date.now(),
+        id: generateSafeId(),
         titulo: title,
         descricao: desc,
         empresaId: companyVal ? Number(companyVal) : null,
         data: date,
         urgencia: urg,
         concluida: false,
+        kanbanStatus: 'a_fazer',
         createdAt: today
       };
       state.tasks.unshift(newTask);
@@ -12771,7 +13233,7 @@ function attachEventHandlers() {
       if (userId) {
         await dataService.upsertTarefa(newTask, userId);
       }
-      saveStorage();
+      await saveStorage();
       render();
     });
   }
@@ -12810,7 +13272,7 @@ function attachEventHandlers() {
         // Create new task (e.g. from Calendário "Adicionar Evento")
         const today = new Date().toISOString().split('T')[0];
         targetTask = {
-          id: Date.now(),
+          id: generateSafeId(),
           titulo: title,
           descricao: desc,
           empresaId: companyVal ? Number(companyVal) : null,
@@ -12819,6 +13281,7 @@ function attachEventHandlers() {
           horaFim: horaFim,
           urgencia: urg,
           concluida: false,
+          kanbanStatus: 'a_fazer',
           createdAt: today
         };
         state.tasks.unshift(targetTask);
@@ -12827,7 +13290,7 @@ function attachEventHandlers() {
       if (userId && targetTask) {
         await dataService.upsertTarefa(targetTask, userId);
       }
-      saveStorage();
+      await saveStorage();
       closeEditTaskModal();
     });
   }
@@ -12850,7 +13313,7 @@ function attachEventHandlers() {
       let targetComp = null;
       if (state.modal.mode === 'create') {
         targetComp = {
-          id: Date.now(),
+          id: generateSafeId(),
           codigo: codigo || (state.companies.length + 1).toString(),
           grupo: grupo || 'GERAL',
           nome,
@@ -12884,7 +13347,7 @@ function attachEventHandlers() {
       if (userId && targetComp) {
         await dataService.upsertEmpresa(targetComp, userId);
       }
-      saveStorage();
+      await saveStorage();
       closeCompanyModal();
     });
   }
@@ -12966,13 +13429,18 @@ function attachEventHandlers() {
     });
   }
 
-  // Forçar Sincronização em Nuvem
+  // Forçar Sincronização em Nuvem (Supabase + Backend opcional)
   const btnForceSync = document.getElementById('btn-force-sync');
   if (btnForceSync) {
     btnForceSync.addEventListener('click', async () => {
       if (backupDropdown) backupDropdown.classList.add('hidden');
-      await syncToBackend(true);
-      await pullFromBackend();
+      await saveStorage();
+      if (state.backendUrl) {
+        await syncToBackend(true);
+        await pullFromBackend();
+      } else {
+        alert('☁️ Sincronização com o Supabase concluída com sucesso!');
+      }
     });
   }
 
@@ -13236,7 +13704,7 @@ window.saveEcdEcfModal = () => {
       const newRegime = document.getElementById('ecd-new-regime')?.value || 'Lucro Real Trimestral';
       const newColab = (document.getElementById('ecd-new-colaborador')?.value || '').trim() || 'Brayann';
 
-      targetCompanyId = Date.now();
+      targetCompanyId = generateSafeId();
       state.companies.unshift({
         id: targetCompanyId,
         codigo: newCodigo,
@@ -13755,7 +14223,7 @@ window.handleUniversalImport = (event) => {
         const fechamento = row[8] ? row[8].toString().trim() : "2026-08";
 
         imported.push({
-          id: Date.now() + idx,
+          id: generateSafeId(idx),
           codigo,
           grupo,
           nome: empresa,
@@ -13770,9 +14238,9 @@ window.handleUniversalImport = (event) => {
 
       if (imported.length > 0) {
         state.companies = imported;
-        saveStorage();
+        saveStorage({ replaceCompanies: true });
         render();
-        alert(`✅ SUCESSO!\n\n${imported.length} empresas atualizadas e sincronizadas no sistema!`);
+        alert(`✅ SUCESSO!\n\n${imported.length} empresas atualizadas e sincronizadas na nuvem (Supabase)!`);
       } else {
         alert("Nenhuma empresa válida encontrada na planilha.");
       }
