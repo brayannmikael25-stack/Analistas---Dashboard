@@ -2,80 +2,81 @@
 // CONTROL CONTABILIDADE - APLICAÇÃO SPA NATIVA v2.1
 // ==========================================
 
-// Dados reais recuperados do backup oficial (Control_Backup_Completo_2026-10-15.json)
+// Dados reais recuperados do backup oficial (IDs normalizados em 32-bit int4 para compatibilidade total com PostgreSQL/Supabase)
 const INITIAL_COMPANIES = [
-  { id: 1791492316057, codigo: "226", grupo: "DMOURA", nome: "S A CRUZ COMERCIAL DE MEDICAMENTOS LTDA", cnpj: "51.567.009/0001-10", classe: "C", regime: "Lucro Presumido", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-06" },
-  { id: 1790948819430, codigo: "231", grupo: "M. Landim", nome: "WM CONSTRUCOES LTDA", cnpj: "02.364.381/0001-13", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
-  { id: 1790948750840, codigo: "216", grupo: "M. Landim", nome: "RG2 TERRAPLENAGEM LTDA", cnpj: "10.417.584/0001-59", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
-  { id: 1790948709233, codigo: "9468", grupo: "M. Landim", nome: "SOLIDA ENGENHARIA LTDA", cnpj: "14.108.584/0001-28", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
-  { id: 1790945532378, codigo: "4523", grupo: "UNIQUIMICA", nome: "UNIQUIMICA LTDA", cnpj: "28.279.873/0001-02", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Outros", fechamento: "2026-08" },
-  { id: 1790945532379, codigo: "391", grupo: "GREEN", nome: "GREEN X SUSTENTABILIDADE E INSTALACOES ELETRICAS LTDA", cnpj: "05.095.843/0001-32", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-08" },
-  { id: 1790945532380, codigo: "5", grupo: "336", nome: "LUNAR", cnpj: "LUNAR SERVICOS TERRAPLENAGEM E LOCACAO LTDA", classe: "A", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-09" },
-  { id: 1790945532381, codigo: "68", grupo: "68", nome: "K TEK SOLUCOES DE ENGENHARIA LTDA", cnpj: "29.871.297/0001-42", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-08" },
-  { id: 1790945532382, codigo: "254", grupo: "CONNECT", nome: "CONNECT SERVICOS LTDA", cnpj: "11.553.714/0001-43", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
-  { id: 1790945532383, codigo: "406", grupo: "ACRIMAX", nome: "MARIA LUCIANA FERREIRA PAULINO LTDA", cnpj: "03.021.917/0001-60", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Industria / Comércio", fechamento: "2026-06" },
-  { id: 1790945532384, codigo: "566", grupo: "DION", nome: "M A COMERCIAL DE MEDICAMENTOS LTDA", cnpj: "21.593.391/0001-75", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
-  { id: 1790945532385, codigo: "9440", grupo: "SENA", nome: "M J DE SENA & CIA LTDA", cnpj: "10.483.915/0001-59", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
-  { id: 1790945532386, codigo: "9732", grupo: "JUNIOR", nome: "ANTONIO LEOCADIO LIMA FILHO", cnpj: "07.028.193/0001-38", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
-  { id: 1790945532387, codigo: "139", grupo: "ADAIU", nome: "CARLOS ADAIU DE LIMA LTDA", cnpj: "33.917.166/0001-26", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
-  { id: 1790945532388, codigo: "13", grupo: "252", nome: "CONNECT", cnpj: "CONNECT EMPREENDIMENTOS LTDA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
-  { id: 1790945532389, codigo: "14", grupo: "253", nome: "CONNECT", cnpj: "CONNECT TERCEIRIZACAO LTDA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
-  { id: 1790945532391, codigo: "16", grupo: "2101", nome: "JUNIOR", cnpj: "VAI GAS COMERCIO DE GAS LTDA", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
-  { id: 1790945532392, codigo: "17", grupo: "9733", nome: "JUNIOR", cnpj: "ALLF COMERCIO DE GAS EIRELI", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
-  { id: 1790945532393, codigo: "18", grupo: "501", nome: "---", cnpj: "TECH E INFRAESTRUTURA E TECNOLOGIA LTDA", classe: "D", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
-  { id: 1790945532394, codigo: "19", grupo: "393", nome: "GREEN", cnpj: "CAVALCANTE & CAVALCANTE S/S LTDA", classe: "D", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Outros", fechamento: "2025-12" },
-  { id: 1790945532395, codigo: "20", grupo: "392", nome: "GREEN", cnpj: "TECI INFRAESTRUTURA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Outros", fechamento: "2025-12" },
-  { id: 1790945532396, codigo: "21", grupo: "364", nome: "EDUARDO", cnpj: "LUCCA BACELAR ENGENHARIA LTDA", classe: "D", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
-  { id: 1790945532397, codigo: "22", grupo: "503", nome: "---", cnpj: "FGW CONSTRUTORA LTDA", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
-  { id: 1790945532398, codigo: "23", grupo: "197", nome: "---", cnpj: "IBIFARMA", classe: "E", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Farmácia", fechamento: "2026-08" },
-  { id: 1790945532399, codigo: "87", grupo: "PRIORIDADE", nome: "PRIORIDADE SEGURANCA LTDA", cnpj: "44.343.328/0001-86", classe: "A", regime: "Lucro Real Mensal", colaborador: "DEBORA", segmento: "Serviços", fechamento: "2026-08" },
-  { id: 1790945532400, codigo: "99", grupo: "PRIORIDADE", nome: "PRIORIDADE SERVICOS TERCEIRIZADOS LTDA", cnpj: "45.543.801/0001-31", classe: "B", regime: "Lucro Real Trimestral", colaborador: "DEBORA", segmento: "Serviços", fechamento: "2026-06" },
-  { id: 1790945532402, codigo: "53", grupo: "GRAÇA", nome: "MARIA DAS GRACAS MELO PALHARES LTDA", cnpj: "03.391.598/0001-85", classe: "A", regime: "Lucro Real Mensal", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-08" },
-  { id: 1790945532403, codigo: "182", grupo: "RICARDUS", nome: "MEDICALL BRASIL COMERCIO E SERVICOS LTDA", cnpj: "29.245.742/0001-69", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-06" },
-  { id: 1790945532404, codigo: "275", grupo: "RICARDUS", nome: "SP COMERCIO FARMACEUTICO LTDA", cnpj: "63.926.386/0001-87", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Farmácia", fechamento: "2026-06" },
-  { id: 1790945532405, codigo: "106", grupo: "DMOURA", nome: "DMOURA & S A CRUZ LTDA", cnpj: "46.382.272/0001-02", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Farmácia", fechamento: "2026-06" }
+  { id: 492316057, codigo: "226", grupo: "DMOURA", nome: "S A CRUZ COMERCIAL DE MEDICAMENTOS LTDA", cnpj: "51.567.009/0001-10", classe: "C", regime: "Lucro Presumido", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 948819430, codigo: "231", grupo: "M. Landim", nome: "WM CONSTRUCOES LTDA", cnpj: "02.364.381/0001-13", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
+  { id: 948750840, codigo: "216", grupo: "M. Landim", nome: "RG2 TERRAPLENAGEM LTDA", cnpj: "10.417.584/0001-59", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
+  { id: 948709233, codigo: "9468", grupo: "M. Landim", nome: "SOLIDA ENGENHARIA LTDA", cnpj: "14.108.584/0001-28", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-02" },
+  { id: 945532378, codigo: "4523", grupo: "UNIQUIMICA", nome: "UNIQUIMICA LTDA", cnpj: "28.279.873/0001-02", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Outros", fechamento: "2026-08" },
+  { id: 945532379, codigo: "391", grupo: "GREEN", nome: "GREEN X SUSTENTABILIDADE E INSTALACOES ELETRICAS LTDA", cnpj: "05.095.843/0001-32", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-08" },
+  { id: 945532380, codigo: "5", grupo: "336", nome: "LUNAR", cnpj: "LUNAR SERVICOS TERRAPLENAGEM E LOCACAO LTDA", classe: "A", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-09" },
+  { id: 945532381, codigo: "68", grupo: "68", nome: "K TEK SOLUCOES DE ENGENHARIA LTDA", cnpj: "29.871.297/0001-42", classe: "A", regime: "Lucro Real Mensal", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2026-08" },
+  { id: 945532382, codigo: "254", grupo: "CONNECT", nome: "CONNECT SERVICOS LTDA", cnpj: "11.553.714/0001-43", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
+  { id: 945532383, codigo: "406", grupo: "ACRIMAX", nome: "MARIA LUCIANA FERREIRA PAULINO LTDA", cnpj: "03.021.917/0001-60", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Industria / Comércio", fechamento: "2026-06" },
+  { id: 945532384, codigo: "566", grupo: "DION", nome: "M A COMERCIAL DE MEDICAMENTOS LTDA", cnpj: "21.593.391/0001-75", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 945532385, codigo: "9440", grupo: "SENA", nome: "M J DE SENA & CIA LTDA", cnpj: "10.483.915/0001-59", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 945532386, codigo: "9732", grupo: "JUNIOR", nome: "ANTONIO LEOCADIO LIMA FILHO", cnpj: "07.028.193/0001-38", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
+  { id: 945532387, codigo: "139", grupo: "ADAIU", nome: "CARLOS ADAIU DE LIMA LTDA", cnpj: "33.917.166/0001-26", classe: "B", regime: "Lucro Real Trimestral", colaborador: "AMANDA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 945532388, codigo: "13", grupo: "252", nome: "CONNECT", cnpj: "CONNECT EMPREENDIMENTOS LTDA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
+  { id: 945532389, codigo: "14", grupo: "253", nome: "CONNECT", cnpj: "CONNECT TERCEIRIZACAO LTDA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Serviços de Limpesa", fechamento: "2026-06" },
+  { id: 945532391, codigo: "16", grupo: "2101", nome: "JUNIOR", cnpj: "VAI GAS COMERCIO DE GAS LTDA", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
+  { id: 945532392, codigo: "17", grupo: "9733", nome: "JUNIOR", cnpj: "ALLF COMERCIO DE GAS EIRELI", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Gás e Combustíveis", fechamento: "2026-06" },
+  { id: 945532393, codigo: "18", grupo: "501", nome: "---", cnpj: "TECH E INFRAESTRUTURA E TECNOLOGIA LTDA", classe: "D", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
+  { id: 945532394, codigo: "19", grupo: "393", nome: "GREEN", cnpj: "CAVALCANTE & CAVALCANTE S/S LTDA", classe: "D", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Outros", fechamento: "2025-12" },
+  { id: 945532395, codigo: "20", grupo: "392", nome: "GREEN", cnpj: "TECI INFRAESTRUTURA", classe: "C", regime: "Simples Nacional", colaborador: "AMANDA", segmento: "Outros", fechamento: "2025-12" },
+  { id: 945532396, codigo: "21", grupo: "364", nome: "EDUARDO", cnpj: "LUCCA BACELAR ENGENHARIA LTDA", classe: "D", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
+  { id: 945532397, codigo: "22", grupo: "503", nome: "---", cnpj: "FGW CONSTRUTORA LTDA", classe: "C", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Construtora", fechamento: "2025-12" },
+  { id: 945532398, codigo: "23", grupo: "197", nome: "---", cnpj: "IBIFARMA", classe: "E", regime: "Lucro Presumido", colaborador: "AMANDA", segmento: "Farmácia", fechamento: "2026-08" },
+  { id: 945532399, codigo: "87", grupo: "PRIORIDADE", nome: "PRIORIDADE SEGURANCA LTDA", cnpj: "44.343.328/0001-86", classe: "A", regime: "Lucro Real Mensal", colaborador: "DEBORA", segmento: "Serviços", fechamento: "2026-08" },
+  { id: 945532400, codigo: "99", grupo: "PRIORIDADE", nome: "PRIORIDADE SERVICOS TERCEIRIZADOS LTDA", cnpj: "45.543.801/0001-31", classe: "B", regime: "Lucro Real Trimestral", colaborador: "DEBORA", segmento: "Serviços", fechamento: "2026-06" },
+  { id: 945532402, codigo: "53", grupo: "GRAÇA", nome: "MARIA DAS GRACAS MELO PALHARES LTDA", cnpj: "03.391.598/0001-85", classe: "A", regime: "Lucro Real Mensal", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-08" },
+  { id: 945532403, codigo: "182", grupo: "RICARDUS", nome: "MEDICALL BRASIL COMERCIO E SERVICOS LTDA", cnpj: "29.245.742/0001-69", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Comércio", fechamento: "2026-06" },
+  { id: 945532404, codigo: "275", grupo: "RICARDUS", nome: "SP COMERCIO FARMACEUTICO LTDA", cnpj: "63.926.386/0001-87", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Farmácia", fechamento: "2026-06" },
+  { id: 945532405, codigo: "106", grupo: "DMOURA", nome: "DMOURA & S A CRUZ LTDA", cnpj: "46.382.272/0001-02", classe: "B", regime: "Lucro Real Trimestral", colaborador: "ERICA", segmento: "Farmácia", fechamento: "2026-06" }
 ];
+const INITIAL_COMPANY_IDS = new Set(INITIAL_COMPANIES.map(c => c.id));
 
 const INITIAL_USERS = [
   { id: 1, usuario: "brayann", email: "brayann@controlcontabilidade.com.br", senha: "bra@7288", nome: "Brayann Mikael" }
 ];
 
 const INITIAL_TASKS = [
-  { id: 1792175203715, titulo: "Lançar ajuste na D.R.E - Connect Serviços", descricao: "Ajuste de resultado na D.R.E - comp 09/2026", data: "2026-10-20", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
-  { id: 1792097491310, titulo: "Atualizações de Sistema com ControlHUB", descricao: "", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-15" },
-  { id: 1792096873512, titulo: "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL", descricao: "", data: "2026-10-19", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-15" },
-  { id: 1792096845705, titulo: "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL", descricao: "", data: "2026-10-18", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-15" },
-  { id: 1792096821200, titulo: "PERD/COMP - CONNECT SERVIÇOS", descricao: "", data: "2026-10-16", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-15" },
-  { id: 1791470607574, titulo: "Fechamento - Lunar Serviços", descricao: "Fechamento Lunar - 09/2026", data: "2026-10-08", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-08" },
-  { id: 1791466827501, titulo: "Fechamento Connect Serviços", descricao: "Fechamento mês 7 e 8", data: "2026-10-08", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-08", empresaId: 1790945532382 },
-  { id: 1791383253712, titulo: "Fechamentos - Pendentes", descricao: "Concluir fechamentos de balanços", data: "2026-10-08", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-08" },
-  { id: 1791383223457, titulo: "K tek - aumento de capital social", descricao: "", data: "2026-10-31", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-31" },
-  { id: 1791205267693, titulo: "Documentação TECI - Marcus consultor", descricao: "Enviar doc BPO para o Marcos de Junho para frente, grupo Green", data: "2026-10-05", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-05" },
-  { id: 1791204663158, titulo: "Reunião Frigotop e MJ de Sena", descricao: "Marcar reunião fechamento trimestral - Marcus Consultor", data: "2026-10-21", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16", empresaId: null },
-  { id: 1790969232414, titulo: "Connect Terceirização", descricao: "Empréstimo Finame", data: "2026-11-05", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-05" },
-  { id: 1790957847529, titulo: "Connect Terceirização - IRPJ ganho de capital", descricao: "Imposto sobre venda de imóveis detalhado no e-mail, imposto competência 09/2026", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-06" },
-  { id: 1790949339646, titulo: "Fechamento M A COMERCIAL 06/2026", descricao: "Fechamento M A COMERCIAL 06/2026", data: "2026-10-16", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
-  { id: 1790947975020, titulo: "Lunar - Empréstimos", descricao: "Provisionar longo e curto prazo de novos empréstimos", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-06" },
-  { id: 1790947931740, titulo: "Folha - Grupo Prioridade", descricao: "Lançar folhas grupo prioridade", data: "2026-10-16", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
-  { id: 1790947901077, titulo: "K tek - atualização 08/2026", descricao: "Notas canceladas 08/2026", data: "2026-10-09", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-09" },
-  { id: 1790947528461, titulo: "Teci 03/2026", descricao: "Ajuste de saldo inicial e fechamento 03/2026", data: "2026-11-30", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-11-30" }
+  { id: 175203715, titulo: "Lançar ajuste na D.R.E - Connect Serviços", descricao: "Ajuste de resultado na D.R.E - comp 09/2026", data: "2026-10-20", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
+  { id: 97491310, titulo: "Atualizações de Sistema com ControlHUB", descricao: "", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-15" },
+  { id: 96873512, titulo: "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL", descricao: "", data: "2026-10-19", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-15" },
+  { id: 96845705, titulo: "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL", descricao: "", data: "2026-10-18", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-15" },
+  { id: 96821200, titulo: "PERD/COMP - CONNECT SERVIÇOS", descricao: "", data: "2026-10-16", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-15" },
+  { id: 470607574, titulo: "Fechamento - Lunar Serviços", descricao: "Fechamento Lunar - 09/2026", data: "2026-10-08", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-08" },
+  { id: 466827501, titulo: "Fechamento Connect Serviços", descricao: "Fechamento mês 7 e 8", data: "2026-10-08", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-08", empresaId: 945532382 },
+  { id: 383253712, titulo: "Fechamentos - Pendentes", descricao: "Concluir fechamentos de balanços", data: "2026-10-08", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-08" },
+  { id: 383223457, titulo: "K tek - aumento de capital social", descricao: "", data: "2026-10-31", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-31" },
+  { id: 205267693, titulo: "Documentação TECI - Marcus consultor", descricao: "Enviar doc BPO para o Marcos de Junho para frente, grupo Green", data: "2026-10-05", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-05" },
+  { id: 204663158, titulo: "Reunião Frigotop e MJ de Sena", descricao: "Marcar reunião fechamento trimestral - Marcus Consultor", data: "2026-10-21", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16", empresaId: null },
+  { id: 969232414, titulo: "Connect Terceirização", descricao: "Empréstimo Finame", data: "2026-11-05", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-05" },
+  { id: 957847529, titulo: "Connect Terceirização - IRPJ ganho de capital", descricao: "Imposto sobre venda de imóveis detalhado no e-mail, imposto competência 09/2026", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-06" },
+  { id: 949339646, titulo: "Fechamento M A COMERCIAL 06/2026", descricao: "Fechamento M A COMERCIAL 06/2026", data: "2026-10-16", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
+  { id: 947975020, titulo: "Lunar - Empréstimos", descricao: "Provisionar longo e curto prazo de novos empréstimos", data: "2026-11-06", urgencia: "Media", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-11-06" },
+  { id: 947931740, titulo: "Folha - Grupo Prioridade", descricao: "Lançar folhas grupo prioridade", data: "2026-10-16", urgencia: "Alta", concluida: false, kanbanStatus: "a_fazer", createdAt: "2026-10-16" },
+  { id: 947901077, titulo: "K tek - atualização 08/2026", descricao: "Notas canceladas 08/2026", data: "2026-10-09", urgencia: "Alta", concluida: true, kanbanStatus: "concluida", createdAt: "2026-10-09" },
+  { id: 947528461, titulo: "Teci 03/2026", descricao: "Ajuste de saldo inicial e fechamento 03/2026", data: "2026-11-30", urgencia: "Baixa", concluida: true, kanbanStatus: "concluida", createdAt: "2026-11-30" }
 ];
 
 const INITIAL_PIS_COFINS = {
-  "1790945532378_09/2026": { status: "Concluída", darfEnviado: false, saldoCredor: true, updatedAt: "20/10 às 08:20" },
-  "1790945532386_09/2026": { status: "Concluída", darfEnviado: false, updatedAt: "19/10 às 16:15", saldoCredor: true },
-  "1790945532382_09/2026": { status: "Concluída", darfEnviado: true },
-  "1790945532381_09/2026": { status: "Análise", darfEnviado: false },
-  "1790945532383_09/2026": { status: "Concluída", darfEnviado: false, saldoCredor: true, updatedAt: "20/10 às 08:37" },
-  "1790945532379_09/2026": { saldoCredor: true, darfEnviado: false, status: "Concluída", updatedAt: "20/10 às 08:37" }
+  "945532378_09/2026": { status: "Concluída", darfEnviado: false, saldoCredor: true, updatedAt: "20/10 às 08:20" },
+  "945532386_09/2026": { status: "Concluída", darfEnviado: false, updatedAt: "19/10 às 16:15", saldoCredor: true },
+  "945532382_09/2026": { status: "Concluída", darfEnviado: true },
+  "945532381_09/2026": { status: "Análise", darfEnviado: false },
+  "945532383_09/2026": { status: "Concluída", darfEnviado: false, saldoCredor: true, updatedAt: "20/10 às 08:37" },
+  "945532379_09/2026": { saldoCredor: true, darfEnviado: false, status: "Concluída", updatedAt: "20/10 às 08:37" }
 };
 
 const INITIAL_IRPJ_TRIM = {
-  "1790945532382_3º Trim 2026": { darfUnica: true, quotaUnica: true }
+  "945532382_3º Trim 2026": { darfUnica: true, quotaUnica: true }
 };
 
 const INITIAL_IRPJ_MENSAL = {
-  "1790945532378_09/2026": { status: "Pendente" }
+  "945532378_09/2026": { status: "Pendente" }
 };
 
 const MONTH_COMPETENCIES = [];
@@ -248,16 +249,84 @@ function generateSafeId(offset = 0) {
 
 function normalizeSafeDbId(rawId, fallbackOffset = 0) {
   const num = Number(rawId);
-  if (Number.isSafeInteger(num) && num > 0) {
-    return num;
+  if (Number.isFinite(num) && num > 0) {
+    if (num <= 2147483647) return Math.floor(num);
+    const mod = Math.floor(num) % 1000000000;
+    return mod > 0 ? mod : generateSafeId(fallbackOffset);
   }
   return generateSafeId(fallbackOffset);
+}
+
+function normalizeCompanyList(list) {
+  if (!Array.isArray(list)) return [];
+  const seenIds = new Set();
+  return list.map((c, idx) => {
+    let safeId = normalizeSafeDbId(c.id, idx);
+    while (seenIds.has(safeId)) {
+      safeId += 1;
+    }
+    seenIds.add(safeId);
+    return {
+      ...c,
+      id: safeId,
+      regime: normalizeRegime(c.regime),
+      classe: normalizeClasse(c.classe)
+    };
+  });
+}
+
+function normalizeTaskList(list) {
+  if (!Array.isArray(list)) return [];
+  const seenIds = new Set();
+  return list
+    .filter(t => t && t.titulo !== '__CONTROL_SYNC_STATE__')
+    .map((t, idx) => {
+      let safeId = normalizeSafeDbId(t.id, idx);
+      while (seenIds.has(safeId)) {
+        safeId += 1;
+      }
+      seenIds.add(safeId);
+      return {
+        ...t,
+        id: safeId,
+        empresaId: t.empresaId ? normalizeSafeDbId(t.empresaId, 0) : null,
+        kanbanStatus: t.kanbanStatus || (t.concluida ? 'concluida' : 'a_fazer'),
+        comentarios: Array.isArray(t.comentarios) ? t.comentarios : [],
+        historico: Array.isArray(t.historico) ? t.historico : []
+      };
+    });
+}
+
+function normalizeMapCompanyKeys(mapObj) {
+  if (!mapObj || typeof mapObj !== 'object' || Array.isArray(mapObj)) return {};
+  const result = {};
+  for (const [k, v] of Object.entries(mapObj)) {
+    const underIdx = k.indexOf('_');
+    if (underIdx > 0) {
+      const prefix = k.slice(0, underIdx);
+      const rest = k.slice(underIdx);
+      const numPrefix = Number(prefix);
+      if (Number.isFinite(numPrefix) && numPrefix > 0) {
+        result[`${normalizeSafeDbId(numPrefix)}${rest}`] = v;
+        continue;
+      }
+    } else {
+      const numKey = Number(k);
+      if (Number.isFinite(numKey) && numKey > 0) {
+        result[String(normalizeSafeDbId(numKey))] = v;
+        continue;
+      }
+    }
+    result[k] = v;
+  }
+  return result;
 }
 
 // Marcadores de metadados embutidos para sincronizar 100% dos módulos no Supabase mesmo sem colunas extras
 const TASK_META_MARKER = '\n<!--TASK_META:';
 const PROFILE_SYNC_MARKER = '\n<!--CONTROL_SYNC:';
 const SYNC_TASK_TITLE = '__CONTROL_SYNC_STATE__';
+const CURRENT_SYNC_SCHEMA_VERSION = 2;
 
 function packTaskDescription(task) {
   const cleanDesc = (task.descricao || '').split(TASK_META_MARKER)[0];
@@ -286,10 +355,10 @@ function unpackTaskFromSupabase(row) {
   }
   const concluida = !!row.concluida;
   return {
-    id: row.id,
+    id: normalizeSafeDbId(row.id),
     titulo: row.titulo,
     descricao: cleanDesc,
-    empresaId: row.empresa_id,
+    empresaId: row.empresa_id ? normalizeSafeDbId(row.empresa_id) : null,
     data: row.data,
     horaInicio: row.hora_inicio,
     horaFim: row.hora_fim,
@@ -393,7 +462,7 @@ const dataService = {
       addKey(session.usuario);
       addKey(session.user);
     }
-    if (Array.from(keys).some(k => k.includes('brayann'))) {
+    if (Array.from(keys).some(k => k.includes('brayann') || k === '1')) {
       addKey('1');
       addKey('brayann');
       addKey('brayann@controlcontabilidade.com.br');
@@ -401,10 +470,10 @@ const dataService = {
     return Array.from(keys);
   },
 
-  // Gera um ID numérico determinístico para a linha oculta de sincronização de cada usuário
+  // Gera um ID numérico determinístico de 32-bit int4 para a linha oculta de sincronização
   getSyncRecordId(userId) {
     let hash = 0;
-    const str = String(userId || 'default');
+    const str = String(userId || 'default').toLowerCase();
     for (let i = 0; i < str.length; i++) {
       hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
     }
@@ -439,9 +508,9 @@ const dataService = {
       );
 
       if (error) {
-        // Fallback caso updated_at não exista ou user_id não tenha constraint UNIQUE
-        const { data: existing } = await sb.from('perfis').select('user_id').eq('user_id', userId).maybeSingle();
-        if (existing) {
+        // Fallback seguro usando .limit(5) em vez de .maybeSingle() (evita erro PGRST116 se houver múltiplas linhas)
+        const { data: existingRows } = await sb.from('perfis').select('user_id').eq('user_id', userId).limit(5);
+        if (Array.isArray(existingRows) && existingRows.length > 0) {
           const { error: updErr } = await sb.from('perfis').update(basePayload).eq('user_id', userId);
           if (updErr) console.warn('Aviso ao atualizar perfil no Supabase:', updErr.message);
           return !updErr;
@@ -458,102 +527,96 @@ const dataService = {
     }
   },
 
-  // Carrega dados de perfis, empresas, tarefas e estado de apurações associados ao usuário
+  // Carrega dados de perfis, empresas, tarefas e estado de apurações buscando o registro mais recente entre dispositivos
   async loadUserDataFromSupabase(userId, userObj = null) {
     if (!userId || !sb) return null;
     try {
       const candidateKeys = this.getCandidateUserKeys(userId, userObj);
+      const candidateSet = new Set(candidateKeys.map(k => String(k).toLowerCase()));
 
-      // 1. Perfil (busca por userId ou e-mail relacionado)
+      // 1. Perfis: busca todos os perfis e filtra os que pertencem ao usuário (sem usar maybeSingle)
       let perfilData = null;
-      for (const key of candidateKeys) {
-        const { data } = await sb.from('perfis').select('*').eq('user_id', key).maybeSingle();
-        if (data) {
-          perfilData = data;
-          break;
-        }
-      }
-      if (!perfilData && userObj?.email) {
-        const { data } = await sb.from('perfis').select('*').eq('email', userObj.email.toLowerCase()).maybeSingle();
-        if (data) {
-          perfilData = data;
-          if (data.user_id && !candidateKeys.includes(String(data.user_id))) {
-            candidateKeys.push(String(data.user_id));
+      const syncStateCandidates = [];
+
+      const { data: allProfiles } = await sb.from('perfis').select('*').limit(100);
+      if (Array.isArray(allProfiles) && allProfiles.length > 0) {
+        const matchingProfiles = allProfiles.filter(p => {
+          const uid = String(p.user_id || '').toLowerCase();
+          const em = String(p.email || '').toLowerCase();
+          return candidateSet.has(uid) || (em && candidateSet.has(em));
+        });
+        const profilesToInspect = matchingProfiles.length > 0 ? matchingProfiles : allProfiles;
+        for (const p of profilesToInspect) {
+          if (!perfilData) perfilData = p;
+          if (p.user_id && !candidateKeys.includes(String(p.user_id))) {
+            candidateKeys.push(String(p.user_id));
+            candidateSet.add(String(p.user_id).toLowerCase());
+          }
+          const extracted = extractProfileSyncData(p.bio);
+          if (extracted && typeof extracted === 'object') {
+            syncStateCandidates.push(extracted);
           }
         }
       }
 
-      // 2. Empresas do usuário (busca em todas as chaves candidatas do usuário)
+      // 2. Empresas: consulta todas as empresas salvas para as chaves do usuário
       let empresasData = [];
-      for (const key of candidateKeys) {
-        const { data, error } = await sb
-          .from('empresas')
-          .select('*')
-          .eq('user_id', key)
-          .order('id', { ascending: false });
-        if (!error && data && data.length > 0) {
-          empresasData = data;
-          break;
-        }
+      const { data: allEmpresas, error: allEmpErr } = await sb
+        .from('empresas')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(500);
+
+      if (!allEmpErr && Array.isArray(allEmpresas) && allEmpresas.length > 0) {
+        const matchingEmpresas = allEmpresas.filter(e => candidateSet.has(String(e.user_id || '').toLowerCase()));
+        empresasData = matchingEmpresas.length > 0 ? matchingEmpresas : allEmpresas;
       }
 
-      // Se ainda estiver vazio, verifica se existem empresas salvas na tabela sob outra chave legada
-      if (!empresasData || empresasData.length === 0) {
-        const { data: allEmpresas, error: allEmpErr } = await sb
-          .from('empresas')
-          .select('*')
-          .order('id', { ascending: false })
-          .limit(500);
-        if (!allEmpErr && allEmpresas && allEmpresas.length > 0) {
-          empresasData = allEmpresas;
-        }
-      }
-
-      // 3. Tarefas e estado de sincronização
+      // 3. Tarefas e linha oculta de sincronização (__CONTROL_SYNC_STATE__)
       let tarefasData = [];
-      for (const key of candidateKeys) {
-        const { data, error } = await sb
-          .from('tarefas')
-          .select('*')
-          .eq('user_id', key)
-          .order('id', { ascending: false });
-        if (!error && data && data.length > 0) {
-          tarefasData = data;
-          break;
+      const { data: allTarefas, error: allTarErr } = await sb
+        .from('tarefas')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(500);
+
+      if (!allTarErr && Array.isArray(allTarefas) && allTarefas.length > 0) {
+        for (const t of allTarefas) {
+          if (t.titulo === SYNC_TASK_TITLE && t.descricao) {
+            try {
+              const parsed = JSON.parse(t.descricao);
+              if (parsed && typeof parsed === 'object') {
+                syncStateCandidates.push(parsed);
+              }
+            } catch (e) {
+              // ignora JSON inválido
+            }
+          }
         }
+        const matchingTarefas = allTarefas.filter(t =>
+          t.titulo !== SYNC_TASK_TITLE && candidateSet.has(String(t.user_id || '').toLowerCase())
+        );
+        tarefasData = matchingTarefas.length > 0
+          ? matchingTarefas
+          : allTarefas.filter(t => t.titulo !== SYNC_TASK_TITLE);
       }
 
-      if (!tarefasData || tarefasData.length === 0) {
-        const { data: allTarefas, error: allTarErr } = await sb
-          .from('tarefas')
-          .select('*')
-          .order('id', { ascending: false })
-          .limit(500);
-        if (!allTarErr && allTarefas && allTarefas.length > 0) {
-          tarefasData = allTarefas;
-        }
-      }
-
-      // 4. Extrai pacote de estado estendido (da linha oculta __CONTROL_SYNC_STATE__ ou de perfis.bio)
+      // 4. Escolhe o syncState mais recente (maior updatedAt) entre todos os candidatos encontrados
       let syncState = null;
-      const syncTaskRow = (tarefasData || []).find(t => t.titulo === SYNC_TASK_TITLE);
-      if (syncTaskRow && syncTaskRow.descricao) {
-        try {
-          syncState = JSON.parse(syncTaskRow.descricao);
-        } catch (e) {
-          syncState = null;
-        }
+      if (syncStateCandidates.length > 0) {
+        syncStateCandidates.sort((a, b) => {
+          const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+          const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          if (timeB !== timeA) return timeB - timeA;
+          return (b.companies?.length || 0) - (a.companies?.length || 0);
+        });
+        syncState = syncStateCandidates[0];
       }
-      if (!syncState && perfilData && perfilData.bio) {
-        syncState = extractProfileSyncData(perfilData.bio);
-      }
-
-      const visibleTarefas = (tarefasData || []).filter(t => t.titulo !== SYNC_TASK_TITLE);
 
       return {
         perfil: perfilData,
         empresas: empresasData || [],
-        tarefas: visibleTarefas,
+        tarefas: tarefasData || [],
         syncState
       };
     } catch (err) {
@@ -587,38 +650,44 @@ const dataService = {
   // Persiste uma empresa no Supabase com fallback de schema
   async upsertEmpresa(company, userId) {
     if (!sb || !userId || !company) return false;
-    return this.upsertEmpresasBatch([company], userId);
+    return this.upsertEmpresasBatch([company], userId, false);
   },
 
-  // Persiste todas as empresas em lote no Supabase (sem limite de 30)
+  // Persiste todas as empresas em lote no Supabase (com IDs 32-bit seguros e limpeza apenas de IDs removidos)
   async upsertEmpresasBatch(companies, userId, replaceAll = false) {
     if (!sb || !userId || !Array.isArray(companies)) return false;
     try {
-      if (replaceAll) {
-        await sb.from('empresas').delete().eq('user_id', userId);
-      }
-      if (companies.length === 0) return true;
+      const normalized = normalizeCompanyList(companies);
+      const currentIds = new Set(normalized.map(c => c.id));
 
-      const chunkSize = 100;
-      for (let i = 0; i < companies.length; i += chunkSize) {
-        const chunk = companies.slice(i, i + chunkSize);
-        const rowsWithTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, true));
-        let { error } = await sb.from('empresas').upsert(rowsWithTs, { onConflict: 'id' });
-
-        if (error) {
-          // Tenta sem updated_at caso a coluna não exista na tabela empresas
-          const rowsNoTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, false));
-          const retry = await sb.from('empresas').upsert(rowsNoTs, { onConflict: 'id' });
-          error = retry.error;
+      if (normalized.length > 0) {
+        const chunkSize = 100;
+        for (let i = 0; i < normalized.length; i += chunkSize) {
+          const chunk = normalized.slice(i, i + chunkSize);
+          const rowsWithTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, true));
+          let { error } = await sb.from('empresas').upsert(rowsWithTs, { onConflict: 'id' });
 
           if (error) {
-            console.warn('Aviso no upsert em lote de empresas, tentando insert direto:', error.message);
-            await sb.from('empresas').delete().eq('user_id', userId);
-            const ins = await sb.from('empresas').insert(rowsNoTs);
-            if (ins.error) {
-              console.warn('Erro ao salvar empresas no Supabase:', ins.error.message);
+            const rowsNoTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, false));
+            const retry = await sb.from('empresas').upsert(rowsNoTs, { onConflict: 'id' });
+            if (retry.error) {
+              console.warn('Erro ao salvar lote de empresas no Supabase:', retry.error.message);
               return false;
             }
+          }
+        }
+      }
+
+      // Se replaceAll for true, remove do banco apenas as empresas que foram excluídas da lista atual
+      if (replaceAll) {
+        const { data: existingRows } = await sb.from('empresas').select('id, user_id').limit(500);
+        if (Array.isArray(existingRows) && existingRows.length > 0) {
+          const candidateSet = new Set(this.getCandidateUserKeys(userId).map(k => k.toLowerCase()));
+          const staleIds = existingRows
+            .filter(r => candidateSet.has(String(r.user_id || '').toLowerCase()) && !currentIds.has(Number(r.id)))
+            .map(r => r.id);
+          for (const staleId of staleIds) {
+            await sb.from('empresas').delete().eq('id', staleId);
           }
         }
       }
@@ -633,7 +702,11 @@ const dataService = {
   async deleteEmpresa(id, userId) {
     if (!sb || !userId) return;
     try {
-      await sb.from('empresas').delete().eq('id', id);
+      const safeId = normalizeSafeDbId(id);
+      await sb.from('empresas').delete().eq('id', safeId);
+      if (safeId !== Number(id)) {
+        await sb.from('empresas').delete().eq('id', id);
+      }
     } catch (err) {
       console.warn('Erro ao excluir empresa no Supabase:', err);
     }
@@ -668,15 +741,12 @@ const dataService = {
   async upsertTarefasBatch(tasks, userId) {
     if (!sb || !userId || !Array.isArray(tasks)) return false;
     try {
-      if (tasks.length === 0) return true;
-      const rows = tasks
-        .filter(t => t && t.titulo !== SYNC_TASK_TITLE)
-        .map((t, idx) => this.formatTarefaRow(t, userId, idx));
-      if (rows.length === 0) return true;
+      const visibleTasks = normalizeTaskList(tasks);
+      if (visibleTasks.length === 0) return true;
+      const rows = visibleTasks.map((t, idx) => this.formatTarefaRow(t, userId, idx));
 
       let { error } = await sb.from('tarefas').upsert(rows, { onConflict: 'id' });
       if (error) {
-        // Caso empresa_id tenha chave estrangeira estrita e a empresa ainda não exista na tabela empresas
         const rowsNoFk = rows.map(r => ({ ...r, empresa_id: null }));
         const retry = await sb.from('tarefas').upsert(rowsNoFk, { onConflict: 'id' });
         if (retry.error) {
@@ -691,24 +761,37 @@ const dataService = {
     }
   },
 
-  // Salva o pacote completo de apurações (PIS/COFINS, IRPJ, Fechamentos, ECD/ECF, IA e backup de empresas/tarefas) no Supabase
+  // Salva o pacote completo de apurações (PIS/COFINS, IRPJ, Fechamentos, ECD/ECF, IA e empresas/tarefas) no Supabase
   async saveCloudSyncState(userId, syncPackage) {
     if (!sb || !userId || !syncPackage) return false;
     try {
+      const serialized = JSON.stringify(syncPackage);
+      const today = new Date().toISOString().split('T')[0];
       const syncRow = {
         id: this.getSyncRecordId(userId),
         user_id: userId,
         titulo: SYNC_TASK_TITLE,
-        descricao: JSON.stringify(syncPackage),
+        descricao: serialized,
         empresa_id: null,
-        data: new Date().toISOString().split('T')[0],
+        data: today,
         hora_inicio: '00:00',
         hora_fim: '00:00',
         urgencia: 'Baixa',
         concluida: true,
-        created_at: new Date().toISOString().split('T')[0]
+        created_at: today
       };
       const { error } = await sb.from('tarefas').upsert(syncRow, { onConflict: 'id' });
+
+      // Atualiza também qualquer outra linha __CONTROL_SYNC_STATE__ existente para manter todos os computadores em sincronia
+      const { data: existingSyncRows } = await sb.from('tarefas').select('id').eq('titulo', SYNC_TASK_TITLE).limit(20);
+      if (Array.isArray(existingSyncRows)) {
+        for (const r of existingSyncRows) {
+          if (Number(r.id) !== syncRow.id) {
+            await sb.from('tarefas').update({ descricao: serialized, data: today }).eq('id', r.id);
+          }
+        }
+      }
+
       if (error) {
         console.warn('Aviso ao gravar estado de sincronização em tarefas:', error.message);
         return false;
@@ -724,24 +807,42 @@ const dataService = {
   async deleteTarefa(id, userId) {
     if (!sb || !userId) return;
     try {
-      await sb.from('tarefas').delete().eq('id', id);
+      const safeId = normalizeSafeDbId(id);
+      await sb.from('tarefas').delete().eq('id', safeId);
+      if (safeId !== Number(id)) {
+        await sb.from('tarefas').delete().eq('id', id);
+      }
     } catch (err) {
       console.warn('Erro ao excluir tarefa no Supabase:', err);
     }
   }
 };
 
-// Inicialização da Sessão Ativa
+// Inicialização da Sessão Ativa (busca o cache local mais recente entre as chaves do usuário)
 const initialSession = authService.getCurrentSession();
 const initialUserKey = initialSession ? (initialSession.userId || initialSession.id) : (sessionStorage.getItem('control_auth_user') || localStorage.getItem('control_auth_user') || null);
 const initialUserData = initialUserKey ? (() => {
   try {
     const candidates = dataService.getCandidateUserKeys(initialUserKey, initialSession);
+    const stores = [];
     for (const k of candidates) {
       const raw = localStorage.getItem(`control_user_store_${k}`);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        try {
+          stores.push(JSON.parse(raw));
+        } catch (e) {}
+      }
     }
-    return null;
+    if (stores.length === 0) return null;
+    stores.sort((a, b) => {
+      const lenDiff = (b.companies?.length || 0) - (a.companies?.length || 0);
+      if ((b.schemaVersion || 0) !== (a.schemaVersion || 0)) return (b.schemaVersion || 0) - (a.schemaVersion || 0);
+      const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      if (tB !== tA) return tB - tA;
+      return lenDiff;
+    });
+    return stores[0];
   } catch (e) {
     return null;
   }
@@ -795,12 +896,12 @@ const state = {
   fechamentoFilter: 'all',
   taskFilter: 'ativas',
   customLogo: localStorage.getItem('control_custom_logo') || null,
-  companies: (initialUserData && initialUserData.companies && initialUserData.companies.length > 0) ? initialUserData.companies : INITIAL_COMPANIES,
-  tasks: (initialUserData && initialUserData.tasks && initialUserData.tasks.length > 0) ? initialUserData.tasks : INITIAL_TASKS,
-  pisCofinsData: (initialUserData && initialUserData.pisCofinsData && Object.keys(initialUserData.pisCofinsData).length > 0) ? initialUserData.pisCofinsData : { ...INITIAL_PIS_COFINS },
-  irpjTrimData: (initialUserData && initialUserData.irpjTrimData && Object.keys(initialUserData.irpjTrimData).length > 0) ? initialUserData.irpjTrimData : { ...INITIAL_IRPJ_TRIM },
-  irpjMensalData: (initialUserData && initialUserData.irpjMensalData && Object.keys(initialUserData.irpjMensalData).length > 0) ? initialUserData.irpjMensalData : { ...INITIAL_IRPJ_MENSAL },
-  fechamentosMeta: initialUserData ? (initialUserData.fechamentosMeta || {}) : {},
+  companies: (initialUserData && initialUserData.companies && initialUserData.companies.length > 0) ? normalizeCompanyList(initialUserData.companies) : INITIAL_COMPANIES.map(c => ({ ...c })),
+  tasks: (initialUserData && initialUserData.tasks && initialUserData.tasks.length > 0) ? normalizeTaskList(initialUserData.tasks) : INITIAL_TASKS.map(t => ({ ...t })),
+  pisCofinsData: (initialUserData && initialUserData.pisCofinsData && Object.keys(initialUserData.pisCofinsData).length > 0) ? normalizeMapCompanyKeys(initialUserData.pisCofinsData) : { ...INITIAL_PIS_COFINS },
+  irpjTrimData: (initialUserData && initialUserData.irpjTrimData && Object.keys(initialUserData.irpjTrimData).length > 0) ? normalizeMapCompanyKeys(initialUserData.irpjTrimData) : { ...INITIAL_IRPJ_TRIM },
+  irpjMensalData: (initialUserData && initialUserData.irpjMensalData && Object.keys(initialUserData.irpjMensalData).length > 0) ? normalizeMapCompanyKeys(initialUserData.irpjMensalData) : { ...INITIAL_IRPJ_MENSAL },
+  fechamentosMeta: initialUserData ? normalizeMapCompanyKeys(initialUserData.fechamentosMeta || {}) : {},
   fechamentoEstagioFilter: 'all',
   fechamentoObsModal: { isOpen: false, companyId: null },
   pisFilter: 'todos',
@@ -808,8 +909,8 @@ const state = {
   irpjMensalFilter: 'todos',
   selEcdEcfYear: '2026 (Ano-Base 2025)',
   ecdEcfFilter: 'todos',
-  ecdEcfData: initialUserData ? (initialUserData.ecdEcfData || {}) : {},
-  ecdEcfExtraIds: initialUserData ? (initialUserData.ecdEcfExtraIds || []) : [],
+  ecdEcfData: initialUserData ? normalizeMapCompanyKeys(initialUserData.ecdEcfData || {}) : {},
+  ecdEcfExtraIds: initialUserData && Array.isArray(initialUserData.ecdEcfExtraIds) ? initialUserData.ecdEcfExtraIds.map(id => normalizeSafeDbId(id)) : [],
   ecdEcfModal: { isOpen: false, mode: 'edit', companyId: null },
   modal: { isOpen: false, mode: 'create', company: null },
   taskModal: { isOpen: false, task: null }, // Modal de edição de tarefas
@@ -852,6 +953,7 @@ const state = {
   backendUrl: localStorage.getItem('control_backend_url') || '',
   syncStatus: 'idle', // 'idle' | 'syncing' | 'saved' | 'error'
   lastSyncTime: localStorage.getItem('control_last_sync') || null,
+  lastUpdatedAt: initialUserData?.updatedAt || null,
   charts: {},
   // Estado do Módulo Fechamento IA
   fechamentoIA: {
@@ -862,7 +964,7 @@ const state = {
     panelTheme: 'escuro', // 'escuro' | 'claro' | 'caqui' | 'noturno'
     companySearch: '',
     filtroRisco: 'TODOS',
-    auditData: (initialUserData && initialUserData.fechamentoIAData) ? initialUserData.fechamentoIAData : {}
+    auditData: (initialUserData && initialUserData.fechamentoIAData) ? normalizeMapCompanyKeys(initialUserData.fechamentoIAData) : {}
   }
 };
 
@@ -889,7 +991,7 @@ function resetAppStateInMemory() {
   state.activeTab = 'dashboard';
 }
 
-// Carrega os dados exclusivos de um usuário no estado reativo
+// Carrega os dados exclusivos de um usuário no estado reativo e reconcilia nuvem vs cache local
 async function switchUserEnvironment(userObj) {
   if (!userObj) {
     resetAppStateInMemory();
@@ -905,7 +1007,7 @@ async function switchUserEnvironment(userObj) {
   // 2. Chave isolada consistente
   const userId = String(userObj.id || userObj.userId || (userObj.email || userObj.usuario || userObj.user || '').toLowerCase());
 
-  // 3. Define dados de perfil base
+  // 3. Define dados de perfil base e limpa coleções em memória antes de carregar da nuvem
   state.userProfile = userObj.userProfile || {
     firstName: userObj.nome?.split(' ')[0] || userObj.usuario || userObj.user || 'Usuário',
     lastName: userObj.nome?.split(' ').slice(1).join(' ') || '',
@@ -913,13 +1015,47 @@ async function switchUserEnvironment(userObj) {
     email: userObj.email || '',
     address: { country: 'Brasil', cityState: 'Fortaleza-CE', postalCode: '60170-002', taxId: '21.423.156/0001-55' }
   };
+  state.companies = [];
+  state.tasks = [];
+  state.pisCofinsData = {};
+  state.irpjTrimData = {};
+  state.irpjMensalData = {};
+  state.fechamentosMeta = {};
+  state.ecdEcfData = {};
+  state.ecdEcfExtraIds = [];
+  if (state.fechamentoIA) state.fechamentoIA.auditData = {};
 
-  // 4. Carrega dados do Supabase (buscando todas as chaves candidatas do usuário)
+  // 4. Inspeciona todos os stores locais deste usuário nesta máquina
+  const candidateKeys = dataService.getCandidateUserKeys(userId, userObj);
+  let bestLocalStore = null;
+  for (const key of candidateKeys) {
+    const raw = localStorage.getItem(`control_user_store_${key}`);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!bestLocalStore) {
+        bestLocalStore = parsed;
+      } else {
+        const countA = bestLocalStore.companies?.length || 0;
+        const countB = parsed.companies?.length || 0;
+        const timeA = bestLocalStore.updatedAt ? new Date(bestLocalStore.updatedAt).getTime() : 0;
+        const timeB = parsed.updatedAt ? new Date(parsed.updatedAt).getTime() : 0;
+        if (countB > countA || (countB === countA && timeB > timeA)) {
+          bestLocalStore = parsed;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 5. Carrega dados do Supabase
   state.syncStatus = 'syncing';
   updateSyncIndicator();
 
   const cloudData = await dataService.loadUserDataFromSupabase(userId, userObj);
-  let loadedFromCloud = false;
+  let cloudCompanies = [];
+  let cloudTasks = [];
+  let cloudUpdatedAt = null;
+  let cloudSchemaVersion = 0;
 
   if (cloudData) {
     if (cloudData.perfil) {
@@ -939,39 +1075,32 @@ async function switchUserEnvironment(userObj) {
       };
     }
 
-    if (cloudData.empresas && cloudData.empresas.length > 0) {
-      state.companies = cloudData.empresas.map(c => ({
-        ...c,
-        regime: normalizeRegime(c.regime),
-        classe: normalizeClasse(c.classe)
-      }));
-      loadedFromCloud = true;
-    }
+    const tableCompanies = normalizeCompanyList(cloudData.empresas || []);
+    const tableTasks = normalizeTaskList((cloudData.tarefas || []).map(t => unpackTaskFromSupabase(t)));
+    const ss = cloudData.syncState;
 
-    if (cloudData.tarefas && cloudData.tarefas.length > 0) {
-      state.tasks = cloudData.tarefas.map(t => unpackTaskFromSupabase(t));
-      loadedFromCloud = true;
-    }
+    if (ss) {
+      cloudUpdatedAt = ss.updatedAt || null;
+      cloudSchemaVersion = Number(ss.schemaVersion || 0);
+      const ssCompanies = normalizeCompanyList(ss.companies || []);
+      const ssTasks = normalizeTaskList(ss.tasks || []);
 
-    // Restaura apurações, fechamentos, Kanban e backup de empresas do pacote de sincronização em nuvem
-    if (cloudData.syncState) {
-      const ss = cloudData.syncState;
-      if ((!state.companies || state.companies.length === 0) && Array.isArray(ss.companies) && ss.companies.length > 0) {
-        state.companies = ss.companies.map(c => ({
-          ...c,
-          regime: normalizeRegime(c.regime),
-          classe: normalizeClasse(c.classe)
-        }));
-        loadedFromCloud = true;
+      // Se o syncState tem dados (ou é versão >= 2), usa-o como fonte atômica e mescla eventuais registros da tabela
+      if (ssCompanies.length >= tableCompanies.length || cloudSchemaVersion >= CURRENT_SYNC_SCHEMA_VERSION) {
+        cloudCompanies = ssCompanies;
+      } else {
+        const mergedMap = new Map();
+        ssCompanies.forEach(c => mergedMap.set(c.id, c));
+        tableCompanies.forEach(c => { if (!mergedMap.has(c.id)) mergedMap.set(c.id, c); });
+        cloudCompanies = Array.from(mergedMap.values());
       }
-      if ((!state.tasks || state.tasks.length === 0) && Array.isArray(ss.tasks) && ss.tasks.length > 0) {
-        state.tasks = ss.tasks;
-        loadedFromCloud = true;
-      } else if (Array.isArray(ss.tasks) && state.tasks.length > 0) {
-        // Mescla metadados do Kanban caso alguma tarefa precisasse de complemento
-        const metaMap = new Map(ss.tasks.map(t => [Number(t.id), t]));
-        state.tasks = state.tasks.map(t => {
-          const m = metaMap.get(Number(t.id));
+
+      if (ssTasks.length >= tableTasks.length || cloudSchemaVersion >= CURRENT_SYNC_SCHEMA_VERSION) {
+        cloudTasks = ssTasks;
+      } else {
+        const metaMap = new Map(ssTasks.map(t => [t.id, t]));
+        cloudTasks = tableTasks.map(t => {
+          const m = metaMap.get(t.id);
           if (!m) return t;
           return {
             ...t,
@@ -981,70 +1110,76 @@ async function switchUserEnvironment(userObj) {
           };
         });
       }
-      if (ss.pisCofinsData && Object.keys(ss.pisCofinsData).length > 0) state.pisCofinsData = ss.pisCofinsData;
-      if (ss.irpjTrimData && Object.keys(ss.irpjTrimData).length > 0) state.irpjTrimData = ss.irpjTrimData;
-      if (ss.irpjMensalData && Object.keys(ss.irpjMensalData).length > 0) state.irpjMensalData = ss.irpjMensalData;
-      if (ss.fechamentosMeta && Object.keys(ss.fechamentosMeta).length > 0) state.fechamentosMeta = ss.fechamentosMeta;
-      if (ss.ecdEcfData && Object.keys(ss.ecdEcfData).length > 0) state.ecdEcfData = ss.ecdEcfData;
-      if (Array.isArray(ss.ecdEcfExtraIds) && ss.ecdEcfExtraIds.length > 0) state.ecdEcfExtraIds = ss.ecdEcfExtraIds;
-      if (ss.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = ss.fechamentoIAData;
-      loadedFromCloud = true;
-    }
 
-    state.syncStatus = 'saved';
-    state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  // 5. Verifica cache local de todas as chaves candidatas deste usuário (para recuperar dados locais e enviar à nuvem)
-  let restoredFromLocal = false;
-  const candidateKeys = dataService.getCandidateUserKeys(userId, userObj);
-  for (const key of candidateKeys) {
-    const userStorageRaw = localStorage.getItem(`control_user_store_${key}`);
-    if (!userStorageRaw) continue;
-    try {
-      const uStore = JSON.parse(userStorageRaw);
-      if ((!state.companies || state.companies.length === 0) && uStore.companies && uStore.companies.length > 0) {
-        state.companies = uStore.companies;
-        restoredFromLocal = true;
-      }
-      if ((!state.tasks || state.tasks.length === 0) && uStore.tasks && uStore.tasks.length > 0) {
-        state.tasks = uStore.tasks;
-        restoredFromLocal = true;
-      }
-      if ((!state.pisCofinsData || Object.keys(state.pisCofinsData).length === 0) && uStore.pisCofinsData && Object.keys(uStore.pisCofinsData).length > 0) {
-        state.pisCofinsData = uStore.pisCofinsData;
-        restoredFromLocal = true;
-      }
-      if ((!state.irpjTrimData || Object.keys(state.irpjTrimData).length === 0) && uStore.irpjTrimData && Object.keys(uStore.irpjTrimData).length > 0) {
-        state.irpjTrimData = uStore.irpjTrimData;
-        restoredFromLocal = true;
-      }
-      if ((!state.irpjMensalData || Object.keys(state.irpjMensalData).length === 0) && uStore.irpjMensalData && Object.keys(uStore.irpjMensalData).length > 0) {
-        state.irpjMensalData = uStore.irpjMensalData;
-        restoredFromLocal = true;
-      }
-      if ((!state.fechamentosMeta || Object.keys(state.fechamentosMeta).length === 0) && uStore.fechamentosMeta && Object.keys(uStore.fechamentosMeta).length > 0) {
-        state.fechamentosMeta = uStore.fechamentosMeta;
-        restoredFromLocal = true;
-      }
-      if ((!state.ecdEcfData || Object.keys(state.ecdEcfData).length === 0) && uStore.ecdEcfData && Object.keys(uStore.ecdEcfData).length > 0) {
-        state.ecdEcfData = uStore.ecdEcfData;
-        restoredFromLocal = true;
-      }
-      if ((!state.ecdEcfExtraIds || state.ecdEcfExtraIds.length === 0) && uStore.ecdEcfExtraIds && uStore.ecdEcfExtraIds.length > 0) {
-        state.ecdEcfExtraIds = uStore.ecdEcfExtraIds;
-        restoredFromLocal = true;
-      }
-      if (uStore.fechamentoIAData && state.fechamentoIA && Object.keys(state.fechamentoIA.auditData || {}).length === 0) {
-        state.fechamentoIA.auditData = uStore.fechamentoIAData;
-        restoredFromLocal = true;
-      }
-    } catch (e) {
-      console.warn('Erro ao carregar store isolado:', e);
+      if (ss.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(ss.pisCofinsData);
+      if (ss.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(ss.irpjTrimData);
+      if (ss.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(ss.irpjMensalData);
+      if (ss.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(ss.fechamentosMeta);
+      if (ss.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(ss.ecdEcfData);
+      if (Array.isArray(ss.ecdEcfExtraIds)) state.ecdEcfExtraIds = ss.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
+      if (ss.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(ss.fechamentoIAData);
+    } else {
+      cloudCompanies = tableCompanies;
+      cloudTasks = tableTasks;
     }
   }
 
-  // 6. Se a conta ainda estiver vazia (ou apenas com empresas fictícias antigas), restaura automaticamente o Backup Oficial da pasta e salva no Supabase!
+  // 6. Reconciliação inteligente entre Nuvem (Supabase) e Cache Local (localStorage)
+  let needsCloudPush = false;
+  const localCompanies = bestLocalStore?.companies ? normalizeCompanyList(bestLocalStore.companies) : [];
+  const localTasks = bestLocalStore?.tasks ? normalizeTaskList(bestLocalStore.tasks) : [];
+  const localSchemaVersion = Number(bestLocalStore?.schemaVersion || 0);
+  const localTime = bestLocalStore?.updatedAt ? new Date(bestLocalStore.updatedAt).getTime() : 0;
+  const cloudTime = cloudUpdatedAt ? new Date(cloudUpdatedAt).getTime() : 0;
+
+  // Detecta se esta máquina possui empresas recém-cadastradas antes da migração v2 (ex: a 31ª empresa)
+  const localExtraCompanies = localCompanies.filter(c => c.id > 8 && !INITIAL_COMPANY_IDS.has(c.id));
+
+  if (cloudCompanies.length > 0) {
+    state.companies = cloudCompanies;
+    state.tasks = cloudTasks;
+    state.lastUpdatedAt = cloudUpdatedAt;
+
+    // Se o cache local tinha empresas extras criadas antes da v2 (ou é mais recente que a nuvem), preserva-as e envia para a nuvem!
+    if (localSchemaVersion < CURRENT_SYNC_SCHEMA_VERSION && localExtraCompanies.length > 0) {
+      const existingIds = new Set(state.companies.map(c => c.id));
+      for (const extra of localExtraCompanies) {
+        if (!existingIds.has(extra.id)) {
+          state.companies.unshift(extra);
+          existingIds.add(extra.id);
+          needsCloudPush = true;
+        }
+      }
+    } else if (localTime > cloudTime && localCompanies.length > 0) {
+      state.companies = localCompanies;
+      if (localTasks.length > 0) state.tasks = localTasks;
+      if (bestLocalStore.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(bestLocalStore.pisCofinsData);
+      if (bestLocalStore.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(bestLocalStore.irpjTrimData);
+      if (bestLocalStore.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(bestLocalStore.irpjMensalData);
+      if (bestLocalStore.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(bestLocalStore.fechamentosMeta);
+      if (bestLocalStore.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(bestLocalStore.ecdEcfData);
+      if (Array.isArray(bestLocalStore.ecdEcfExtraIds)) state.ecdEcfExtraIds = bestLocalStore.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
+      if (bestLocalStore.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(bestLocalStore.fechamentoIAData);
+      needsCloudPush = true;
+    }
+
+    if (cloudSchemaVersion < CURRENT_SYNC_SCHEMA_VERSION || (cloudData?.empresas?.length || 0) !== state.companies.length) {
+      needsCloudPush = true;
+    }
+  } else if (localCompanies.length > 0) {
+    state.companies = localCompanies;
+    state.tasks = localTasks;
+    if (bestLocalStore.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(bestLocalStore.pisCofinsData);
+    if (bestLocalStore.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(bestLocalStore.irpjTrimData);
+    if (bestLocalStore.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(bestLocalStore.irpjMensalData);
+    if (bestLocalStore.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(bestLocalStore.fechamentosMeta);
+    if (bestLocalStore.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(bestLocalStore.ecdEcfData);
+    if (Array.isArray(bestLocalStore.ecdEcfExtraIds)) state.ecdEcfExtraIds = bestLocalStore.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
+    if (bestLocalStore.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(bestLocalStore.fechamentoIAData);
+    needsCloudPush = true;
+  }
+
+  // 7. Se a conta ainda estiver vazia (ou apenas com empresas fictícias antigas id <= 8), restaura o Backup Oficial
   const hasOnlyDemoCompanies = state.companies && state.companies.length > 0 && state.companies.every(c => Number(c.id) <= 8);
   if (!state.companies || state.companies.length === 0 || hasOnlyDemoCompanies) {
     state.companies = INITIAL_COMPANIES.map(c => ({ ...c }));
@@ -1060,23 +1195,117 @@ async function switchUserEnvironment(userObj) {
     if (!state.irpjMensalData || Object.keys(state.irpjMensalData).length === 0) {
       state.irpjMensalData = { ...INITIAL_IRPJ_MENSAL };
     }
-    restoredFromLocal = true;
+    needsCloudPush = true;
   }
 
-  // Se restauramos dados do backup/local (ou se ainda não estavam no Supabase), sincroniza na nuvem agora!
-  if (restoredFromLocal || !loadedFromCloud) {
+  if (needsCloudPush) {
     await saveStorage({ replaceCompanies: true });
+  } else {
+    // Atualiza cache local desta máquina com o estado mais recente vindo da nuvem
+    saveLocalCacheOnly(userId, cloudUpdatedAt || new Date().toISOString());
+    state.syncStatus = 'saved';
+    state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
 
   updateSyncIndicator();
   render();
 }
 
+function saveLocalCacheOnly(userId, timestampIso) {
+  if (!userId) return;
+  try {
+    state.lastUpdatedAt = timestampIso;
+    const userPayload = {
+      schemaVersion: CURRENT_SYNC_SCHEMA_VERSION,
+      userId,
+      role: (state.userProfile?.role || 'analista').toLowerCase(),
+      profile: state.userProfile,
+      companies: state.companies || [],
+      tasks: state.tasks || [],
+      pisCofinsData: state.pisCofinsData || {},
+      irpjTrimData: state.irpjTrimData || {},
+      irpjMensalData: state.irpjMensalData || {},
+      fechamentosMeta: state.fechamentosMeta || {},
+      ecdEcfData: state.ecdEcfData || {},
+      ecdEcfExtraIds: state.ecdEcfExtraIds || [],
+      fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
+      updatedAt: timestampIso
+    };
+    const serialized = JSON.stringify(userPayload);
+    localStorage.setItem(`control_user_store_${userId}`, serialized);
+    const session = authService.getCurrentSession();
+    if (session?.email) localStorage.setItem(`control_user_store_${session.email}`, serialized);
+    if (session?.user) localStorage.setItem(`control_user_store_${session.user.toLowerCase()}`, serialized);
+  } catch (e) {
+    console.warn('Aviso ao atualizar cache local:', e);
+  }
+}
+
+// Sincronização bidirecional imediata com o Supabase (busca atualizações feitas em outro computador)
+window.syncWithSupabaseNow = async function(showFeedback = false) {
+  const userId = dataService.getActiveUserKey();
+  if (!userId || !state.user) return;
+  if (state.syncStatus === 'syncing' && !showFeedback) return;
+
+  try {
+    if (showFeedback) {
+      state.syncStatus = 'syncing';
+      updateSyncIndicator();
+    }
+    const session = authService.getCurrentSession();
+    const cloudData = await dataService.loadUserDataFromSupabase(userId, session);
+    if (!cloudData) {
+      if (showFeedback) await saveStorage({ replaceCompanies: true });
+      return;
+    }
+
+    const ss = cloudData.syncState;
+    const cloudTime = ss?.updatedAt ? new Date(ss.updatedAt).getTime() : 0;
+    const localTime = state.lastUpdatedAt ? new Date(state.lastUpdatedAt).getTime() : 0;
+    const cloudCompanies = ss?.companies?.length
+      ? normalizeCompanyList(ss.companies)
+      : normalizeCompanyList(cloudData.empresas || []);
+
+    // Se a nuvem tem uma atualização mais nova feita em outro computador (ou quantidade diferente de empresas com timestamp >= local)
+    if (cloudCompanies.length > 0 && (cloudTime > localTime || (ss?.schemaVersion >= CURRENT_SYNC_SCHEMA_VERSION && cloudCompanies.length !== state.companies.length && cloudTime >= localTime))) {
+      state.companies = cloudCompanies;
+      if (ss?.tasks?.length) {
+        state.tasks = normalizeTaskList(ss.tasks);
+      } else if (cloudData.tarefas?.length) {
+        state.tasks = normalizeTaskList(cloudData.tarefas.map(t => unpackTaskFromSupabase(t)));
+      }
+      if (ss?.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(ss.pisCofinsData);
+      if (ss?.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(ss.irpjTrimData);
+      if (ss?.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(ss.irpjMensalData);
+      if (ss?.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(ss.fechamentosMeta);
+      if (ss?.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(ss.ecdEcfData);
+      if (Array.isArray(ss?.ecdEcfExtraIds)) state.ecdEcfExtraIds = ss.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
+      if (ss?.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(ss.fechamentoIAData);
+
+      saveLocalCacheOnly(userId, ss?.updatedAt || new Date().toISOString());
+      state.syncStatus = 'saved';
+      state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      updateSyncIndicator();
+      render();
+      if (showFeedback) {
+        alert(`☁️ Dados sincronizados da nuvem com sucesso!\n• ${state.companies.length} empresas ativas\n• ${state.tasks.length} tarefas sincronizadas.`);
+      }
+    } else if (showFeedback) {
+      await saveStorage({ replaceCompanies: true });
+      render();
+      alert(`☁️ Sincronização com o Supabase concluída!\n• ${state.companies.length} empresas salvas na nuvem.`);
+    }
+  } catch (err) {
+    console.warn('Erro ao sincronizar com Supabase:', err);
+  }
+};
+
 // Obter pacote consolidado de todos os dados do sistema para backup e sincronização em nuvem
 function getFullDataPackage() {
   const userKey = dataService.getActiveUserKey() || 'anon';
   return {
     version: '3.0',
+    schemaVersion: CURRENT_SYNC_SCHEMA_VERSION,
     timestamp: new Date().toISOString(),
     user_id: userKey, // Filtro obrigatório de isolamento no backend
     user: state.user,
@@ -1102,61 +1331,59 @@ async function saveStorage(options = {}) {
   state.syncStatus = 'syncing';
   updateSyncIndicator();
 
+  state.companies = normalizeCompanyList(state.companies || []);
+  state.tasks = normalizeTaskList(state.tasks || []);
+  state.pisCofinsData = normalizeMapCompanyKeys(state.pisCofinsData || {});
+  state.irpjTrimData = normalizeMapCompanyKeys(state.irpjTrimData || {});
+  state.irpjMensalData = normalizeMapCompanyKeys(state.irpjMensalData || {});
+  state.fechamentosMeta = normalizeMapCompanyKeys(state.fechamentosMeta || {});
+  state.ecdEcfData = normalizeMapCompanyKeys(state.ecdEcfData || {});
+
+  const nowIso = new Date().toISOString();
+  state.lastUpdatedAt = nowIso;
+
   const syncPackage = {
-    companies: state.companies || [],
-    tasks: state.tasks || [],
-    pisCofinsData: state.pisCofinsData || {},
-    irpjTrimData: state.irpjTrimData || {},
-    irpjMensalData: state.irpjMensalData || {},
-    fechamentosMeta: state.fechamentosMeta || {},
-    ecdEcfData: state.ecdEcfData || {},
+    schemaVersion: CURRENT_SYNC_SCHEMA_VERSION,
+    companies: state.companies,
+    tasks: state.tasks,
+    pisCofinsData: state.pisCofinsData,
+    irpjTrimData: state.irpjTrimData,
+    irpjMensalData: state.irpjMensalData,
+    fechamentosMeta: state.fechamentosMeta,
+    ecdEcfData: state.ecdEcfData,
     ecdEcfExtraIds: state.ecdEcfExtraIds || [],
     fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
-    updatedAt: new Date().toISOString()
+    updatedAt: nowIso
   };
 
   // 1. Salva imediatamente no repositório isolado deste usuário (tanto por ID quanto por e-mail/usuário)
-  try {
-    const userPayload = {
-      userId,
-      role: (state.userProfile?.role || 'analista').toLowerCase(),
-      profile: state.userProfile,
-      ...syncPackage
-    };
-    const serialized = JSON.stringify(userPayload);
-    localStorage.setItem(`control_user_store_${userId}`, serialized);
-    const session = authService.getCurrentSession();
-    if (session?.email) localStorage.setItem(`control_user_store_${session.email}`, serialized);
-    if (session?.user) localStorage.setItem(`control_user_store_${session.user.toLowerCase()}`, serialized);
-  } catch (err) {
-    console.warn('Aviso ao gravar store local:', err);
-  }
+  saveLocalCacheOnly(userId, nowIso);
 
   // 2. Persiste e sincroniza em nuvem no Supabase (TODAS as empresas, tarefas com Kanban e estado de apurações)
   try {
     let anySuccess = false;
 
-    // A. Sincroniza Perfil + pacote de estado embutido
+    // A. Sincroniza estado completo dos módulos na linha oculta __CONTROL_SYNC_STATE__
+    const stateOk = await dataService.saveCloudSyncState(userId, syncPackage);
+    if (stateOk) anySuccess = true;
+
+    // B. Sincroniza Perfil + pacote de estado embutido
     if (state.userProfile) {
       const profOk = await dataService.saveUserProfile(userId, state.userProfile, state.userProfile.role, syncPackage);
       if (profOk) anySuccess = true;
     }
 
-    // B. Sincroniza TODAS as empresas em lote no Supabase (sem limite de 30)
-    if (state.companies && state.companies.length > 0) {
+    // C. Sincroniza TODAS as empresas em lote no Supabase (com IDs 32-bit int4 seguros)
+    if (state.companies && state.companies.length >= 0) {
       const empOk = await dataService.upsertEmpresasBatch(state.companies, userId, !!options.replaceCompanies);
       if (empOk) anySuccess = true;
     }
 
-    // C. Sincroniza TODAS as tarefas em lote no Supabase (com kanbanStatus, comentários e histórico)
+    // D. Sincroniza TODAS as tarefas em lote no Supabase (com kanbanStatus, comentários e histórico)
     if (state.tasks && state.tasks.length > 0) {
       const tarOk = await dataService.upsertTarefasBatch(state.tasks, userId);
       if (tarOk) anySuccess = true;
     }
-
-    // D. Sincroniza estado completo dos módulos (PIS/COFINS, IRPJ, Fechamentos, ECD/ECF, IA, Kanban)
-    const stateOk = await dataService.saveCloudSyncState(userId, syncPackage);
-    if (stateOk) anySuccess = true;
 
     state.syncStatus = anySuccess ? 'saved' : 'error';
     if (anySuccess) {
@@ -1236,21 +1463,20 @@ async function pullFromBackend() {
 function applyDataPackage(data) {
   if (data.users && Array.isArray(data.users)) state.users = data.users;
   if (data.companies && Array.isArray(data.companies)) {
-    state.companies = data.companies.map((c, idx) => ({
-      ...c,
-      id: normalizeSafeDbId(c.id, idx),
-      regime: normalizeRegime(c.regime),
-      classe: normalizeClasse(c.classe)
-    }));
+    state.companies = normalizeCompanyList(data.companies);
   }
-  if (data.tasks && Array.isArray(data.tasks)) state.tasks = data.tasks;
-  if (data.pisCofinsData) state.pisCofinsData = data.pisCofinsData;
-  if (data.irpjTrimData) state.irpjTrimData = data.irpjTrimData;
-  if (data.irpjMensalData) state.irpjMensalData = data.irpjMensalData;
-  if (data.fechamentosMeta) state.fechamentosMeta = data.fechamentosMeta;
-  if (data.ecdEcfData) state.ecdEcfData = data.ecdEcfData;
-  if (data.ecdEcfExtraIds && Array.isArray(data.ecdEcfExtraIds)) state.ecdEcfExtraIds = data.ecdEcfExtraIds;
-  if (data.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = data.fechamentoIAData;
+  if (data.tasks && Array.isArray(data.tasks)) state.tasks = normalizeTaskList(data.tasks);
+  if (data.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(data.pisCofinsData);
+  if (data.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(data.irpjTrimData);
+  if (data.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(data.irpjMensalData);
+  if (data.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(data.fechamentosMeta);
+  if (data.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(data.ecdEcfData);
+  if (data.ecdEcfExtraIds && Array.isArray(data.ecdEcfExtraIds)) {
+    state.ecdEcfExtraIds = data.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
+  }
+  if (data.fechamentoIAData && state.fechamentoIA) {
+    state.fechamentoIA.auditData = normalizeMapCompanyKeys(data.fechamentoIAData);
+  }
   if (data.customLogo) {
     state.customLogo = data.customLogo;
     localStorage.setItem('control_custom_logo', data.customLogo);
@@ -1262,17 +1488,17 @@ function updateSyncIndicator() {
   const el = document.getElementById('sync-indicator');
   if (!el) return;
   if (state.syncStatus === 'syncing') {
-    el.innerHTML = '<span class="inline-block animate-spin">🔄</span> <span class="hidden sm:inline">Salvando...</span>';
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30';
+    el.innerHTML = '<span class="inline-block animate-spin">🔄</span> <span class="hidden sm:inline">Sincronizando...</span>';
+    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 cursor-pointer';
   } else if (state.syncStatus === 'saved') {
-    el.innerHTML = `<span>☁️</span> <span class="hidden sm:inline">Salvo ${state.lastSyncTime ? '(' + state.lastSyncTime + ')' : ''}</span>`;
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+    el.innerHTML = `<span>☁️</span> <span class="hidden sm:inline">Nuvem OK ${state.lastSyncTime ? '(' + state.lastSyncTime + ')' : ''}</span>`;
+    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer';
   } else if (state.syncStatus === 'error') {
     el.innerHTML = '<span>⚠️</span> <span class="hidden sm:inline">Offline / Local</span>';
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30';
+    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 cursor-pointer';
   } else {
-    el.innerHTML = state.backendUrl ? '<span>☁️</span> <span class="hidden sm:inline">Nuvem Conectada</span>' : '<span>💾</span> <span class="hidden sm:inline">Local</span>';
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gray-500/10 text-gray-400 border border-gray-500/30';
+    el.innerHTML = '<span>☁️</span> <span class="hidden sm:inline">Sincronizar</span>';
+    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition cursor-pointer';
   }
 }
 
@@ -3686,6 +3912,17 @@ function render() {
             ` : ''}
           </div>
 
+          <!-- 2.5 Indicador / Botão Rápido de Sincronização em Nuvem (Supabase) -->
+          <button
+            id="sync-indicator"
+            onclick="syncWithSupabaseNow(true)"
+            title="Clique para sincronizar agora com o Supabase (enviar/receber atualizações de outro computador)"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+          >
+            <span>☁️</span>
+            <span class="hidden sm:inline">${state.syncStatus === 'syncing' ? 'Sincronizando...' : (state.lastSyncTime ? 'Nuvem OK (' + state.lastSyncTime + ')' : 'Sincronizar')}</span>
+          </button>
+
           <!-- 3. Botão "Salvar" com Dropdown de Backup / Sync -->
           <div class="relative">
             <button
@@ -3702,8 +3939,18 @@ function render() {
 
             <div id="backup-dropdown" class="hidden absolute right-0 mt-2 w-64 rounded-xl bg-white border border-gray-200 shadow-xl p-2 z-50 text-gray-800">
               <div class="px-3 py-1.5 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Salvar & Backup
+                Sincronização & Backup
               </div>
+
+              <button id="btn-force-sync" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition flex items-center gap-2 cursor-pointer">
+                <span>☁️</span>
+                <div>
+                  <div>Sincronizar Nuvem Agora</div>
+                  <div class="text-[10px] text-gray-500 font-normal">Buscar/enviar atualizações entre PCs</div>
+                </div>
+              </button>
+
+              <div class="my-1 border-t border-gray-100"></div>
               
               <button id="btn-export-backup-json" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-800 hover:bg-gray-50 transition flex items-center gap-2">
                 <span>💾</span>
@@ -3727,21 +3974,10 @@ function render() {
                 <span>📥</span>
                 <div>
                   <div class="font-semibold">Importar Backup</div>
-                  <div class="text-[10px] text-gray-500">Carregar backup gerado em outro PC</div>
+                  <div class="text-[10px] text-gray-500">Carregar arquivo .json ou planilha</div>
                 </div>
                 <input type="file" id="universal-sync-file-input" accept=".json, .xlsx, .xls, .csv" class="hidden" />
               </label>
-
-              ${state.backendUrl ? `
-                <div class="my-1 border-t border-gray-100"></div>
-                <button id="btn-force-sync" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition flex items-center gap-2">
-                  <span>☁️</span>
-                  <div>
-                    <div>Sincronizar Nuvem Agora</div>
-                    <div class="text-[10px] text-gray-500 font-normal">Enviar e receber do servidor</div>
-                  </div>
-                </button>
-              ` : ''}
             </div>
           </div>
 
@@ -13416,7 +13652,7 @@ function attachEventHandlers() {
       if (userId && targetComp) {
         await dataService.upsertEmpresa(targetComp, userId);
       }
-      await saveStorage();
+      await saveStorage({ replaceCompanies: true });
       closeCompanyModal();
     });
   }
@@ -13503,12 +13739,10 @@ function attachEventHandlers() {
   if (btnForceSync) {
     btnForceSync.addEventListener('click', async () => {
       if (backupDropdown) backupDropdown.classList.add('hidden');
-      await saveStorage();
+      await window.syncWithSupabaseNow(true);
       if (state.backendUrl) {
         await syncToBackend(true);
         await pullFromBackend();
-      } else {
-        alert('☁️ Sincronização com o Supabase concluída com sucesso!');
       }
     });
   }
@@ -14114,7 +14348,7 @@ window.deleteCompany = async (id) => {
     if (userId) {
       await dataService.deleteEmpresa(id, userId);
     }
-    saveStorage();
+    await saveStorage({ replaceCompanies: true });
     render();
   }
 };
@@ -14348,6 +14582,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (err) {
     console.warn('Erro ao restaurar sessão Supabase:', err);
   }
+
+  // Sincronização automática ao alternar para a aba/janela ou em segundo plano
+  const isAnyModalOpen = () => Boolean(
+    (state.modal && state.modal.isOpen) ||
+    (state.taskModal && state.taskModal.isOpen) ||
+    state.selectedChecklistTaskId
+  );
+
+  window.addEventListener('focus', () => {
+    if (state.user && !isAnyModalOpen()) {
+      window.syncWithSupabaseNow(false);
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.user && !isAnyModalOpen()) {
+      window.syncWithSupabaseNow(false);
+    }
+  });
+
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && state.user && !isAnyModalOpen()) {
+      window.syncWithSupabaseNow(false);
+    }
+  }, 20000);
 
   if (state.backendUrl) {
     pullFromBackend();
