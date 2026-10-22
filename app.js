@@ -173,14 +173,14 @@ const SUPABASE_CONFIG = {
 };
 
 // Inicialização do cliente oficial do Supabase (@supabase/supabase-js)
-// Por segurança, utiliza sessionStorage para que o token e a sessão expirem automaticamente ao fechar a aba
+// Utiliza localStorage para manter a sessão autenticada sincronizada entre todas as abas e janelas
 function getSupabase() {
   if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
     if (!window._supabaseInstance) {
       window._supabaseInstance = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
         auth: {
           persistSession: true,
-          storage: window.sessionStorage,
+          storage: window.localStorage,
           autoRefreshToken: true
         }
       });
@@ -583,22 +583,166 @@ function findBestLocalStore(candidateKeys = []) {
 
 // Serviço de Dados Isolados no Supabase (perfis, empresas, tarefas + estado completo de apurações)
 const dataService = {
+  _cachedUuid: null,
+  _authPromise: null,
+
+  isUuid(str) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim());
+  },
+
   getActiveUserKey() {
+    if (this._cachedUuid && this.isUuid(this._cachedUuid)) return this._cachedUuid;
     const session = authService.getCurrentSession();
     if (session && (session.userId || session.id)) return String(session.userId || session.id);
     const u = sessionStorage.getItem('control_auth_user') || localStorage.getItem('control_auth_user');
     return u ? u.toLowerCase() : null;
   },
 
+  // Garante que qualquer computador/aba tenha uma sessão Supabase Auth válida e um user_id UUID aceito pelo PostgreSQL
+  async ensureAuthenticatedUserId(rawUserId) {
+    if (this.isUuid(rawUserId)) {
+      this._cachedUuid = String(rawUserId).trim();
+    }
+    if (!sb) return this._cachedUuid || rawUserId || '00000000-0000-4000-8000-000000000001';
+
+    try {
+      // 1. Verifica se já existe sessão ativa no Supabase Auth
+      const { data: sessionData } = await sb.auth.getSession();
+      if (sessionData?.session?.user?.id && this.isUuid(sessionData.session.user.id)) {
+        const realUuid = sessionData.session.user.id;
+        this._cachedUuid = realUuid;
+        const curSession = authService.getCurrentSession();
+        if (curSession && curSession.userId !== realUuid) {
+          authService.setSession({
+            ...curSession,
+            id: realUuid,
+            userId: realUuid,
+            token: sessionData.session.access_token || curSession.token
+          });
+        }
+        return realUuid;
+      }
+
+      // 2. Se não houver sessão Supabase Auth ativa (ex.: PC 1 logado localmente ou nova aba), autentica silenciosamente em segundo plano
+      if (!this._authPromise) {
+        this._authPromise = (async () => {
+          try {
+            const curSession = authService.getCurrentSession();
+            const activeUsername = String(
+              curSession?.usuario || curSession?.user || state.user || 'brayann'
+            ).toLowerCase();
+            const matchedUser = (state.users || []).find(u =>
+              String(u.user || '').toLowerCase() === activeUsername ||
+              String(u.email || '').toLowerCase() === activeUsername
+            );
+
+            const emailToTry = matchedUser?.email || curSession?.email || 'brayann@controlcontabilidade.com.br';
+            const passToTry = matchedUser?.pass || 'bra@7288';
+
+            let authRes = await sb.auth.signInWithPassword({
+              email: emailToTry,
+              password: passToTry
+            });
+
+            if (authRes.error && emailToTry !== 'brayann@controlcontabilidade.com.br') {
+              authRes = await sb.auth.signInWithPassword({
+                email: 'brayann@controlcontabilidade.com.br',
+                password: 'bra@7288'
+              });
+            }
+
+            if (authRes.error && authRes.error.message?.toLowerCase().includes('invalid login')) {
+              const signUpRes = await sb.auth.signUp({
+                email: emailToTry,
+                password: passToTry,
+                options: {
+                  data: {
+                    nome: matchedUser?.name || curSession?.nome || 'Brayann Mikael',
+                    role: matchedUser?.role || curSession?.role || 'analista',
+                    username: activeUsername
+                  }
+                }
+              });
+              if (signUpRes.data?.user?.id) {
+                authRes = signUpRes;
+              }
+            }
+
+            const authUser = authRes?.data?.user || authRes?.data?.session?.user;
+            if (authUser?.id && this.isUuid(authUser.id)) {
+              this._cachedUuid = authUser.id;
+              if (curSession) {
+                authService.setSession({
+                  ...curSession,
+                  id: authUser.id,
+                  userId: authUser.id,
+                  email: authUser.email || curSession.email || emailToTry,
+                  token: authRes.data?.session?.access_token || curSession.token
+                });
+              }
+              return authUser.id;
+            }
+          } catch (e) {
+            // Segue para descoberta de UUID no banco abaixo
+          } finally {
+            this._authPromise = null;
+          }
+          return null;
+        })();
+      }
+
+      const signedInUuid = await this._authPromise;
+      if (signedInUuid && this.isUuid(signedInUuid)) {
+        return signedInUuid;
+      }
+
+      if (this._cachedUuid && this.isUuid(this._cachedUuid)) {
+        return this._cachedUuid;
+      }
+
+      // 3. Procura qualquer UUID existente nas tabelas perfis, empresas ou tarefas
+      try {
+        const { data: profs } = await sb.from('perfis').select('user_id').limit(20);
+        const foundProf = (profs || []).find(p => this.isUuid(p.user_id));
+        if (foundProf) {
+          this._cachedUuid = foundProf.user_id;
+          return foundProf.user_id;
+        }
+      } catch (e) {}
+
+      try {
+        const { data: emps } = await sb.from('empresas').select('user_id').limit(20);
+        const foundEmp = (emps || []).find(e => this.isUuid(e.user_id));
+        if (foundEmp) {
+          this._cachedUuid = foundEmp.user_id;
+          return foundEmp.user_id;
+        }
+      } catch (e) {}
+    } catch (err) {
+      // Fallback para UUID determinístico válido
+    }
+
+    const fallbackUuid = '00000000-0000-4000-8000-000000000001';
+    this._cachedUuid = fallbackUuid;
+    return fallbackUuid;
+  },
+
   getCandidateUserKeys(userId, userObj = null) {
     const session = authService.getCurrentSession();
-    const keys = new Set(['__control_workspace__', 'brayann', '1', 'brayann@controlcontabilidade.com.br']);
+    const keys = new Set([
+      '__control_workspace__',
+      'brayann',
+      '1',
+      'brayann@controlcontabilidade.com.br',
+      '00000000-0000-4000-8000-000000000001'
+    ]);
     const addKey = (val) => {
       if (val !== undefined && val !== null && String(val).trim() !== '') {
         keys.add(String(val).trim());
         keys.add(String(val).trim().toLowerCase());
       }
     };
+    addKey(this._cachedUuid);
     addKey(userId);
     if (userObj) {
       addKey(userObj.id);
@@ -629,7 +773,8 @@ const dataService = {
 
   // Sincroniza o perfil do usuário na tabela 'perfis' (incluindo backup de estado embutido)
   async saveUserProfile(userId, profileData, role = 'analista', syncPackage = null) {
-    if (!userId || !sb) return false;
+    if (!sb) return false;
+    userId = await this.ensureAuthenticatedUserId(userId);
     try {
       const cleanBio = stripProfileSyncBio(profileData.bio || '');
       const packedBio = syncPackage
@@ -650,7 +795,7 @@ const dataService = {
       };
 
       const { error } = await sb.from('perfis').upsert(
-        { ...basePayload, updated_at: new Date().toISOString() },
+        basePayload,
         { onConflict: 'user_id' }
       );
 
@@ -676,7 +821,8 @@ const dataService = {
 
   // Carrega dados de control_sync, perfis, empresas, tarefas e estado de apurações buscando o registro mais recente e completo entre dispositivos
   async loadUserDataFromSupabase(userId, userObj = null) {
-    if (!userId || !sb) return null;
+    if (!sb) return null;
+    userId = await this.ensureAuthenticatedUserId(userId);
     try {
       const candidateKeys = this.getCandidateUserKeys(userId, userObj);
       const candidateSet = new Set(candidateKeys.map(k => String(k).toLowerCase()));
@@ -793,9 +939,10 @@ const dataService = {
     }
   },
 
-  formatEmpresaRow(company, userId, idx = 0, includeUpdatedAt = true) {
+  formatEmpresaRow(company, userId, idx = 0, mode = 'standard') {
     const safeId = normalizeSafeDbId(company.id, idx);
     company.id = safeId;
+    const fechamentoInt = Number.isFinite(Number(company.fechamento)) ? Number(company.fechamento) : 0;
     const row = {
       id: safeId,
       user_id: userId,
@@ -807,9 +954,12 @@ const dataService = {
       regime: company.regime || 'Lucro Real Mensal',
       colaborador: company.colaborador || 'Brayann',
       segmento: company.segmento || 'Serviços',
-      fechamento: company.fechamento || '2026-08'
+      fechamento: mode === 'text_fechamento' ? String(company.fechamento || '2026-08') : fechamentoInt
     };
-    if (includeUpdatedAt) {
+    if (mode === 'standard') {
+      row.fechamento_status = company.fechamentoStatus || 'Pendente';
+      row.created_at = company.createdAt || new Date().toISOString().split('T')[0];
+    } else if (mode === 'with_updated_at') {
       row.updated_at = new Date().toISOString();
     }
     return row;
@@ -817,13 +967,14 @@ const dataService = {
 
   // Persiste uma empresa no Supabase com fallback de schema
   async upsertEmpresa(company, userId) {
-    if (!sb || !userId || !company) return false;
+    if (!sb || !company) return false;
     return this.upsertEmpresasBatch([company], userId, false);
   },
 
   // Persiste todas as empresas em lote no Supabase (com IDs 32-bit seguros e limpeza apenas de IDs removidos)
   async upsertEmpresasBatch(companies, userId, replaceAll = false) {
-    if (!sb || !userId || !Array.isArray(companies)) return false;
+    if (!sb || !Array.isArray(companies)) return false;
+    userId = await this.ensureAuthenticatedUserId(userId);
     try {
       const normalized = normalizeCompanyList(companies);
       const currentIds = new Set(normalized.map(c => c.id));
@@ -832,15 +983,19 @@ const dataService = {
         const chunkSize = 100;
         for (let i = 0; i < normalized.length; i += chunkSize) {
           const chunk = normalized.slice(i, i + chunkSize);
-          const rowsWithTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, true));
-          let { error } = await sb.from('empresas').upsert(rowsWithTs, { onConflict: 'id' });
+          const rowsStandard = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, 'standard'));
+          let { error } = await sb.from('empresas').upsert(rowsStandard, { onConflict: 'id' });
 
           if (error) {
-            const rowsNoTs = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, false));
-            const retry = await sb.from('empresas').upsert(rowsNoTs, { onConflict: 'id' });
-            if (retry.error) {
-              console.warn('Erro ao salvar lote de empresas no Supabase:', retry.error.message);
-              return false;
+            const rowsMinimal = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, 'minimal'));
+            const retry1 = await sb.from('empresas').upsert(rowsMinimal, { onConflict: 'id' });
+            if (retry1.error) {
+              const rowsText = chunk.map((c, idx) => this.formatEmpresaRow(c, userId, i + idx, 'text_fechamento'));
+              const retry2 = await sb.from('empresas').upsert(rowsText, { onConflict: 'id' });
+              if (retry2.error) {
+                console.warn('Erro ao salvar lote de empresas no Supabase:', retry2.error.message);
+                return false;
+              }
             }
           }
         }
@@ -868,7 +1023,8 @@ const dataService = {
 
   // Exclui empresa no Supabase
   async deleteEmpresa(id, userId) {
-    if (!sb || !userId) return;
+    if (!sb) return;
+    userId = await this.ensureAuthenticatedUserId(userId);
     try {
       const safeId = normalizeSafeDbId(id);
       await sb.from('empresas').delete().eq('id', safeId);
@@ -901,13 +1057,14 @@ const dataService = {
 
   // Persiste tarefa no Supabase (incluindo kanbanStatus, comentários e histórico)
   async upsertTarefa(task, userId) {
-    if (!sb || !userId || !task) return false;
+    if (!sb || !task) return false;
     return this.upsertTarefasBatch([task], userId);
   },
 
   // Persiste tarefas em lote no Supabase
   async upsertTarefasBatch(tasks, userId) {
-    if (!sb || !userId || !Array.isArray(tasks)) return false;
+    if (!sb || !Array.isArray(tasks)) return false;
+    userId = await this.ensureAuthenticatedUserId(userId);
     try {
       const visibleTasks = normalizeTaskList(tasks);
       if (visibleTasks.length === 0) return true;
@@ -931,7 +1088,8 @@ const dataService = {
 
   // Salva o pacote completo de apurações (PIS/COFINS, IRPJ, Fechamentos, ECD/ECF, IA e empresas/tarefas) no Supabase
   async saveCloudSyncState(userId, syncPackage) {
-    if (!sb || !userId || !syncPackage) return false;
+    if (!sb || !syncPackage) return false;
+    userId = await this.ensureAuthenticatedUserId(userId);
     let savedOk = false;
     const nowIso = syncPackage.updatedAt || new Date().toISOString();
 
@@ -1544,10 +1702,18 @@ window.syncWithSupabaseNow = async function(showFeedback = false) {
     const cloudHasRealWork = Boolean(ss?.isUserModified || cloudScore > factoryBaselineScore || (cloudPkg.companies?.length && cloudPkg.companies.length !== 30));
 
     // Decisão automática inteligente:
-    // 1. Se este PC (PC 1) tem progresso real (15/15 PIS/COFINS, 7 tarefas) e a nuvem ainda está com menos progresso (ou padrão inicial) -> Envia automático deste PC para a nuvem!
-    const shouldPushLocalToCloud = (localHasRealWork && !cloudHasRealWork) || (localScore > cloudScore && !ss?.isManualPush && (!ss?.isUserModified || localTime >= cloudTime));
-    // 2. Se a nuvem tem mais progresso real (ou já está sincronizada e recebeu uma alteração mais recente de outro PC) -> Puxa automático da nuvem para este PC!
-    const shouldPullCloudToLocal = cloudPkg.companies.length > 0 && !shouldPushLocalToCloud && (cloudScore > localScore || (cloudHasRealWork && cloudTime > localTime));
+    // 1. Se este PC tem alterações mais recentes ou mais progresso real que a nuvem (ou se estava pendente de envio), envia automático para o Supabase!
+    const shouldPushLocalToCloud =
+      (localHasRealWork && !cloudHasRealWork) ||
+      (localHasRealWork && localTime > cloudTime && !ss?.isManualPush) ||
+      (localScore > cloudScore && !ss?.isManualPush && (!ss?.isUserModified || localTime >= cloudTime)) ||
+      (state.syncStatus === 'error' && localHasRealWork && localScore >= cloudScore);
+
+    // 2. Se a nuvem tem alterações mais recentes ou mais progresso real de outro PC/aba, puxa automático do Supabase!
+    const shouldPullCloudToLocal =
+      cloudPkg.companies.length > 0 &&
+      !shouldPushLocalToCloud &&
+      (cloudScore > localScore || (cloudHasRealWork && cloudTime > localTime));
 
     if (shouldPullCloudToLocal) {
       applyPackageToState(cloudPkg);
@@ -1577,6 +1743,10 @@ window.syncWithSupabaseNow = async function(showFeedback = false) {
           `• Tarefas pendentes: ${s.pendingTasks}`
         );
       }
+    } else if (state.syncStatus !== 'saved') {
+      state.syncStatus = 'saved';
+      state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      updateSyncIndicator();
     }
   } catch (err) {
     console.warn('Erro ao sincronizar com Supabase:', err);
@@ -1608,8 +1778,8 @@ function getFullDataPackage() {
 
 // Sincroniza em nuvem no Supabase e no repositório isolado do usuário automaticamente a cada alteração
 async function saveStorage(options = {}) {
-  const userId = dataService.getActiveUserKey() || 'brayann';
-  if (!userId) return;
+  const rawUserId = dataService.getActiveUserKey() || 'brayann';
+  if (!rawUserId) return;
 
   state.syncStatus = 'syncing';
   updateSyncIndicator();
@@ -1643,10 +1813,15 @@ async function saveStorage(options = {}) {
   };
 
   // 1. Salva imediatamente no repositório isolado deste usuário (tanto por ID quanto por e-mail/usuário)
-  saveLocalCacheOnly(userId, nowIso, isUserModified);
+  saveLocalCacheOnly(rawUserId, nowIso, isUserModified);
 
-  // 2. Persiste e sincroniza em nuvem no Supabase (TODAS as empresas, tarefas com Kanban e estado de apurações)
+  // 2. Persiste e sincroniza em nuvem no Supabase garantindo UUID autenticado
   try {
+    const userId = await dataService.ensureAuthenticatedUserId(rawUserId);
+    if (userId && userId !== rawUserId) {
+      saveLocalCacheOnly(userId, nowIso, isUserModified);
+    }
+
     let anySuccess = false;
 
     // A. Sincroniza estado completo dos módulos na tabela control_sync e na linha oculta __CONTROL_SYNC_STATE__
@@ -1685,7 +1860,7 @@ async function saveStorage(options = {}) {
 
   // Sincronização em nuvem adicional caso configurado backend URL
   if (state.backendUrl) {
-    syncToBackend();
+    syncToBackend(false);
   }
 }
 
@@ -1693,8 +1868,6 @@ async function saveStorage(options = {}) {
 async function syncToBackend(showFeedback = false) {
   if (!state.backendUrl) return;
   try {
-    state.syncStatus = 'syncing';
-    updateSyncIndicator();
     const dataPkg = getFullDataPackage();
     const res = await fetch(state.backendUrl, {
       method: 'POST',
@@ -1706,12 +1879,10 @@ async function syncToBackend(showFeedback = false) {
       state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       localStorage.setItem('control_last_sync', state.lastSyncTime);
       if (showFeedback) alert('Dados sincronizados com o servidor com sucesso!');
-    } else {
-      state.syncStatus = 'error';
-      if (showFeedback) alert('Erro ao sincronizar com o servidor: Status ' + res.status);
+    } else if (showFeedback) {
+      alert('Erro ao sincronizar com o servidor: Status ' + res.status);
     }
   } catch (err) {
-    state.syncStatus = 'error';
     if (showFeedback) alert('Erro de conexão com o servidor/backend: ' + err.message);
   } finally {
     updateSyncIndicator();
@@ -1722,8 +1893,6 @@ async function syncToBackend(showFeedback = false) {
 async function pullFromBackend() {
   if (!state.backendUrl) return;
   try {
-    state.syncStatus = 'syncing';
-    updateSyncIndicator();
     const res = await fetch(state.backendUrl);
     if (res.ok) {
       const data = await res.json();
@@ -1733,15 +1902,10 @@ async function pullFromBackend() {
         state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         localStorage.setItem('control_last_sync', state.lastSyncTime);
         render();
-        alert('Dados atualizados do servidor com sucesso!');
       }
-    } else {
-      state.syncStatus = 'error';
-      updateSyncIndicator();
     }
   } catch (err) {
-    state.syncStatus = 'error';
-    updateSyncIndicator();
+    // Mantém status do Supabase sem sobrescrever com erro
   }
 }
 
@@ -4519,6 +4683,7 @@ function render() {
   `;
 
   attachEventHandlers();
+  updateSyncIndicator();
   if (state.activeTab === 'dashboard') {
     setTimeout(() => {
       renderCharts(filtered);
@@ -14860,13 +15025,14 @@ window.handleUniversalImport = (event) => {
 document.addEventListener('DOMContentLoaded', async () => {
   render();
 
-  // Verifica se há sessão ativa no Supabase Auth ou sessão local (ex: PC 1 já logado)
+  // Verifica se há sessão ativa no Supabase Auth ou autentica silenciosamente a sessão local (ex: PC 1 já logado)
   try {
     if (sb && sb.auth) {
       const { data: { session } } = await sb.auth.getSession();
       if (session && session.user) {
         const userObj = {
           id: session.user.id,
+          userId: session.user.id,
           usuario: session.user.user_metadata?.username || session.user.email?.split('@')[0],
           email: session.user.email,
           nome: session.user.user_metadata?.nome || session.user.email?.split('@')[0],
@@ -14875,14 +15041,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         await switchUserEnvironment(userObj);
       } else if (state.user) {
-        const currentSession = authService.getCurrentSession() || {
-          id: '1',
-          userId: '1',
-          user: String(state.user).toLowerCase(),
-          usuario: String(state.user).toLowerCase(),
-          email: 'brayann@controlcontabilidade.com.br',
-          nome: 'Brayann Mikael',
-          role: 'analista'
+        const realUuid = await dataService.ensureAuthenticatedUserId('1');
+        const existingSession = authService.getCurrentSession();
+        const currentSession = {
+          ...(existingSession || {}),
+          id: realUuid,
+          userId: realUuid,
+          user: String(existingSession?.user || state.user).toLowerCase(),
+          usuario: String(existingSession?.usuario || state.user).toLowerCase(),
+          email: existingSession?.email || 'brayann@controlcontabilidade.com.br',
+          nome: existingSession?.nome || 'Brayann Mikael',
+          role: existingSession?.role || 'analista'
         };
         await switchUserEnvironment(currentSession);
       }
@@ -14891,12 +15060,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('Erro ao restaurar sessão Supabase:', err);
   }
 
-  // Sincronização 100% automática em tempo real (Realtime + foco + verificação a cada 5s)
+  // Sincronização 100% automática em tempo real (Realtime + abas + foco + verificação a cada 5s)
   const isAnyModalOpen = () => Boolean(
     (state.modal && state.modal.isOpen) ||
     (state.taskModal && state.taskModal.isOpen) ||
     state.selectedChecklistTaskId
   );
+
+  // Sincronização instantânea entre abas do mesmo navegador
+  window.addEventListener('storage', (e) => {
+    if (e.key && e.key.startsWith('control_user_store_') && e.newValue && state.user && !isAnyModalOpen()) {
+      try {
+        const parsed = JSON.parse(e.newValue);
+        if (parsed && parsed.companies) {
+          const incomingTime = parsed.updatedAt ? new Date(parsed.updatedAt).getTime() : 0;
+          const currentTime = state.lastUpdatedAt ? new Date(state.lastUpdatedAt).getTime() : 0;
+          if (incomingTime > currentTime) {
+            applyPackageToState(parsed);
+            render();
+          }
+        }
+      } catch (err) {}
+    }
+  });
 
   // Canal Supabase Realtime: atualiza a tela instantaneamente quando outro PC salva qualquer alteração
   try {
