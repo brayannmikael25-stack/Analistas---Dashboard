@@ -429,6 +429,141 @@ const authService = {
   }
 };
 
+// Calcula um score de progresso real do pacote de dados para nunca deixar um estado "zerado/inicial" sobrescrever progresso real entre PCs
+function calculateDataProgressScore(pkg) {
+  if (!pkg || typeof pkg !== 'object') return 0;
+  let score = 0;
+
+  const companies = Array.isArray(pkg.companies) ? pkg.companies : [];
+  score += companies.length * 10;
+  if (companies.length > 30) {
+    score += (companies.length - 30) * 150;
+  }
+
+  // Pontua apurações de PIS/COFINS concluídas (ex: PC 1 tem 15/15 = 525 pts vs PC 2 inicial 5/15 = 175 pts)
+  const pisMap = pkg.pisCofinsData || {};
+  Object.values(pisMap).forEach(compMap => {
+    if (!compMap || typeof compMap !== 'object') return;
+    Object.values(compMap).forEach(entry => {
+      if (!entry || typeof entry !== 'object') return;
+      if (entry.status === 'Concluída' || entry.saldoCredor || entry.darfEnviado) score += 35;
+      if (entry.darfEnviado) score += 10;
+    });
+  });
+
+  // Pontua apurações de IRPJ Trimestral concluídas
+  const trimMap = pkg.irpjTrimData || {};
+  Object.values(trimMap).forEach(compMap => {
+    if (!compMap || typeof compMap !== 'object') return;
+    Object.values(compMap).forEach(entry => {
+      if (!entry || typeof entry !== 'object') return;
+      if (entry.status === 'Concluída' || entry.prejuizo || entry.darfEnviado) score += 35;
+    });
+  });
+
+  // Pontua apurações de IRPJ Mensal concluídas
+  const mensalMap = pkg.irpjMensalData || {};
+  Object.values(mensalMap).forEach(compMap => {
+    if (!compMap || typeof compMap !== 'object') return;
+    Object.values(compMap).forEach(entry => {
+      if (!entry || typeof entry !== 'object') return;
+      if (entry.status === 'Concluída' || entry.irpjSuspenso || entry.darfEnviado) score += 35;
+    });
+  });
+
+  // Pontua tarefas concluídas, em andamento, comentários e histórico (ex: PC 1 tem 11 concluídas / 7 pendentes vs inicial 8 concluídas / 10 pendentes)
+  const tasks = Array.isArray(pkg.tasks) ? pkg.tasks : [];
+  tasks.forEach(t => {
+    if (!t) return;
+    if (t.concluida || t.kanbanStatus === 'concluida') score += 30;
+    else if (t.kanbanStatus === 'em_andamento' || t.kanbanStatus === 'revisao') score += 15;
+    if (Array.isArray(t.comentarios) && t.comentarios.length > 0) score += t.comentarios.length * 10;
+    if (Array.isArray(t.historico) && t.historico.length > 1) score += (t.historico.length - 1) * 5;
+  });
+
+  // Pontua arquivos enviados e auditorias no módulo Fechamento IA
+  const iaMap = pkg.fechamentoIAData || (pkg.fechamentoIA && pkg.fechamentoIA.auditData) || {};
+  Object.values(iaMap).forEach(compEntry => {
+    if (!compEntry || typeof compEntry !== 'object') return;
+    if (compEntry.hasActivity) score += 60;
+    if (Array.isArray(compEntry.arquivosUpload)) {
+      compEntry.arquivosUpload.forEach(arq => {
+        if (arq && (arq.enviado || arq.naoSeAplica || arq.fileName)) score += 25;
+      });
+    }
+  });
+
+  // Pontua metadados de Fechamento Contábil e ECD/ECF
+  const fechMeta = pkg.fechamentosMeta || {};
+  score += Object.keys(fechMeta).length * 25;
+
+  const ecdMap = pkg.ecdEcfData || {};
+  score += Object.keys(ecdMap).length * 25;
+
+  return score;
+}
+
+// Conta resumo legível do pacote (empresas, PIS/COFINS concluídos e tarefas pendentes)
+function summarizeDataPackage(pkg) {
+  const companiesCount = Array.isArray(pkg?.companies) ? pkg.companies.length : 0;
+  const tasks = Array.isArray(pkg?.tasks) ? pkg.tasks : [];
+  const pendingTasks = tasks.filter(t => !t.concluida && t.kanbanStatus !== 'concluida').length;
+  const completedTasks = tasks.length - pendingTasks;
+  const compKey = (typeof state !== 'undefined' && state.selPisComp) ? state.selPisComp : autoComp.monthlyComp;
+  const pisCompMap = (pkg?.pisCofinsData && pkg.pisCofinsData[compKey]) || {};
+  const pisDone = Object.values(pisCompMap).filter(p => p && (p.status === 'Concluída' || p.saldoCredor)).length;
+  return { companiesCount, pendingTasks, completedTasks, pisDone, score: calculateDataProgressScore(pkg) };
+}
+
+// Varre todos os caches locais do navegador para recuperar o estado mais completo e atualizado desta máquina
+function findBestLocalStore(candidateKeys = []) {
+  const stores = [];
+  const seenKeys = new Set();
+
+  for (const k of candidateKeys) {
+    const storageKey = `control_user_store_${k}`;
+    if (seenKeys.has(storageKey)) continue;
+    seenKeys.add(storageKey);
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') stores.push(parsed);
+      } catch (e) {}
+    }
+  }
+
+  // Também inspeciona todas as chaves control_user_store_* salvas neste navegador
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i);
+      if (storageKey && storageKey.startsWith('control_user_store_') && !seenKeys.has(storageKey)) {
+        seenKeys.add(storageKey);
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') stores.push(parsed);
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {}
+
+  if (stores.length === 0) return null;
+
+  stores.sort((a, b) => {
+    const scoreA = calculateDataProgressScore(a);
+    const scoreB = calculateDataProgressScore(b);
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return tB - tA;
+  });
+
+  return stores[0];
+}
+
 // Serviço de Dados Isolados no Supabase (perfis, empresas, tarefas + estado completo de apurações)
 const dataService = {
   getActiveUserKey() {
@@ -440,7 +575,7 @@ const dataService = {
 
   getCandidateUserKeys(userId, userObj = null) {
     const session = authService.getCurrentSession();
-    const keys = new Set();
+    const keys = new Set(['__control_workspace__', 'brayann', '1', 'brayann@controlcontabilidade.com.br']);
     const addKey = (val) => {
       if (val !== undefined && val !== null && String(val).trim() !== '') {
         keys.add(String(val).trim());
@@ -461,11 +596,6 @@ const dataService = {
       addKey(session.email);
       addKey(session.usuario);
       addKey(session.user);
-    }
-    if (Array.from(keys).some(k => k.includes('brayann') || k === '1')) {
-      addKey('1');
-      addKey('brayann');
-      addKey('brayann@controlcontabilidade.com.br');
     }
     return Array.from(keys);
   },
@@ -527,7 +657,7 @@ const dataService = {
     }
   },
 
-  // Carrega dados de control_sync, perfis, empresas, tarefas e estado de apurações buscando o registro mais recente entre dispositivos
+  // Carrega dados de control_sync, perfis, empresas, tarefas e estado de apurações buscando o registro mais recente e completo entre dispositivos
   async loadUserDataFromSupabase(userId, userObj = null) {
     if (!userId || !sb) return null;
     try {
@@ -618,14 +748,18 @@ const dataService = {
           : allTarefas.filter(t => t.titulo !== SYNC_TASK_TITLE);
       }
 
-      // 4. Escolhe o syncState mais recente (maior updatedAt) entre todos os candidatos encontrados
+      // 4. Escolhe o syncState com maior progresso real ou envio manual mais recente
       let syncState = null;
       if (syncStateCandidates.length > 0) {
         syncStateCandidates.sort((a, b) => {
+          const scoreA = calculateDataProgressScore(a);
+          const scoreB = calculateDataProgressScore(b);
           const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
           const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-          if (timeB !== timeA) return timeB - timeA;
-          return (b.companies?.length || 0) - (a.companies?.length || 0);
+          if (a.isManualPush && !b.isManualPush && scoreA >= scoreB) return -1;
+          if (b.isManualPush && !a.isManualPush && scoreB >= scoreA) return 1;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return timeB - timeA;
         });
         syncState = syncStateCandidates[0];
       }
@@ -782,12 +916,15 @@ const dataService = {
   async saveCloudSyncState(userId, syncPackage) {
     if (!sb || !userId || !syncPackage) return false;
     let savedOk = false;
-    const nowIso = new Date().toISOString();
+    const nowIso = syncPackage.updatedAt || new Date().toISOString();
 
-    // 1. Salva na tabela dedicada control_sync (JSONB por chave do usuário: ID, e-mail e username)
+    // 1. Salva na tabela dedicada control_sync (JSONB compartilhado por todas as chaves do usuário para sincronizar PC 1 e PC 2)
     try {
       const session = authService.getCurrentSession();
       const keysToSave = Array.from(new Set([
+        '__control_workspace__',
+        'brayann',
+        '1',
         String(userId).toLowerCase(),
         session?.user ? String(session.user).toLowerCase() : null,
         session?.email ? String(session.email).toLowerCase() : null
@@ -856,31 +993,13 @@ const dataService = {
   }
 };
 
-// Inicialização da Sessão Ativa (busca o cache local mais recente entre as chaves do usuário)
+// Inicialização da Sessão Ativa (busca o cache local com maior progresso real nesta máquina)
 const initialSession = authService.getCurrentSession();
 const initialUserKey = initialSession ? (initialSession.userId || initialSession.id) : (sessionStorage.getItem('control_auth_user') || localStorage.getItem('control_auth_user') || null);
 const initialUserData = initialUserKey ? (() => {
   try {
     const candidates = dataService.getCandidateUserKeys(initialUserKey, initialSession);
-    const stores = [];
-    for (const k of candidates) {
-      const raw = localStorage.getItem(`control_user_store_${k}`);
-      if (raw) {
-        try {
-          stores.push(JSON.parse(raw));
-        } catch (e) {}
-      }
-    }
-    if (stores.length === 0) return null;
-    stores.sort((a, b) => {
-      const lenDiff = (b.companies?.length || 0) - (a.companies?.length || 0);
-      if ((b.schemaVersion || 0) !== (a.schemaVersion || 0)) return (b.schemaVersion || 0) - (a.schemaVersion || 0);
-      const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      if (tB !== tA) return tB - tA;
-      return lenDiff;
-    });
-    return stores[0];
+    return findBestLocalStore(candidates);
   } catch (e) {
     return null;
   }
@@ -1029,7 +1148,43 @@ function resetAppStateInMemory() {
   state.activeTab = 'dashboard';
 }
 
-// Carrega os dados exclusivos de um usuário no estado reativo e reconcilia nuvem vs cache local
+// Aplica um pacote de estado (da nuvem ou do cache local) na memória reativa
+function applyPackageToState(pkg) {
+  if (!pkg) return;
+  if (Array.isArray(pkg.companies) && pkg.companies.length > 0) {
+    state.companies = normalizeCompanyList(pkg.companies);
+  }
+  if (Array.isArray(pkg.tasks) && pkg.tasks.length > 0) {
+    state.tasks = normalizeTaskList(pkg.tasks);
+  }
+  if (pkg.pisCofinsData && Object.keys(pkg.pisCofinsData).length > 0) {
+    state.pisCofinsData = normalizeMapCompanyKeys(pkg.pisCofinsData);
+  }
+  if (pkg.irpjTrimData && Object.keys(pkg.irpjTrimData).length > 0) {
+    state.irpjTrimData = normalizeMapCompanyKeys(pkg.irpjTrimData);
+  }
+  if (pkg.irpjMensalData && Object.keys(pkg.irpjMensalData).length > 0) {
+    state.irpjMensalData = normalizeMapCompanyKeys(pkg.irpjMensalData);
+  }
+  if (pkg.fechamentosMeta) {
+    state.fechamentosMeta = normalizeMapCompanyKeys(pkg.fechamentosMeta);
+  }
+  if (pkg.ecdEcfData) {
+    state.ecdEcfData = normalizeMapCompanyKeys(pkg.ecdEcfData);
+  }
+  if (Array.isArray(pkg.ecdEcfExtraIds)) {
+    state.ecdEcfExtraIds = pkg.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
+  }
+  const iaData = pkg.fechamentoIAData || (pkg.fechamentoIA && pkg.fechamentoIA.auditData);
+  if (iaData && state.fechamentoIA) {
+    state.fechamentoIA.auditData = normalizeMapCompanyKeys(iaData);
+  }
+  if (pkg.updatedAt) {
+    state.lastUpdatedAt = pkg.updatedAt;
+  }
+}
+
+// Carrega os dados exclusivos de um usuário no estado reativo e reconcilia nuvem vs cache local pelo score de progresso
 async function switchUserEnvironment(userObj) {
   if (!userObj) {
     resetAppStateInMemory();
@@ -1037,15 +1192,29 @@ async function switchUserEnvironment(userObj) {
     return;
   }
 
-  // 1. Configura sessão ativa preservando id e userId
+  // 1. Fotografa o estado atualmente carregado na tela (caso o usuário já estivesse mexendo no PC 1 antes de sincronizar)
+  const inMemorySnapshot = (state.companies && state.companies.length > 0) ? {
+    companies: normalizeCompanyList(state.companies),
+    tasks: normalizeTaskList(state.tasks || []),
+    pisCofinsData: normalizeMapCompanyKeys(state.pisCofinsData || {}),
+    irpjTrimData: normalizeMapCompanyKeys(state.irpjTrimData || {}),
+    irpjMensalData: normalizeMapCompanyKeys(state.irpjMensalData || {}),
+    fechamentosMeta: normalizeMapCompanyKeys(state.fechamentosMeta || {}),
+    ecdEcfData: normalizeMapCompanyKeys(state.ecdEcfData || {}),
+    ecdEcfExtraIds: state.ecdEcfExtraIds || [],
+    fechamentoIAData: state.fechamentoIA ? normalizeMapCompanyKeys(state.fechamentoIA.auditData || {}) : {},
+    updatedAt: state.lastUpdatedAt || new Date().toISOString()
+  } : null;
+
+  // 2. Configura sessão ativa preservando id e userId
   authService.setSession(userObj);
   const currentSession = authService.getCurrentSession();
   state.user = currentSession?.user || userObj.usuario || userObj.user || userObj.email?.split('@')[0];
 
-  // 2. Chave isolada consistente
+  // 3. Chave isolada consistente
   const userId = String(userObj.id || userObj.userId || (userObj.email || userObj.usuario || userObj.user || '').toLowerCase());
 
-  // 3. Define dados de perfil base e limpa coleções em memória antes de carregar da nuvem
+  // 4. Define dados de perfil base
   state.userProfile = userObj.userProfile || {
     firstName: userObj.nome?.split(' ')[0] || userObj.usuario || userObj.user || 'Usuário',
     lastName: userObj.nome?.split(' ').slice(1).join(' ') || '',
@@ -1053,47 +1222,20 @@ async function switchUserEnvironment(userObj) {
     email: userObj.email || '',
     address: { country: 'Brasil', cityState: 'Fortaleza-CE', postalCode: '60170-002', taxId: '21.423.156/0001-55' }
   };
-  state.companies = [];
-  state.tasks = [];
-  state.pisCofinsData = {};
-  state.irpjTrimData = {};
-  state.irpjMensalData = {};
-  state.fechamentosMeta = {};
-  state.ecdEcfData = {};
-  state.ecdEcfExtraIds = [];
-  if (state.fechamentoIA) state.fechamentoIA.auditData = {};
 
-  // 4. Inspeciona todos os stores locais deste usuário nesta máquina
+  // 5. Inspeciona todos os stores locais desta máquina e compara com o snapshot em memória
   const candidateKeys = dataService.getCandidateUserKeys(userId, userObj);
-  let bestLocalStore = null;
-  for (const key of candidateKeys) {
-    const raw = localStorage.getItem(`control_user_store_${key}`);
-    if (!raw) continue;
-    try {
-      const parsed = JSON.parse(raw);
-      if (!bestLocalStore) {
-        bestLocalStore = parsed;
-      } else {
-        const countA = bestLocalStore.companies?.length || 0;
-        const countB = parsed.companies?.length || 0;
-        const timeA = bestLocalStore.updatedAt ? new Date(bestLocalStore.updatedAt).getTime() : 0;
-        const timeB = parsed.updatedAt ? new Date(parsed.updatedAt).getTime() : 0;
-        if (countB > countA || (countB === countA && timeB > timeA)) {
-          bestLocalStore = parsed;
-        }
-      }
-    } catch (e) {}
+  let bestLocalStore = findBestLocalStore(candidateKeys);
+  if (inMemorySnapshot && (!bestLocalStore || calculateDataProgressScore(inMemorySnapshot) > calculateDataProgressScore(bestLocalStore))) {
+    bestLocalStore = inMemorySnapshot;
   }
 
-  // 5. Carrega dados do Supabase
+  // 6. Carrega dados do Supabase
   state.syncStatus = 'syncing';
   updateSyncIndicator();
 
   const cloudData = await dataService.loadUserDataFromSupabase(userId, userObj);
-  let cloudCompanies = [];
-  let cloudTasks = [];
-  let cloudUpdatedAt = null;
-  let cloudSchemaVersion = 0;
+  let cloudPackage = null;
 
   if (cloudData) {
     if (cloudData.perfil) {
@@ -1118,129 +1260,83 @@ async function switchUserEnvironment(userObj) {
     const ss = cloudData.syncState;
 
     if (ss) {
-      cloudUpdatedAt = ss.updatedAt || null;
-      cloudSchemaVersion = Number(ss.schemaVersion || 0);
       const ssCompanies = normalizeCompanyList(ss.companies || []);
       const ssTasks = normalizeTaskList(ss.tasks || []);
-
-      // Se o syncState tem dados (ou é versão >= 2), usa-o como fonte atômica e mescla eventuais registros da tabela
-      if (ssCompanies.length >= tableCompanies.length || cloudSchemaVersion >= CURRENT_SYNC_SCHEMA_VERSION) {
-        cloudCompanies = ssCompanies;
-      } else {
-        const mergedMap = new Map();
-        ssCompanies.forEach(c => mergedMap.set(c.id, c));
-        tableCompanies.forEach(c => { if (!mergedMap.has(c.id)) mergedMap.set(c.id, c); });
-        cloudCompanies = Array.from(mergedMap.values());
-      }
-
-      if (ssTasks.length >= tableTasks.length || cloudSchemaVersion >= CURRENT_SYNC_SCHEMA_VERSION) {
-        cloudTasks = ssTasks;
-      } else {
-        const metaMap = new Map(ssTasks.map(t => [t.id, t]));
-        cloudTasks = tableTasks.map(t => {
-          const m = metaMap.get(t.id);
-          if (!m) return t;
-          return {
-            ...t,
-            kanbanStatus: t.kanbanStatus || m.kanbanStatus || (t.concluida ? 'concluida' : 'a_fazer'),
-            comentarios: (t.comentarios && t.comentarios.length > 0) ? t.comentarios : (m.comentarios || []),
-            historico: (t.historico && t.historico.length > 0) ? t.historico : (m.historico || [])
-          };
-        });
-      }
-
-      if (ss.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(ss.pisCofinsData);
-      if (ss.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(ss.irpjTrimData);
-      if (ss.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(ss.irpjMensalData);
-      if (ss.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(ss.fechamentosMeta);
-      if (ss.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(ss.ecdEcfData);
-      if (Array.isArray(ss.ecdEcfExtraIds)) state.ecdEcfExtraIds = ss.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
-      if (ss.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(ss.fechamentoIAData);
-    } else {
-      cloudCompanies = tableCompanies;
-      cloudTasks = tableTasks;
+      cloudPackage = {
+        ...ss,
+        companies: ssCompanies.length >= tableCompanies.length ? ssCompanies : tableCompanies,
+        tasks: ssTasks.length >= tableTasks.length ? ssTasks : tableTasks,
+        pisCofinsData: ss.pisCofinsData ? normalizeMapCompanyKeys(ss.pisCofinsData) : { ...INITIAL_PIS_COFINS },
+        irpjTrimData: ss.irpjTrimData ? normalizeMapCompanyKeys(ss.irpjTrimData) : { ...INITIAL_IRPJ_TRIM },
+        irpjMensalData: ss.irpjMensalData ? normalizeMapCompanyKeys(ss.irpjMensalData) : { ...INITIAL_IRPJ_MENSAL },
+        fechamentosMeta: ss.fechamentosMeta ? normalizeMapCompanyKeys(ss.fechamentosMeta) : {},
+        ecdEcfData: ss.ecdEcfData ? normalizeMapCompanyKeys(ss.ecdEcfData) : {},
+        ecdEcfExtraIds: Array.isArray(ss.ecdEcfExtraIds) ? ss.ecdEcfExtraIds.map(id => normalizeSafeDbId(id)) : [],
+        fechamentoIAData: ss.fechamentoIAData ? normalizeMapCompanyKeys(ss.fechamentoIAData) : {}
+      };
+    } else if (tableCompanies.length > 0) {
+      cloudPackage = {
+        companies: tableCompanies,
+        tasks: tableTasks,
+        pisCofinsData: { ...INITIAL_PIS_COFINS },
+        irpjTrimData: { ...INITIAL_IRPJ_TRIM },
+        irpjMensalData: { ...INITIAL_IRPJ_MENSAL },
+        fechamentosMeta: {},
+        ecdEcfData: {},
+        ecdEcfExtraIds: [],
+        fechamentoIAData: {}
+      };
     }
   }
 
-  // 6. Reconciliação inteligente entre Nuvem (Supabase) e Cache Local (localStorage)
-  let needsCloudPush = false;
-  const localCompanies = bestLocalStore?.companies ? normalizeCompanyList(bestLocalStore.companies) : [];
-  const localTasks = bestLocalStore?.tasks ? normalizeTaskList(bestLocalStore.tasks) : [];
-  const localSchemaVersion = Number(bestLocalStore?.schemaVersion || 0);
+  // 7. Reconciliação inteligente entre Nuvem (Supabase) e Cache Local (localStorage)
+  // Quem tiver maior progresso real (ex: 15/15 PIS/COFINS e 7 tarefas no PC 1 vs 5/15 e 10 tarefas iniciais no PC 2) vence automaticamente!
+  const localScore = bestLocalStore ? calculateDataProgressScore(bestLocalStore) : 0;
+  const cloudScore = cloudPackage ? calculateDataProgressScore(cloudPackage) : 0;
   const localTime = bestLocalStore?.updatedAt ? new Date(bestLocalStore.updatedAt).getTime() : 0;
-  const cloudTime = cloudUpdatedAt ? new Date(cloudUpdatedAt).getTime() : 0;
+  const cloudTime = cloudPackage?.updatedAt ? new Date(cloudPackage.updatedAt).getTime() : 0;
 
-  // Detecta se esta máquina possui empresas recém-cadastradas antes da migração v2 (ex: a 31ª empresa)
-  const localExtraCompanies = localCompanies.filter(c => c.id > 8 && !INITIAL_COMPANY_IDS.has(c.id));
+  let needsCloudPush = false;
 
-  if (cloudCompanies.length > 0) {
-    state.companies = cloudCompanies;
-    state.tasks = cloudTasks;
-    state.lastUpdatedAt = cloudUpdatedAt;
-
-    // Se o cache local tinha empresas extras criadas antes da v2 (ou é mais recente que a nuvem), preserva-as e envia para a nuvem!
-    if (localSchemaVersion < CURRENT_SYNC_SCHEMA_VERSION && localExtraCompanies.length > 0) {
-      const existingIds = new Set(state.companies.map(c => c.id));
-      for (const extra of localExtraCompanies) {
-        if (!existingIds.has(extra.id)) {
-          state.companies.unshift(extra);
-          existingIds.add(extra.id);
-          needsCloudPush = true;
-        }
-      }
-    } else if (localTime > cloudTime && localCompanies.length > 0) {
-      state.companies = localCompanies;
-      if (localTasks.length > 0) state.tasks = localTasks;
-      if (bestLocalStore.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(bestLocalStore.pisCofinsData);
-      if (bestLocalStore.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(bestLocalStore.irpjTrimData);
-      if (bestLocalStore.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(bestLocalStore.irpjMensalData);
-      if (bestLocalStore.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(bestLocalStore.fechamentosMeta);
-      if (bestLocalStore.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(bestLocalStore.ecdEcfData);
-      if (Array.isArray(bestLocalStore.ecdEcfExtraIds)) state.ecdEcfExtraIds = bestLocalStore.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
-      if (bestLocalStore.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(bestLocalStore.fechamentoIAData);
+  if (cloudPackage && cloudPackage.companies && cloudPackage.companies.length > 0) {
+    if (localScore > cloudScore) {
+      // O PC atual tem mais progresso real (ex: PC 1 com 15/15 PIS/COFINS, 7 tarefas pendentes, envios IA) -> aplica Local e envia p/ Nuvem!
+      applyPackageToState(bestLocalStore);
       needsCloudPush = true;
-    }
-
-    if (cloudSchemaVersion < CURRENT_SYNC_SCHEMA_VERSION || (cloudData?.empresas?.length || 0) !== state.companies.length) {
+    } else if (cloudScore > localScore) {
+      // A nuvem tem mais progresso real -> aplica Nuvem neste PC!
+      applyPackageToState(cloudPackage);
+      needsCloudPush = false;
+    } else if (localTime > cloudTime && bestLocalStore) {
+      applyPackageToState(bestLocalStore);
       needsCloudPush = true;
+    } else {
+      applyPackageToState(cloudPackage);
+      needsCloudPush = false;
     }
-  } else if (localCompanies.length > 0) {
-    state.companies = localCompanies;
-    state.tasks = localTasks;
-    if (bestLocalStore.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(bestLocalStore.pisCofinsData);
-    if (bestLocalStore.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(bestLocalStore.irpjTrimData);
-    if (bestLocalStore.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(bestLocalStore.irpjMensalData);
-    if (bestLocalStore.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(bestLocalStore.fechamentosMeta);
-    if (bestLocalStore.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(bestLocalStore.ecdEcfData);
-    if (Array.isArray(bestLocalStore.ecdEcfExtraIds)) state.ecdEcfExtraIds = bestLocalStore.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
-    if (bestLocalStore.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(bestLocalStore.fechamentoIAData);
+  } else if (bestLocalStore && bestLocalStore.companies && bestLocalStore.companies.length > 0) {
+    applyPackageToState(bestLocalStore);
     needsCloudPush = true;
-  }
-
-  // 7. Se a conta ainda estiver vazia (ou apenas com empresas fictícias antigas id <= 8), restaura o Backup Oficial
-  const hasOnlyDemoCompanies = state.companies && state.companies.length > 0 && state.companies.every(c => Number(c.id) <= 8);
-  if (!state.companies || state.companies.length === 0 || hasOnlyDemoCompanies) {
-    state.companies = INITIAL_COMPANIES.map(c => ({ ...c }));
-    if (!state.tasks || state.tasks.length === 0 || state.tasks.every(t => Number(t.id) <= 4)) {
-      state.tasks = INITIAL_TASKS.map(t => ({ ...t }));
-    }
-    if (!state.pisCofinsData || Object.keys(state.pisCofinsData).length === 0) {
-      state.pisCofinsData = { ...INITIAL_PIS_COFINS };
-    }
-    if (!state.irpjTrimData || Object.keys(state.irpjTrimData).length === 0) {
-      state.irpjTrimData = { ...INITIAL_IRPJ_TRIM };
-    }
-    if (!state.irpjMensalData || Object.keys(state.irpjMensalData).length === 0) {
-      state.irpjMensalData = { ...INITIAL_IRPJ_MENSAL };
-    }
+  } else {
+    // Apenas se nem a nuvem nem o PC local tiverem dados, carrega o padrão inicial
+    applyPackageToState({
+      companies: INITIAL_COMPANIES.map(c => ({ ...c })),
+      tasks: INITIAL_TASKS.map(t => ({ ...t })),
+      pisCofinsData: { ...INITIAL_PIS_COFINS },
+      irpjTrimData: { ...INITIAL_IRPJ_TRIM },
+      irpjMensalData: { ...INITIAL_IRPJ_MENSAL },
+      fechamentosMeta: {},
+      ecdEcfData: {},
+      ecdEcfExtraIds: [],
+      fechamentoIAData: {}
+    });
     needsCloudPush = true;
   }
 
   if (needsCloudPush) {
     await saveStorage({ replaceCompanies: true });
   } else {
-    // Atualiza cache local desta máquina com o estado mais recente vindo da nuvem
-    saveLocalCacheOnly(userId, cloudUpdatedAt || new Date().toISOString());
+    saveLocalCacheOnly(userId, cloudPackage?.updatedAt || new Date().toISOString());
     state.syncStatus = 'saved';
     state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
@@ -1271,6 +1367,8 @@ function saveLocalCacheOnly(userId, timestampIso) {
     };
     const serialized = JSON.stringify(userPayload);
     localStorage.setItem(`control_user_store_${userId}`, serialized);
+    localStorage.setItem('control_user_store_brayann', serialized);
+    localStorage.setItem('control_user_store_1', serialized);
     const session = authService.getCurrentSession();
     if (session?.email) localStorage.setItem(`control_user_store_${session.email}`, serialized);
     if (session?.user) localStorage.setItem(`control_user_store_${session.user.toLowerCase()}`, serialized);
@@ -1279,10 +1377,81 @@ function saveLocalCacheOnly(userId, timestampIso) {
   }
 }
 
-// Sincronização bidirecional imediata com o Supabase (busca atualizações feitas em outro computador)
+// Botão direto 1: Força o envio imediato de TODOS os dados deste computador (PC 1) para a nuvem Supabase
+window.forcePushToSupabase = async function() {
+  const userId = dataService.getActiveUserKey() || 'brayann';
+  state.syncStatus = 'syncing';
+  updateSyncIndicator();
+  await saveStorage({ replaceCompanies: true, isManualPush: true });
+  render();
+  const summary = summarizeDataPackage({
+    companies: state.companies,
+    tasks: state.tasks,
+    pisCofinsData: state.pisCofinsData,
+    irpjTrimData: state.irpjTrimData,
+    irpjMensalData: state.irpjMensalData,
+    fechamentoIAData: state.fechamentoIA?.auditData
+  });
+  alert(
+    `⬆️ DADOS ENVIADOS DESTE PC PARA A NUVEM COM SUCESSO!\n\n` +
+    `• Empresas ativas: ${summary.companiesCount}\n` +
+    `• PIS/COFINS concluídos: ${summary.pisDone}\n` +
+    `• Tarefas pendentes: ${summary.pendingTasks} (${summary.completedTasks} concluídas)\n\n` +
+    `Agora basta abrir o outro computador (PC 2) ou clicar em "⬇️ Puxar da Nuvem" nele!`
+  );
+};
+
+// Botão direto 2: Força o download imediato dos dados salvos na nuvem Supabase para este computador (PC 2)
+window.forcePullFromSupabase = async function() {
+  const userId = dataService.getActiveUserKey() || 'brayann';
+  state.syncStatus = 'syncing';
+  updateSyncIndicator();
+  const session = authService.getCurrentSession();
+  const cloudData = await dataService.loadUserDataFromSupabase(userId, session);
+  if (!cloudData || (!cloudData.syncState && (!cloudData.empresas || cloudData.empresas.length === 0))) {
+    state.syncStatus = 'error';
+    updateSyncIndicator();
+    alert('⚠️ Nenhum dado encontrado na nuvem ainda. No PC 1, clique primeiro em "⬆️ Enviar p/ Nuvem".');
+    return;
+  }
+
+  const ss = cloudData.syncState;
+  const cloudPkg = ss ? {
+    ...ss,
+    companies: ss.companies?.length ? normalizeCompanyList(ss.companies) : normalizeCompanyList(cloudData.empresas || []),
+    tasks: ss.tasks?.length ? normalizeTaskList(ss.tasks) : normalizeTaskList((cloudData.tarefas || []).map(t => unpackTaskFromSupabase(t)))
+  } : {
+    companies: normalizeCompanyList(cloudData.empresas || []),
+    tasks: normalizeTaskList((cloudData.tarefas || []).map(t => unpackTaskFromSupabase(t)))
+  };
+
+  applyPackageToState(cloudPkg);
+  saveLocalCacheOnly(userId, cloudPkg.updatedAt || new Date().toISOString());
+  state.syncStatus = 'saved';
+  state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  updateSyncIndicator();
+  render();
+
+  const summary = summarizeDataPackage({
+    companies: state.companies,
+    tasks: state.tasks,
+    pisCofinsData: state.pisCofinsData,
+    irpjTrimData: state.irpjTrimData,
+    irpjMensalData: state.irpjMensalData,
+    fechamentoIAData: state.fechamentoIA?.auditData
+  });
+  alert(
+    `⬇️ DADOS ATUALIZADOS DA NUVEM NESTE PC COM SUCESSO!\n\n` +
+    `• Empresas ativas: ${summary.companiesCount}\n` +
+    `• PIS/COFINS concluídos: ${summary.pisDone}\n` +
+    `• Tarefas pendentes: ${summary.pendingTasks} (${summary.completedTasks} concluídas)`
+  );
+};
+
+// Sincronização bidirecional inteligente com o Supabase (compara score de progresso + timestamp)
 window.syncWithSupabaseNow = async function(showFeedback = false) {
-  const userId = dataService.getActiveUserKey();
-  if (!userId || !state.user) return;
+  const userId = dataService.getActiveUserKey() || 'brayann';
+  if (!state.user) return;
   if (state.syncStatus === 'syncing' && !showFeedback) return;
 
   try {
@@ -1292,46 +1461,73 @@ window.syncWithSupabaseNow = async function(showFeedback = false) {
     }
     const session = authService.getCurrentSession();
     const cloudData = await dataService.loadUserDataFromSupabase(userId, session);
-    if (!cloudData) {
-      if (showFeedback) await saveStorage({ replaceCompanies: true });
+    if (!cloudData || (!cloudData.syncState && (!cloudData.empresas || cloudData.empresas.length === 0))) {
+      await saveStorage({ replaceCompanies: true, isManualPush: showFeedback });
+      if (showFeedback) {
+        const s = summarizeDataPackage({ companies: state.companies, tasks: state.tasks, pisCofinsData: state.pisCofinsData });
+        alert(`☁️ Dados deste PC enviados para a nuvem!\n• ${s.companiesCount} empresas\n• ${s.pisDone} PIS/COFINS concluídos\n• ${s.pendingTasks} tarefas pendentes.`);
+      }
       return;
     }
 
     const ss = cloudData.syncState;
+    const cloudPkg = ss ? {
+      ...ss,
+      companies: ss.companies?.length ? normalizeCompanyList(ss.companies) : normalizeCompanyList(cloudData.empresas || []),
+      tasks: ss.tasks?.length ? normalizeTaskList(ss.tasks) : normalizeTaskList((cloudData.tarefas || []).map(t => unpackTaskFromSupabase(t)))
+    } : {
+      companies: normalizeCompanyList(cloudData.empresas || []),
+      tasks: normalizeTaskList((cloudData.tarefas || []).map(t => unpackTaskFromSupabase(t)))
+    };
+
+    const localPkg = {
+      companies: state.companies,
+      tasks: state.tasks,
+      pisCofinsData: state.pisCofinsData,
+      irpjTrimData: state.irpjTrimData,
+      irpjMensalData: state.irpjMensalData,
+      fechamentosMeta: state.fechamentosMeta,
+      ecdEcfData: state.ecdEcfData,
+      ecdEcfExtraIds: state.ecdEcfExtraIds,
+      fechamentoIAData: state.fechamentoIA?.auditData
+    };
+
+    const localScore = calculateDataProgressScore(localPkg);
+    const cloudScore = calculateDataProgressScore(cloudPkg);
     const cloudTime = ss?.updatedAt ? new Date(ss.updatedAt).getTime() : 0;
     const localTime = state.lastUpdatedAt ? new Date(state.lastUpdatedAt).getTime() : 0;
-    const cloudCompanies = ss?.companies?.length
-      ? normalizeCompanyList(ss.companies)
-      : normalizeCompanyList(cloudData.empresas || []);
 
-    // Se a nuvem tem uma atualização mais nova feita em outro computador (ou quantidade diferente de empresas com timestamp >= local)
-    if (cloudCompanies.length > 0 && (cloudTime > localTime || (ss?.schemaVersion >= CURRENT_SYNC_SCHEMA_VERSION && cloudCompanies.length !== state.companies.length && cloudTime >= localTime))) {
-      state.companies = cloudCompanies;
-      if (ss?.tasks?.length) {
-        state.tasks = normalizeTaskList(ss.tasks);
-      } else if (cloudData.tarefas?.length) {
-        state.tasks = normalizeTaskList(cloudData.tarefas.map(t => unpackTaskFromSupabase(t)));
-      }
-      if (ss?.pisCofinsData) state.pisCofinsData = normalizeMapCompanyKeys(ss.pisCofinsData);
-      if (ss?.irpjTrimData) state.irpjTrimData = normalizeMapCompanyKeys(ss.irpjTrimData);
-      if (ss?.irpjMensalData) state.irpjMensalData = normalizeMapCompanyKeys(ss.irpjMensalData);
-      if (ss?.fechamentosMeta) state.fechamentosMeta = normalizeMapCompanyKeys(ss.fechamentosMeta);
-      if (ss?.ecdEcfData) state.ecdEcfData = normalizeMapCompanyKeys(ss.ecdEcfData);
-      if (Array.isArray(ss?.ecdEcfExtraIds)) state.ecdEcfExtraIds = ss.ecdEcfExtraIds.map(id => normalizeSafeDbId(id));
-      if (ss?.fechamentoIAData && state.fechamentoIA) state.fechamentoIA.auditData = normalizeMapCompanyKeys(ss.fechamentoIAData);
-
+    // Se a nuvem tem mais progresso real (ou mesmo progresso com timestamp mais novo), puxa da nuvem para este PC
+    if (cloudPkg.companies.length > 0 && (cloudScore > localScore || (cloudScore === localScore && cloudTime > localTime))) {
+      applyPackageToState(cloudPkg);
       saveLocalCacheOnly(userId, ss?.updatedAt || new Date().toISOString());
       state.syncStatus = 'saved';
       state.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       updateSyncIndicator();
       render();
       if (showFeedback) {
-        alert(`☁️ Dados sincronizados da nuvem com sucesso!\n• ${state.companies.length} empresas ativas\n• ${state.tasks.length} tarefas sincronizadas.`);
+        const cs = summarizeDataPackage(cloudPkg);
+        alert(
+          `☁️ Dados recebidos da nuvem com sucesso!\n\n` +
+          `• Empresas: ${cs.companiesCount}\n` +
+          `• PIS/COFINS concluídos: ${cs.pisDone}\n` +
+          `• Tarefas pendentes: ${cs.pendingTasks}`
+        );
       }
-    } else if (showFeedback) {
-      await saveStorage({ replaceCompanies: true });
+    } else if (localScore > cloudScore || showFeedback) {
+      // Se este PC (ex: PC 1) tem mais progresso real que a nuvem (ou clicou em sincronizar), envia imediatamente para a nuvem!
+      await saveStorage({ replaceCompanies: true, isManualPush: showFeedback });
       render();
-      alert(`☁️ Sincronização com o Supabase concluída!\n• ${state.companies.length} empresas salvas na nuvem.`);
+      if (showFeedback) {
+        const s = summarizeDataPackage(localPkg);
+        alert(
+          `☁️ Dados deste PC enviados para a nuvem com sucesso!\n\n` +
+          `• Empresas salvas: ${s.companiesCount}\n` +
+          `• PIS/COFINS concluídos: ${s.pisDone}\n` +
+          `• Tarefas pendentes: ${s.pendingTasks}\n\n` +
+          `O outro computador já receberá essa atualização automaticamente!`
+        );
+      }
     }
   } catch (err) {
     console.warn('Erro ao sincronizar com Supabase:', err);
@@ -1363,7 +1559,7 @@ function getFullDataPackage() {
 
 // Sincroniza em nuvem no Supabase e no repositório isolado do usuário
 async function saveStorage(options = {}) {
-  const userId = dataService.getActiveUserKey();
+  const userId = dataService.getActiveUserKey() || 'brayann';
   if (!userId) return;
 
   state.syncStatus = 'syncing';
@@ -1382,6 +1578,7 @@ async function saveStorage(options = {}) {
 
   const syncPackage = {
     schemaVersion: CURRENT_SYNC_SCHEMA_VERSION,
+    isManualPush: Boolean(options.isManualPush),
     companies: state.companies,
     tasks: state.tasks,
     pisCofinsData: state.pisCofinsData,
@@ -1401,7 +1598,7 @@ async function saveStorage(options = {}) {
   try {
     let anySuccess = false;
 
-    // A. Sincroniza estado completo dos módulos na linha oculta __CONTROL_SYNC_STATE__
+    // A. Sincroniza estado completo dos módulos na tabela control_sync e na linha oculta __CONTROL_SYNC_STATE__
     const stateOk = await dataService.saveCloudSyncState(userId, syncPackage);
     if (stateOk) anySuccess = true;
 
@@ -3950,16 +4147,34 @@ function render() {
             ` : ''}
           </div>
 
-          <!-- 2.5 Indicador / Botão Rápido de Sincronização em Nuvem (Supabase) -->
-          <button
-            id="sync-indicator"
-            onclick="syncWithSupabaseNow(true)"
-            title="Clique para sincronizar agora com o Supabase (enviar/receber atualizações de outro computador)"
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
-          >
-            <span>☁️</span>
-            <span class="hidden sm:inline">${state.syncStatus === 'syncing' ? 'Sincronizando...' : (state.lastSyncTime ? 'Nuvem OK (' + state.lastSyncTime + ')' : 'Sincronizar')}</span>
-          </button>
+          <!-- 2.5 Indicador / Botões Rápidos de Sincronização em Nuvem (Supabase) -->
+          <div class="flex items-center gap-1">
+            <button
+              id="sync-indicator"
+              onclick="syncWithSupabaseNow(true)"
+              title="Clique para sincronizar automaticamente com o Supabase"
+              class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+            >
+              <span>☁️</span>
+              <span class="hidden sm:inline">${state.syncStatus === 'syncing' ? 'Sincronizando...' : (state.lastSyncTime ? 'Nuvem OK (' + state.lastSyncTime + ')' : 'Sincronizar')}</span>
+            </button>
+            <button
+              onclick="forcePushToSupabase()"
+              title="Enviar TODOS os dados deste PC para a Nuvem agora (use no PC 1)"
+              class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition cursor-pointer"
+            >
+              <span>⬆️</span>
+              <span class="hidden lg:inline">Enviar PC</span>
+            </button>
+            <button
+              onclick="forcePullFromSupabase()"
+              title="Baixar TODOS os dados da Nuvem para este PC agora (use no PC 2)"
+              class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition cursor-pointer"
+            >
+              <span>⬇️</span>
+              <span class="hidden lg:inline">Puxar Nuvem</span>
+            </button>
+          </div>
 
           <!-- 3. Botão "Salvar" com Dropdown de Backup / Sync -->
           <div class="relative">
@@ -3980,11 +4195,27 @@ function render() {
                 Sincronização & Backup
               </div>
 
-              <button id="btn-force-sync" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition flex items-center gap-2 cursor-pointer">
+              <button onclick="forcePushToSupabase()" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition flex items-center gap-2 cursor-pointer">
+                <span>⬆️</span>
+                <div>
+                  <div>Enviar deste PC p/ Nuvem</div>
+                  <div class="text-[10px] text-gray-500 font-normal">Salva todo o progresso deste PC no Supabase</div>
+                </div>
+              </button>
+
+              <button onclick="forcePullFromSupabase()" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition flex items-center gap-2 cursor-pointer">
+                <span>⬇️</span>
+                <div>
+                  <div>Puxar da Nuvem p/ este PC</div>
+                  <div class="text-[10px] text-gray-500 font-normal">Carrega neste PC o último estado salvo na nuvem</div>
+                </div>
+              </button>
+
+              <button id="btn-force-sync" class="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition flex items-center gap-2 cursor-pointer">
                 <span>☁️</span>
                 <div>
-                  <div>Sincronizar Nuvem Agora</div>
-                  <div class="text-[10px] text-gray-500 font-normal">Buscar/enviar atualizações entre PCs</div>
+                  <div>Sincronizar Automático</div>
+                  <div class="text-[10px] text-gray-500 font-normal">Reconcilia automaticamente entre os 2 PCs</div>
                 </div>
               </button>
 
@@ -14596,7 +14827,7 @@ window.handleUniversalImport = (event) => {
 document.addEventListener('DOMContentLoaded', async () => {
   render();
 
-  // Verifica se há sessão ativa no Supabase Auth
+  // Verifica se há sessão ativa no Supabase Auth ou sessão local (ex: PC 1 já logado)
   try {
     if (sb && sb.auth) {
       const { data: { session } } = await sb.auth.getSession();
@@ -14611,10 +14842,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         await switchUserEnvironment(userObj);
       } else if (state.user) {
-        const currentSession = authService.getCurrentSession();
-        if (currentSession) {
-          await switchUserEnvironment(currentSession);
-        }
+        const currentSession = authService.getCurrentSession() || {
+          id: '1',
+          userId: '1',
+          user: String(state.user).toLowerCase(),
+          usuario: String(state.user).toLowerCase(),
+          email: 'brayann@controlcontabilidade.com.br',
+          nome: 'Brayann Mikael',
+          role: 'analista'
+        };
+        await switchUserEnvironment(currentSession);
       }
     }
   } catch (err) {
