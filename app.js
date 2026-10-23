@@ -4265,15 +4265,7 @@ function render() {
             ` : ''}
           </div>
 
-          <!-- 2.5 Indicador Discreto e Automático de Sincronização em Nuvem -->
-          <div
-            id="sync-indicator"
-            class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 transition-all shadow-2xs select-none"
-            title="Sincronização automática em nuvem ativa"
-          >
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span class="hidden sm:inline font-semibold text-emerald-800">Nuvem Sincronizada</span>
-          </div>
+
 
           <!-- 3. Botão "Backups" com Dropdown Limpo e de Alto Contraste -->
           <div class="relative">
