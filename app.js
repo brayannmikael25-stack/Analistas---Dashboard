@@ -832,9 +832,25 @@ const dataService = {
 
       // 0. Tabela dedicada control_sync (JSONB por usuário - rápida e imune a conflitos de tipo)
       try {
-        const { data: syncRows, error: syncErr } = await sb.from('control_sync').select('*').limit(100);
-        if (!syncErr && Array.isArray(syncRows) && syncRows.length > 0) {
-          const matchingSync = syncRows.filter(r => candidateSet.has(String(r.user_key || '').toLowerCase()));
+        let syncRows = null;
+        if (sb && typeof sb.from === 'function') {
+          const { data, error } = await sb.from('control_sync').select('*').limit(100);
+          if (!error && Array.isArray(data) && data.length > 0) syncRows = data;
+        }
+        if (!syncRows || syncRows.length === 0) {
+          try {
+            const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/control_sync?select=*&apikey=${SUPABASE_CONFIG.anonKey}`, {
+              headers: { 'apikey': SUPABASE_CONFIG.anonKey }
+            });
+            if (res.ok) {
+              const json = await res.json();
+              if (Array.isArray(json) && json.length > 0) syncRows = json;
+            }
+          } catch (fErr) {}
+        }
+
+        if (Array.isArray(syncRows) && syncRows.length > 0) {
+          const matchingSync = syncRows.filter(r => candidateSet.has(String(r.user_key || '').toLowerCase()) || r.user_key === 'control_main_workspace');
           const rowsToUse = matchingSync.length > 0 ? matchingSync : syncRows;
           for (const row of rowsToUse) {
             const pkg = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
@@ -1097,6 +1113,7 @@ const dataService = {
     try {
       const session = authService.getCurrentSession();
       const keysToSave = Array.from(new Set([
+        'control_main_workspace',
         '__control_workspace__',
         'brayann',
         '1',
@@ -1111,8 +1128,26 @@ const dataService = {
         updated_at: nowIso
       }));
 
-      const { error: csErr } = await sb.from('control_sync').upsert(rows, { onConflict: 'user_key' });
-      if (!csErr) savedOk = true;
+      if (sb && typeof sb.from === 'function') {
+        const { error: csErr } = await sb.from('control_sync').upsert(rows, { onConflict: 'user_key' });
+        if (!csErr) savedOk = true;
+      }
+
+      if (!savedOk) {
+        try {
+          const endpoint = `${SUPABASE_CONFIG.url}/rest/v1/control_sync?on_conflict=user_key&apikey=${SUPABASE_CONFIG.anonKey}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_CONFIG.anonKey,
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify(rows)
+          });
+          if (res.ok) savedOk = true;
+        } catch (fErr) {}
+      }
     } catch (e) {
       // Caso control_sync ainda não exista, continua no fallback abaixo
     }
@@ -1938,17 +1973,17 @@ function updateSyncIndicator() {
   const el = document.getElementById('sync-indicator');
   if (!el) return;
   if (state.syncStatus === 'syncing') {
-    el.innerHTML = '<span class="inline-block animate-spin">🔄</span> <span class="hidden sm:inline">Sincronizando...</span>';
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 cursor-pointer';
+    el.innerHTML = '<span class="inline-block animate-spin text-blue-600">🔄</span> <span class="hidden sm:inline font-semibold text-blue-800">Salvando na nuvem...</span>';
+    el.className = 'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-blue-800 bg-blue-50 border border-blue-200 select-none';
   } else if (state.syncStatus === 'saved') {
-    el.innerHTML = `<span>☁️</span> <span class="hidden sm:inline">Nuvem OK ${state.lastSyncTime ? '(' + state.lastSyncTime + ')' : ''}</span>`;
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer';
+    el.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> <span class="hidden sm:inline font-semibold text-emerald-800">Nuvem Sincronizada</span>';
+    el.className = 'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 select-none';
   } else if (state.syncStatus === 'error') {
-    el.innerHTML = '<span>⚠️</span> <span class="hidden sm:inline">Offline / Local</span>';
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 cursor-pointer';
+    el.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> <span class="hidden sm:inline font-semibold text-amber-900">Salvo no PC (Conectando...)</span>';
+    el.className = 'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-amber-900 bg-amber-50 border border-amber-300 select-none';
   } else {
-    el.innerHTML = '<span>☁️</span> <span class="hidden sm:inline">Sincronizar</span>';
-    el.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition cursor-pointer';
+    el.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span> <span class="hidden sm:inline font-semibold text-emerald-800">Nuvem Sincronizada</span>';
+    el.className = 'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 select-none';
   }
 }
 
@@ -4362,85 +4397,58 @@ function render() {
             ` : ''}
           </div>
 
-          <!-- 2.5 Indicador Automático de Sincronização em Nuvem (Supabase) -->
-          <button
+          <!-- 2.5 Indicador Discreto e Automático de Sincronização em Nuvem -->
+          <div
             id="sync-indicator"
-            onclick="syncWithSupabaseNow(true)"
-            title="Sincronização automática em tempo real ativa com o Supabase"
-            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+            class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 transition-all shadow-2xs select-none"
+            title="Sincronização automática em nuvem ativa"
           >
-            <span>☁️</span>
-            <span class="hidden sm:inline">${state.syncStatus === 'syncing' ? 'Sincronizando...' : (state.lastSyncTime ? 'Nuvem OK (' + state.lastSyncTime + ')' : 'Sincronizar')}</span>
-          </button>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="hidden sm:inline font-semibold text-emerald-800">Nuvem Sincronizada</span>
+          </div>
 
-          <!-- 3. Botão "Salvar" com Dropdown de Backup / Sync -->
+          <!-- 3. Botão "Backups" com Dropdown Limpo e de Alto Contraste -->
           <div class="relative">
             <button
               id="backup-menu-btn"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 text-xs font-semibold transition cursor-pointer"
             >
-              <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="w-3.5 h-3.5 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                 <polyline points="17 21 17 13 7 13 7 21"></polyline>
                 <polyline points="7 3 7 8 15 8"></polyline>
               </svg>
-              <span>Salvar</span>
+              <span>Backups</span>
             </button>
 
-            <div id="backup-dropdown" class="hidden absolute right-0 mt-2 w-64 rounded-xl bg-white border border-gray-200 shadow-xl p-2 z-50 text-gray-800">
-              <div class="px-3 py-1.5 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Sincronização & Backup
+            <div id="backup-dropdown" class="hidden absolute right-0 mt-2 w-64 rounded-xl bg-white border border-gray-200 shadow-2xl p-2 z-50 text-gray-900">
+              <div class="px-3 py-2 border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Backup e Arquivos Locais
               </div>
 
-              <button onclick="forcePushToSupabase()" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition flex items-center gap-2 cursor-pointer">
-                <span>⬆️</span>
+              <button id="btn-export-backup-json" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-gray-800 hover:bg-gray-50 hover:text-blue-600 transition flex items-center gap-2.5 cursor-pointer">
+                <span class="text-base">💾</span>
                 <div>
-                  <div>Enviar deste PC p/ Nuvem</div>
-                  <div class="text-[10px] text-gray-500 font-normal">Salva todo o progresso deste PC no Supabase</div>
+                  <div class="font-bold text-gray-900">Salvar Backup (JSON)</div>
+                  <div class="text-[10px] text-gray-500 font-normal">Arquivo com todas empresas e status</div>
                 </div>
               </button>
 
-              <button onclick="forcePullFromSupabase()" class="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition flex items-center gap-2 cursor-pointer">
-                <span>⬇️</span>
+              <button id="btn-export-backup-csv" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-gray-800 hover:bg-gray-50 hover:text-blue-600 transition flex items-center gap-2.5 cursor-pointer">
+                <span class="text-base">📊</span>
                 <div>
-                  <div>Puxar da Nuvem p/ este PC</div>
-                  <div class="text-[10px] text-gray-500 font-normal">Carrega neste PC o último estado salvo na nuvem</div>
-                </div>
-              </button>
-
-              <button id="btn-force-sync" class="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition flex items-center gap-2 cursor-pointer">
-                <span>☁️</span>
-                <div>
-                  <div>Sincronizar Automático</div>
-                  <div class="text-[10px] text-gray-500 font-normal">Reconcilia automaticamente entre os 2 PCs</div>
-                </div>
-              </button>
-
-              <div class="my-1 border-t border-gray-100"></div>
-              
-              <button id="btn-export-backup-json" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-800 hover:bg-gray-50 transition flex items-center gap-2">
-                <span>💾</span>
-                <div>
-                  <div class="font-semibold">Salvar backup</div>
-                  <div class="text-[10px] text-gray-500">Arquivo JSON com todas empresas e status</div>
-                </div>
-              </button>
-
-              <button id="btn-export-backup-csv" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-800 hover:bg-gray-50 transition flex items-center gap-2">
-                <span>📊</span>
-                <div>
-                  <div class="font-semibold">Exportar Empresas (Excel / CSV)</div>
-                  <div class="text-[10px] text-gray-500">Tabela padrão com as 8 colunas</div>
+                  <div class="font-bold text-gray-900">Exportar Empresas (Excel)</div>
+                  <div class="text-[10px] text-gray-500 font-normal">Planilha oficial formatada</div>
                 </div>
               </button>
 
               <div class="my-1 border-t border-gray-100"></div>
 
-              <label class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-800 hover:bg-gray-50 transition flex items-center gap-2 cursor-pointer">
-                <span>📥</span>
+              <label class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold text-gray-800 hover:bg-gray-50 hover:text-blue-600 transition flex items-center gap-2.5 cursor-pointer">
+                <span class="text-base">📥</span>
                 <div>
-                  <div class="font-semibold">Importar Backup</div>
-                  <div class="text-[10px] text-gray-500">Carregar arquivo .json ou planilha</div>
+                  <div class="font-bold text-gray-900">Importar Arquivo de Backup</div>
+                  <div class="text-[10px] text-gray-500 font-normal">Carregar arquivo .json ou planilha</div>
                 </div>
                 <input type="file" id="universal-sync-file-input" accept=".json, .xlsx, .xls, .csv" class="hidden" />
               </label>
@@ -4578,30 +4586,6 @@ function render() {
                       </div>
                     `;
                   }).join('')}
-                </div>
-              </div>
-
-              <!-- Categoria 2: SUPPORT & SYNC -->
-              <div>
-                <div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD]">
-                  SUPPORT
-                </div>
-                <div class="space-y-1">
-                  <div
-                    onclick="document.getElementById('config-sync-btn')?.click()"
-                    class="panze-nav-item cursor-pointer"
-                    title="Configurar Sincronização em Nuvem"
-                  >
-                    <div class="flex items-center gap-3 min-w-0">
-                      <span class="nav-icon shrink-0 text-[#64748B]">
-                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
-                        </svg>
-                      </span>
-                      <span class="truncate font-medium text-sm">${state.backendUrl ? 'Nuvem Conectada' : 'Sincronização Nuvem'}</span>
-                    </div>
-                    <span class="w-2 h-2 rounded-full ${state.backendUrl ? 'bg-[#10B981]' : 'bg-[#64748B]/40'}"></span>
-                  </div>
                 </div>
               </div>
             </nav>
