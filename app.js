@@ -600,131 +600,10 @@ const dataService = {
 
   // Garante que qualquer computador/aba tenha uma sessão Supabase Auth válida e um user_id UUID aceito pelo PostgreSQL
   async ensureAuthenticatedUserId(rawUserId) {
-    if (this.isUuid(rawUserId)) {
-      this._cachedUuid = String(rawUserId).trim();
-    }
-    if (!sb) return this._cachedUuid || rawUserId || '00000000-0000-4000-8000-000000000001';
-
-    try {
-      // 1. Verifica se já existe sessão ativa no Supabase Auth
-      const { data: sessionData } = await sb.auth.getSession();
-      if (sessionData?.session?.user?.id && this.isUuid(sessionData.session.user.id)) {
-        const realUuid = sessionData.session.user.id;
-        this._cachedUuid = realUuid;
-        const curSession = authService.getCurrentSession();
-        if (curSession && curSession.userId !== realUuid) {
-          authService.setSession({
-            ...curSession,
-            id: realUuid,
-            userId: realUuid,
-            token: sessionData.session.access_token || curSession.token
-          });
-        }
-        return realUuid;
-      }
-
-      // 2. Se não houver sessão Supabase Auth ativa (ex.: PC 1 logado localmente ou nova aba), autentica silenciosamente em segundo plano
-      if (!this._authPromise) {
-        this._authPromise = (async () => {
-          try {
-            const curSession = authService.getCurrentSession();
-            const activeUsername = String(
-              curSession?.usuario || curSession?.user || state.user || 'brayann'
-            ).toLowerCase();
-            const matchedUser = (state.users || []).find(u =>
-              String(u.user || '').toLowerCase() === activeUsername ||
-              String(u.email || '').toLowerCase() === activeUsername
-            );
-
-            const emailToTry = matchedUser?.email || curSession?.email || 'brayann@controlcontabilidade.com.br';
-            const passToTry = matchedUser?.pass || 'bra@7288';
-
-            let authRes = await sb.auth.signInWithPassword({
-              email: emailToTry,
-              password: passToTry
-            });
-
-            if (authRes.error && emailToTry !== 'brayann@controlcontabilidade.com.br') {
-              authRes = await sb.auth.signInWithPassword({
-                email: 'brayann@controlcontabilidade.com.br',
-                password: 'bra@7288'
-              });
-            }
-
-            if (authRes.error && authRes.error.message?.toLowerCase().includes('invalid login')) {
-              const signUpRes = await sb.auth.signUp({
-                email: emailToTry,
-                password: passToTry,
-                options: {
-                  data: {
-                    nome: matchedUser?.name || curSession?.nome || 'Brayann Mikael',
-                    role: matchedUser?.role || curSession?.role || 'analista',
-                    username: activeUsername
-                  }
-                }
-              });
-              if (signUpRes.data?.user?.id) {
-                authRes = signUpRes;
-              }
-            }
-
-            const authUser = authRes?.data?.user || authRes?.data?.session?.user;
-            if (authUser?.id && this.isUuid(authUser.id)) {
-              this._cachedUuid = authUser.id;
-              if (curSession) {
-                authService.setSession({
-                  ...curSession,
-                  id: authUser.id,
-                  userId: authUser.id,
-                  email: authUser.email || curSession.email || emailToTry,
-                  token: authRes.data?.session?.access_token || curSession.token
-                });
-              }
-              return authUser.id;
-            }
-          } catch (e) {
-            // Segue para descoberta de UUID no banco abaixo
-          } finally {
-            this._authPromise = null;
-          }
-          return null;
-        })();
-      }
-
-      const signedInUuid = await this._authPromise;
-      if (signedInUuid && this.isUuid(signedInUuid)) {
-        return signedInUuid;
-      }
-
-      if (this._cachedUuid && this.isUuid(this._cachedUuid)) {
-        return this._cachedUuid;
-      }
-
-      // 3. Procura qualquer UUID existente nas tabelas perfis, empresas ou tarefas
-      try {
-        const { data: profs } = await sb.from('perfis').select('user_id').limit(20);
-        const foundProf = (profs || []).find(p => this.isUuid(p.user_id));
-        if (foundProf) {
-          this._cachedUuid = foundProf.user_id;
-          return foundProf.user_id;
-        }
-      } catch (e) {}
-
-      try {
-        const { data: emps } = await sb.from('empresas').select('user_id').limit(20);
-        const foundEmp = (emps || []).find(e => this.isUuid(e.user_id));
-        if (foundEmp) {
-          this._cachedUuid = foundEmp.user_id;
-          return foundEmp.user_id;
-        }
-      } catch (e) {}
-    } catch (err) {
-      // Fallback para UUID determinístico válido
-    }
-
-    const fallbackUuid = '00000000-0000-4000-8000-000000000001';
-    this._cachedUuid = fallbackUuid;
-    return fallbackUuid;
+    if (this._cachedUuid) return this._cachedUuid;
+    const cleanId = String(rawUserId || state.user || 'brayann').trim().toLowerCase();
+    this._cachedUuid = cleanId;
+    return cleanId;
   },
 
   getCandidateUserKeys(userId, userObj = null) {
@@ -1109,44 +988,38 @@ const dataService = {
     let savedOk = false;
     const nowIso = syncPackage.updatedAt || new Date().toISOString();
 
-    // 1. Salva na tabela dedicada control_sync (JSONB compartilhado por todas as chaves do usuário para sincronizar PC 1 e PC 2)
+    // 1. Salva na tabela dedicada control_sync (JSONB ultraleve compartilhado para sincronizar todos os PCs)
     try {
-      const session = authService.getCurrentSession();
-      const keysToSave = Array.from(new Set([
-        'control_main_workspace',
-        '__control_workspace__',
-        'brayann',
-        '1',
-        String(userId).toLowerCase(),
-        session?.user ? String(session.user).toLowerCase() : null,
-        session?.email ? String(session.email).toLowerCase() : null
-      ].filter(Boolean)));
+      const targetKeys = ['control_main_workspace', 'brayann', String(userId || 'brayann').toLowerCase()];
+      for (const k of Array.from(new Set(targetKeys))) {
+        const rowData = {
+          user_key: k,
+          payload: syncPackage,
+          updated_at: nowIso
+        };
 
-      const rows = keysToSave.map(k => ({
-        user_key: k,
-        payload: syncPackage,
-        updated_at: nowIso
-      }));
+        if (sb && typeof sb.from === 'function') {
+          try {
+            const { error: csErr } = await sb.from('control_sync').upsert(rowData, { onConflict: 'user_key' });
+            if (!csErr) savedOk = true;
+          } catch (e) {}
+        }
 
-      if (sb && typeof sb.from === 'function') {
-        const { error: csErr } = await sb.from('control_sync').upsert(rows, { onConflict: 'user_key' });
-        if (!csErr) savedOk = true;
-      }
-
-      if (!savedOk) {
-        try {
-          const endpoint = `${SUPABASE_CONFIG.url}/rest/v1/control_sync?on_conflict=user_key&apikey=${SUPABASE_CONFIG.anonKey}`;
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_CONFIG.anonKey,
-              'Content-Type': 'application/json',
-              'Prefer': 'resolution=merge-duplicates'
-            },
-            body: JSON.stringify(rows)
-          });
-          if (res.ok) savedOk = true;
-        } catch (fErr) {}
+        if (!savedOk) {
+          try {
+            const endpoint = `${SUPABASE_CONFIG.url}/rest/v1/control_sync?on_conflict=user_key&apikey=${SUPABASE_CONFIG.anonKey}`;
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'apikey': SUPABASE_CONFIG.anonKey,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify(rowData)
+            });
+            if (res.ok) savedOk = true;
+          } catch (fErr) {}
+        }
       }
     } catch (e) {
       // Caso control_sync ainda não exista, continua no fallback abaixo
@@ -1859,27 +1732,22 @@ async function saveStorage(options = {}) {
 
     let anySuccess = false;
 
-    // A. Sincroniza estado completo dos módulos na tabela control_sync e na linha oculta __CONTROL_SYNC_STATE__
+    // A. Sincroniza estado completo dos módulos na tabela control_sync (Principal e Suficiente)
     const stateOk = await dataService.saveCloudSyncState(userId, syncPackage);
     if (stateOk) anySuccess = true;
 
-    // B. Sincroniza Perfil + pacote de estado embutido
-    if (state.userProfile) {
-      const profOk = await dataService.saveUserProfile(userId, state.userProfile, state.userProfile.role, syncPackage);
-      if (profOk) anySuccess = true;
-    }
-
-    // C. Sincroniza TODAS as empresas em lote no Supabase (com IDs 32-bit int4 seguros)
-    if (state.companies && state.companies.length >= 0) {
-      const empOk = await dataService.upsertEmpresasBatch(state.companies, userId, !!options.replaceCompanies);
-      if (empOk) anySuccess = true;
-    }
-
-    // D. Sincroniza TODAS as tarefas em lote no Supabase (com kanbanStatus, comentários e histórico)
-    if (state.tasks && state.tasks.length > 0) {
-      const tarOk = await dataService.upsertTarefasBatch(state.tasks, userId);
-      if (tarOk) anySuccess = true;
-    }
+    // B. Sincronizações auxiliares assíncronas (não bloqueiam nem anulam o sucesso da nuvem)
+    try {
+      if (state.userProfile) {
+        dataService.saveUserProfile(userId, state.userProfile, state.userProfile.role, syncPackage).catch(() => {});
+      }
+      if (state.companies && state.companies.length >= 0) {
+        dataService.upsertEmpresasBatch(state.companies, userId, !!options.replaceCompanies).catch(() => {});
+      }
+      if (state.tasks && state.tasks.length > 0) {
+        dataService.upsertTarefasBatch(state.tasks, userId).catch(() => {});
+      }
+    } catch (auxErr) {}
 
     state.syncStatus = anySuccess ? 'saved' : 'error';
     if (anySuccess) {
