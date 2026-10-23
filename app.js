@@ -165,6 +165,246 @@ function getAutoCompetencies(refDate = new Date()) {
 
 const autoComp = getAutoCompetencies();
 
+// ---------------- UTILITÁRIO DE DEBOUNCE & THROTTLE PARA MÁXIMA PERFORMANCE ----------------
+function debounce(fn, wait = 250) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
+let _saveStorageTimeout = null;
+function debouncedSaveStorage(options = {}, wait = 300) {
+  if (_saveStorageTimeout) clearTimeout(_saveStorageTimeout);
+  _saveStorageTimeout = setTimeout(() => {
+    saveStorage(options);
+  }, wait);
+}
+
+// Handlers com Debounce para buscas rápidas (evita travamento do navegador a cada tecla)
+window.handleGlobalSearch = debounce((val) => {
+  state.globalSearch = val;
+  if (state.activeTab === 'empresas') state.empresasPage = 1;
+  render();
+  const updatedInput = document.getElementById('global-search-input');
+  if (updatedInput) {
+    updatedInput.focus();
+    updatedInput.setSelectionRange(updatedInput.value.length, updatedInput.value.length);
+  }
+}, 220);
+
+window.handleDashSearch = debounce((val) => {
+  state.globalSearch = val;
+  render();
+  const el = document.getElementById('dash-search-input');
+  if (el) {
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
+}, 220);
+
+window.handleFechamentoSearch = debounce((val) => {
+  state.fechamentoSearch = val;
+  render();
+  const el = document.getElementById('fechamento-search-input');
+  if (el) {
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
+}, 220);
+
+window.handleTaskSearch = debounce((val) => {
+  state.taskSearch = val;
+  render();
+  const el = document.getElementById('task-search-input');
+  if (el) {
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
+}, 220);
+
+// ---------------- COMPONENTE DE AUTOCOMPLETE COM BUSCA DINÂMICA DE EMPRESAS ----------------
+function renderCompanyAutocomplete({ id, selectedId, placeholder = 'Pesquise por nome, código ou CNPJ da empresa...' }) {
+  const selectedComp = state.companies.find(c => Number(c.id) === Number(selectedId));
+  const displayText = selectedComp ? `${selectedComp.codigo ? selectedComp.codigo + ' - ' : ''}${selectedComp.nome}` : '';
+
+  return `
+    <div class="company-autocomplete-wrapper relative w-full" id="${id}-wrapper">
+      <input type="hidden" id="${id}" value="${selectedId || ''}" />
+      
+      <div class="relative flex items-center">
+        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </span>
+        <input
+          type="text"
+          id="${id}-search"
+          autocomplete="off"
+          placeholder="${placeholder}"
+          value="${displayText ? displayText.replace(/"/g, '&quot;') : ''}"
+          class="w-full pl-9 pr-8 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#3C50E0]/30 transition"
+        />
+        <button
+          type="button"
+          id="${id}-clear"
+          class="${selectedId ? '' : 'hidden'} absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-white text-xs cursor-pointer"
+          title="Limpar seleção"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Dropdown Flutuante de Resultados -->
+      <div
+        id="${id}-dropdown"
+        class="hidden absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-[#1C2434] border border-gray-200 dark:border-strokedark shadow-2xl z-50 p-1 divide-y divide-gray-100 dark:divide-gray-800"
+      >
+        <div id="${id}-results" class="space-y-0.5"></div>
+      </div>
+    </div>
+  `;
+}
+
+function initCompanyAutocomplete(id) {
+  const wrapper = document.getElementById(`${id}-wrapper`);
+  if (!wrapper) return;
+  const hiddenInput = document.getElementById(id);
+  const searchInput = document.getElementById(`${id}-search`);
+  const clearBtn = document.getElementById(`${id}-clear`);
+  const dropdown = document.getElementById(`${id}-dropdown`);
+  const resultsContainer = document.getElementById(`${id}-results`);
+  if (!searchInput || !dropdown || !resultsContainer || !hiddenInput) return;
+
+  function renderDropdownItems(filterText = '') {
+    const q = filterText.trim().toLowerCase();
+    const currentVal = hiddenInput.value;
+
+    const matched = state.companies.filter(c => {
+      if (!q) return true;
+      const n = (c.nome || '').toLowerCase();
+      const cod = String(c.codigo || '').toLowerCase();
+      const cnpj = (c.cnpj || '').replace(/\D/g, '');
+      const qDigits = q.replace(/\D/g, '');
+      const matchCnpj = (c.cnpj || '').toLowerCase().includes(q) || (qDigits && cnpj.includes(qDigits));
+      const matchGrupo = (c.grupo || '').toLowerCase().includes(q);
+      return n.includes(q) || cod.includes(q) || matchCnpj || matchGrupo;
+    });
+
+    let html = `
+      <div
+        data-id=""
+        data-label=""
+        class="autocomplete-item px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-between cursor-pointer transition ${
+          !currentVal ? 'bg-[#3C50E0]/10 text-[#3C50E0] font-bold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'
+        }"
+      >
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full ${!currentVal ? 'bg-[#3C50E0]' : 'bg-gray-300 dark:bg-gray-600'}"></span>
+          <span>Sem empresa vinculada (Geral)</span>
+        </div>
+        ${!currentVal ? '<span class="text-[#3C50E0] font-bold">✓</span>' : ''}
+      </div>
+    `;
+
+    if (matched.length === 0) {
+      html += `
+        <div class="px-3 py-3 text-center text-xs text-gray-400">
+          Nenhuma empresa encontrada com "${filterText}"
+        </div>
+      `;
+    } else {
+      matched.forEach(c => {
+        const isSelected = String(c.id) === String(currentVal);
+        const badgeClass = (c.regime || '').includes('Real') 
+          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' 
+          : (c.regime || '').includes('Presumido') 
+          ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400' 
+          : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400';
+
+        html += `
+          <div
+            data-id="${c.id}"
+            data-label="${c.codigo ? c.codigo + ' - ' : ''}${c.nome.replace(/"/g, '&quot;')}"
+            class="autocomplete-item px-3 py-2 rounded-lg text-xs flex items-center justify-between cursor-pointer transition ${
+              isSelected ? 'bg-[#3C50E0]/15 text-[#3C50E0] dark:text-[#80CAEE] font-bold' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'
+            }"
+          >
+            <div class="min-w-0 pr-2">
+              <div class="font-bold truncate flex items-center gap-1.5">
+                ${c.codigo ? `<span class="font-mono text-[11px] text-amber-500 font-bold">${c.codigo}</span>` : ''}
+                <span>${c.nome}</span>
+              </div>
+              <div class="text-[10px] text-gray-400 truncate mt-0.5">
+                ${c.cnpj || ''} ${c.grupo && c.grupo !== 'GERAL' ? '&bull; ' + c.grupo : ''} &bull; ${c.colaborador || ''}
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">
+                ${c.regime || 'Geral'}
+              </span>
+              ${isSelected ? '<span class="text-[#3C50E0] dark:text-[#80CAEE] font-bold text-sm">✓</span>' : ''}
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    resultsContainer.innerHTML = html;
+
+    resultsContainer.querySelectorAll('.autocomplete-item').forEach(item => {
+      item.onclick = (e) => {
+        e.stopPropagation();
+        const selectedCompId = item.getAttribute('data-id');
+        const selectedLabel = item.getAttribute('data-label') || '';
+        hiddenInput.value = selectedCompId;
+        searchInput.value = selectedLabel;
+        if (clearBtn) {
+          if (selectedCompId) clearBtn.classList.remove('hidden');
+          else clearBtn.classList.add('hidden');
+        }
+        dropdown.classList.add('hidden');
+      };
+    });
+  }
+
+  const debouncedFilter = debounce((text) => {
+    renderDropdownItems(text);
+  }, 200);
+
+  searchInput.addEventListener('focus', () => {
+    dropdown.classList.remove('hidden');
+    renderDropdownItems(searchInput.value);
+  });
+
+  searchInput.addEventListener('input', (e) => {
+    dropdown.classList.remove('hidden');
+    debouncedFilter(e.target.value);
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hiddenInput.value = '';
+      searchInput.value = '';
+      clearBtn.classList.add('hidden');
+      renderDropdownItems('');
+      searchInput.focus();
+    });
+  }
+
+  document.addEventListener('click', (evt) => {
+    if (!wrapper.contains(evt.target)) {
+      dropdown.classList.add('hidden');
+      const currentSelected = state.companies.find(c => String(c.id) === String(hiddenInput.value));
+      searchInput.value = currentSelected ? `${currentSelected.codigo ? currentSelected.codigo + ' - ' : ''}${currentSelected.nome}` : '';
+    }
+  });
+}
+
 // Estado Global da Aplicação
 // ---------------- SUPABASE CLIENT & CONFIGURAÇÃO EM NUVEM ----------------
 const SUPABASE_CONFIG = {
@@ -5306,7 +5546,7 @@ function renderDashboardTab(companies) {
               id="dash-search-input"
               value="${state.globalSearch}"
               placeholder="Filtrar dados do painel..."
-              oninput="state.globalSearch = this.value; render(); const el = document.getElementById('dash-search-input'); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }"
+              oninput="window.handleDashSearch(this.value)"
               class="w-full pl-9 pr-8 py-2 rounded-xl text-xs bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition shadow-xs"
             />
             ${state.globalSearch ? `
@@ -6756,8 +6996,9 @@ function renderFechamentosTab(companies) {
               </span>
               <input
                 type="text"
+                id="fechamento-search-input"
                 value="${state.fechamentoSearch || ''}"
-                oninput="state.fechamentoSearch = this.value; render();"
+                oninput="window.handleFechamentoSearch(this.value)"
                 placeholder="Filtrar por nome, CNPJ ou grupo..."
                 class="w-full pl-9 pr-8 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#F58220]"
               />
@@ -11490,21 +11731,32 @@ function renderTarefasTab() {
             ` : ''}
           </div>
 
-          <!-- Menu de Ações Rápido -->
+          <!-- Menu de Ações Rápido com Ícones de Traço Fino -->
           <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
             <button
               onclick="openEditTaskModal(${t.id})"
-              class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 transition"
+              class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
               title="Editar Tarefa"
+              aria-label="Editar Tarefa"
             >
-              ✏️
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                <path d="m15 5 4 4"></path>
+              </svg>
             </button>
             <button
               onclick="deleteTask(${t.id})"
-              class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
+              class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
               title="Excluir Tarefa"
+              aria-label="Excluir Tarefa"
             >
-              🗑️
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                <line x1="10" x2="10" y1="11" y2="17"></line>
+                <line x1="14" x2="14" y1="11" y2="17"></line>
+              </svg>
             </button>
           </div>
         </div>
@@ -11636,15 +11888,11 @@ function renderTarefasTab() {
             <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-12 gap-3 items-end pt-1">
               <div class="sm:col-span-1 md:col-span-5">
                 <label class="block text-xs font-semibold text-gray-400 mb-1">Empresa Vinculada</label>
-                <select
-                  id="task-company-input"
-                  class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">Sem empresa vinculada (Geral)</option>
-                  ${taskCompanies.map(c => `
-                    <option value="${c.id}">${c.codigo ? c.codigo + ' - ' : ''}${c.nome}</option>
-                  `).join('')}
-                </select>
+                ${renderCompanyAutocomplete({
+                  id: 'task-company-input',
+                  selectedId: '',
+                  placeholder: 'Buscar empresa por nome, código ou CNPJ...'
+                })}
               </div>
 
               <div class="sm:col-span-1 md:col-span-3">
@@ -11693,8 +11941,9 @@ function renderTarefasTab() {
             </span>
             <input
               type="text"
+              id="task-search-input"
               value="${state.taskSearch || ''}"
-              oninput="state.taskSearch = this.value; render();"
+              oninput="window.handleTaskSearch(this.value)"
               placeholder="Pesquisar por título ou descrição da pendência..."
               class="w-full pl-9 pr-8 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
@@ -13119,6 +13368,16 @@ function renderEmpresasTab(companies) {
     return true;
   });
 
+  // Paginação inteligente para máxima fluidez e performance de renderização
+  state.empresasPerPage = state.empresasPerPage !== undefined ? state.empresasPerPage : 10;
+  state.empresasPage = state.empresasPage || 1;
+  const isTodas = state.empresasPerPage === 'todas';
+  const perPage = isTodas ? fList.length : parseInt(state.empresasPerPage, 10);
+  const totalPages = Math.max(1, Math.ceil(fList.length / (perPage || 1)));
+  if (state.empresasPage > totalPages) state.empresasPage = totalPages;
+  const startIndex = (state.empresasPage - 1) * perPage;
+  const paginatedList = isTodas ? fList : fList.slice(startIndex, startIndex + perPage);
+
   return `
     <div class="space-y-6">
       <!-- Cabeçalho da Aba -->
@@ -13281,8 +13540,8 @@ function renderEmpresasTab(companies) {
                   <td class="py-4 px-6 text-right"><div class="skeleton-box h-6 w-16 ml-auto rounded-lg"></div></td>
                 </tr>
               `).join('')}
-            ` : fList.map(c => `
-              <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition">
+            ` : paginatedList.map(c => `
+              <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition-colors duration-150">
                 <td class="py-4 px-4 font-mono text-xs font-bold text-[#ECBD56]">
                   ${c.codigo || c.id}
                 </td>
@@ -13303,16 +13562,48 @@ function renderEmpresasTab(companies) {
                 <td class="py-4 px-4 text-xs text-gray-400">
                   ${c.segmento}
                 </td>
-                <td class="py-4 px-6 text-right">
-                  <div class="flex items-center justify-end gap-2">
-                    <button onclick="openCompanyModal('view', ${c.id})" class="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition" title="Visualizar Detalhes">
-                      👁️
+                <td class="py-3 px-6 text-right">
+                  <div class="flex items-center justify-end gap-1.5">
+                    <!-- 1. Visualizar (Linha Minimalista) -->
+                    <button
+                      onclick="openCompanyModal('view', ${c.id})"
+                      class="p-2 rounded-lg text-gray-400 hover:text-[#3C50E0] hover:bg-[#3C50E0]/10 dark:hover:text-[#80CAEE] dark:hover:bg-[#3C50E0]/20 transition-all duration-150 cursor-pointer"
+                      title="Visualizar Empresa"
+                      aria-label="Visualizar Empresa"
+                    >
+                      <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
                     </button>
-                    <button onclick="openCompanyModal('edit', ${c.id})" class="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-[#ECBD56] transition" title="Editar Empresa">
-                      ✏️
+
+                    <!-- 2. Editar (Linha Minimalista) -->
+                    <button
+                      onclick="openCompanyModal('edit', ${c.id})"
+                      class="p-2 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 dark:hover:text-amber-400 dark:hover:bg-amber-500/20 transition-all duration-150 cursor-pointer"
+                      title="Editar Empresa"
+                      aria-label="Editar Empresa"
+                    >
+                      <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                        <path d="m15 5 4 4"></path>
+                      </svg>
                     </button>
-                    <button onclick="deleteCompany(${c.id})" class="p-1.5 rounded-full hover:bg-rose-500/10 text-gray-400 hover:text-rose-500 transition" title="Excluir Empresa">
-                      🗑️
+
+                    <!-- 3. Excluir (Linha Minimalista) -->
+                    <button
+                      onclick="deleteCompany(${c.id})"
+                      class="p-2 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:bg-rose-500/20 transition-all duration-150 cursor-pointer"
+                      title="Excluir Empresa"
+                      aria-label="Excluir Empresa"
+                    >
+                      <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        <line x1="10" x2="10" y1="11" y2="17"></line>
+                        <line x1="14" x2="14" y1="11" y2="17"></line>
+                      </svg>
                     </button>
                   </div>
                 </td>
@@ -13326,6 +13617,66 @@ function renderEmpresasTab(companies) {
             Nenhuma empresa encontrada com os filtros selecionados.
           </div>
         ` : ''}
+
+        <!-- Barra de Paginação e Totalização -->
+        <div class="px-6 py-3.5 border-t border-gray-100 dark:border-gray-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50/40 dark:bg-[#12131F]/40 text-xs select-none">
+          <div class="text-gray-500 dark:text-gray-400 font-medium">
+            Exibindo <strong>${fList.length > 0 ? startIndex + 1 : 0}</strong> a <strong>${Math.min(startIndex + perPage, fList.length)}</strong> de <strong>${fList.length}</strong> empresas
+          </div>
+
+          <div class="flex items-center gap-3">
+            <!-- Seletor de itens por página -->
+            <div class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+              <span>Por página:</span>
+              <select
+                onchange="window.setEmpresasPerPage(this.value)"
+                class="px-2.5 py-1 rounded-lg bg-white dark:bg-[#1C2434] border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-bold focus:outline-none cursor-pointer"
+              >
+                <option value="10" ${state.empresasPerPage === 10 || state.empresasPerPage === '10' ? 'selected' : ''}>10</option>
+                <option value="25" ${state.empresasPerPage === 25 || state.empresasPerPage === '25' ? 'selected' : ''}>25</option>
+                <option value="50" ${state.empresasPerPage === 50 || state.empresasPerPage === '50' ? 'selected' : ''}>50</option>
+                <option value="todas" ${state.empresasPerPage === 'todas' ? 'selected' : ''}>Todas</option>
+              </select>
+            </div>
+
+            <!-- Controles de Navegação de Página -->
+            ${totalPages > 1 ? `
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  onclick="window.setEmpresasPage(${state.empresasPage - 1})"
+                  ${state.empresasPage <= 1 ? 'disabled' : ''}
+                  class="px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1C2434] text-gray-700 dark:text-gray-300 font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                >
+                  Anterior
+                </button>
+
+                ${Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => `
+                  <button
+                    type="button"
+                    onclick="window.setEmpresasPage(${pageNum})"
+                    class="w-7 h-7 rounded-lg font-bold text-xs flex items-center justify-center transition ${
+                      state.empresasPage === pageNum
+                        ? 'bg-[#3C50E0] text-white shadow-xs'
+                        : 'border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1C2434] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }"
+                  >
+                    ${pageNum}
+                  </button>
+                `).join('')}
+
+                <button
+                  type="button"
+                  onclick="window.setEmpresasPage(${state.empresasPage + 1})"
+                  ${state.empresasPage >= totalPages ? 'disabled' : ''}
+                  class="px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1C2434] text-gray-700 dark:text-gray-300 font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                >
+                  Próximo
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -13537,20 +13888,14 @@ function renderEditTaskModal() {
             >${t.descricao || ''}</textarea>
           </div>
 
-          <!-- Empresa Vinculada -->
+          <!-- Empresa Vinculada com Autocomplete Dinâmico -->
           <div>
             <label class="block text-xs font-semibold text-gray-400 mb-1">Empresa Vinculada</label>
-            <select
-              id="edit-task-company"
-              class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#ECBD56]"
-            >
-              <option value="">Sem empresa vinculada (Geral)</option>
-              ${state.companies.slice().sort((a,b) => (a.nome || '').localeCompare(b.nome || '')).map(c => `
-                <option value="${c.id}" ${t.empresaId && Number(t.empresaId) === Number(c.id) ? 'selected' : ''}>
-                  ${c.codigo ? c.codigo + ' - ' : ''}${c.nome}
-                </option>
-              `).join('')}
-            </select>
+            ${renderCompanyAutocomplete({
+              id: 'edit-task-company',
+              selectedId: t.empresaId,
+              placeholder: 'Pesquisar empresa por nome, código ou CNPJ...'
+            })}
           </div>
 
           <!-- Metadados de Data, Horários e Urgência -->
@@ -13653,17 +13998,11 @@ function attachEventHandlers() {
     }
   }
 
-  // Busca Global
+  // Busca Global com Debounce de alta performance
   const searchInput = document.getElementById('global-search-input');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
-      state.globalSearch = e.target.value;
-      render();
-      const updatedInput = document.getElementById('global-search-input');
-      if (updatedInput) {
-        updatedInput.focus();
-        updatedInput.setSelectionRange(updatedInput.value.length, updatedInput.value.length);
-      }
+      window.handleGlobalSearch(e.target.value);
     });
   }
 
@@ -14077,6 +14416,10 @@ function attachEventHandlers() {
       }
     }
   });
+
+  // Inicialização com busca e autocomplete para vinculação de tarefas e empresas
+  initCompanyAutocomplete('task-company-input');
+  initCompanyAutocomplete('edit-task-company');
 }
 
 // ---------------- FUNÇÕES GLOBAIS EXPOSTAS ----------------
@@ -14663,10 +15006,23 @@ window.deleteCompany = async (id) => {
     render();
   }
 };
-window.setCrudFilter = (key, val) => {
-  state.crudFilters[key] = val;
+window.setEmpresasPage = (page) => {
+  state.empresasPage = Math.max(1, page);
   render();
 };
+
+window.setEmpresasPerPage = (val) => {
+  state.empresasPerPage = val === 'todas' ? 'todas' : parseInt(val, 10);
+  state.empresasPage = 1;
+  render();
+};
+
+window.setCrudFilter = (key, val) => {
+  state.crudFilters[key] = val;
+  state.empresasPage = 1;
+  render();
+};
+
 window.clearCrudFilters = () => {
   state.crudFilters = {
     responsavel: 'todos',
@@ -14675,6 +15031,7 @@ window.clearCrudFilters = () => {
     grupo: 'todos',
     segmento: 'todos'
   };
+  state.empresasPage = 1;
   render();
 };
 
