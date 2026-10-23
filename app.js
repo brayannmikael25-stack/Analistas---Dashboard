@@ -225,62 +225,159 @@ window.handleTaskSearch = debounce((val) => {
 }, 220);
 
 // ---------------- COMPONENTE DE AUTOCOMPLETE COM BUSCA DINÂMICA DE EMPRESAS ----------------
-function renderCompanyAutocomplete({ id, selectedId, placeholder = 'Pesquise por nome, código ou CNPJ da empresa...' }) {
+// ---------------- COMPONENTE COMBOBOX / AUTOCOMPLETE PESQUISÁVEL DE EMPRESAS (SELECT2 / SHADCN STYLE) ----------------
+function renderCompanyAutocomplete({ id, selectedId, placeholder = 'Selecione uma empresa ou Geral...' }) {
   const selectedComp = state.companies.find(c => Number(c.id) === Number(selectedId));
-  const displayText = selectedComp ? `${selectedComp.codigo ? selectedComp.codigo + ' - ' : ''}${selectedComp.nome}` : '';
+  const displayText = selectedComp ? `${selectedComp.codigo ? selectedComp.codigo + ' - ' : ''}${selectedComp.nome}` : 'Sem empresa vinculada (Geral)';
+  const isGeral = !selectedComp;
 
   return `
-    <div class="company-autocomplete-wrapper relative w-full" id="${id}-wrapper">
-      <input type="hidden" id="${id}" value="${selectedId || ''}" />
+    <div class="company-combobox-wrapper relative w-full" id="${id}-wrapper">
+      <input type="hidden" id="${id}" name="${id}" value="${selectedId || ''}" />
       
-      <div class="relative flex items-center">
-        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-        </span>
-        <input
-          type="text"
-          id="${id}-search"
-          autocomplete="off"
-          placeholder="${placeholder}"
-          value="${displayText ? displayText.replace(/"/g, '&quot;') : ''}"
-          class="w-full pl-9 pr-8 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#3C50E0]/30 transition"
-        />
-        <button
-          type="button"
-          id="${id}-clear"
-          class="${selectedId ? '' : 'hidden'} absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-white text-xs cursor-pointer"
-          title="Limpar seleção"
-        >
-          ✕
-        </button>
-      </div>
+      <!-- Caixa / Trigger do Combobox (Estilo Select2 / Shadcn) -->
+      <button
+        type="button"
+        id="${id}-trigger"
+        onclick="toggleCompanyCombobox('${id}', event)"
+        class="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/90 dark:border-gray-800 text-left hover:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-[#3C50E0]/30 transition shadow-2xs group cursor-pointer"
+      >
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <span class="w-2 h-2 rounded-full shrink-0 ${isGeral ? 'bg-slate-400' : 'bg-blue-500'}"></span>
+          <span id="${id}-trigger-label" class="text-xs font-semibold text-gray-900 dark:text-white truncate">
+            ${escapeHtml(displayText)}
+          </span>
+          ${selectedComp && selectedComp.regime ? `
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+              ${selectedComp.regime.includes('Real') ? 'Real' : selectedComp.regime.includes('Presumido') ? 'Presumido' : 'Simples'}
+            </span>
+          ` : ''}
+        </div>
 
-      <!-- Dropdown Flutuante de Resultados -->
+        <div class="flex items-center gap-1.5 shrink-0 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200">
+          <span
+            id="${id}-trigger-clear"
+            onclick="clearCompanyComboboxSelection('${id}', event)"
+            title="Limpar seleção"
+            class="${selectedId ? '' : 'hidden'} hover:text-rose-500 p-0.5 text-xs transition"
+          >
+            ✕
+          </span>
+          <svg class="w-4 h-4 transition-transform duration-200" id="${id}-trigger-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+      </button>
+
+      <!-- Painel Dropdown Flutuante Suspenso (z-[9999] para nunca ser cortado por modais) -->
       <div
         id="${id}-dropdown"
-        class="hidden absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-[#1C2434] border border-gray-200 dark:border-strokedark shadow-2xl z-50 p-1 divide-y divide-gray-100 dark:divide-gray-800"
+        class="hidden absolute left-0 right-0 mt-1.5 rounded-xl bg-white dark:bg-[#1C2434] border border-gray-200 dark:border-strokedark shadow-2xl z-[9999] overflow-hidden animate-fadeIn"
+        onclick="event.stopPropagation()"
       >
-        <div id="${id}-results" class="space-y-0.5"></div>
+        <!-- Campo de Pesquisa em Tempo Real no Topo do Dropdown com Debounce -->
+        <div class="p-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-[#151D2A]/80">
+          <div class="relative flex items-center">
+            <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+            <input
+              type="text"
+              id="${id}-search"
+              autocomplete="off"
+              placeholder="🔍 Digite para filtrar nome, código ou CNPJ..."
+              class="w-full pl-8 pr-7 py-1.5 rounded-lg bg-white dark:bg-[#11121C] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-medium placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#3C50E0] transition"
+            />
+          </div>
+        </div>
+
+        <!-- Opção Fixa no Topo: "Sem empresa vinculada (Geral)" -->
+        <div class="p-1 border-b border-gray-100 dark:border-gray-800 bg-gray-50/40 dark:bg-white/[0.02]">
+          <div
+            onclick="selectCompanyComboboxItem('${id}', '', 'Sem empresa vinculada (Geral)')"
+            class="combobox-item px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-between cursor-pointer transition ${
+              !selectedId ? 'bg-[#3C50E0]/10 text-[#3C50E0] dark:text-[#80CAEE] font-bold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'
+            }"
+          >
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${!selectedId ? 'bg-[#3C50E0]' : 'bg-gray-300 dark:bg-gray-600'}"></span>
+              <span>Sem empresa vinculada (Geral)</span>
+            </div>
+            ${!selectedId ? '<span class="text-[#3C50E0] dark:text-[#80CAEE] font-bold">✓</span>' : ''}
+          </div>
+        </div>
+
+        <!-- Lista Rolável com Scroll Suave das Empresas Filtradas -->
+        <div id="${id}-results" class="max-h-56 overflow-y-auto p-1 space-y-0.5 divide-y divide-gray-100 dark:divide-gray-800/60">
+        </div>
       </div>
     </div>
   `;
 }
+
+window.toggleCompanyCombobox = (id, event) => {
+  if (event) event.stopPropagation();
+  const dropdown = document.getElementById(`${id}-dropdown`);
+  const chevron = document.getElementById(`${id}-trigger-chevron`);
+  if (!dropdown) return;
+  
+  const isCurrentlyOpen = !dropdown.classList.contains('hidden');
+  
+  // Fecha outros comboboxes abertos
+  document.querySelectorAll('.company-combobox-wrapper [id$="-dropdown"]').forEach(el => {
+    if (el !== dropdown) el.classList.add('hidden');
+  });
+
+  if (isCurrentlyOpen) {
+    dropdown.classList.add('hidden');
+    if (chevron) chevron.classList.remove('rotate-180');
+  } else {
+    dropdown.classList.remove('hidden');
+    if (chevron) chevron.classList.add('rotate-180');
+    initCompanyAutocomplete(id);
+    const searchInput = document.getElementById(`${id}-search`);
+    if (searchInput) {
+      searchInput.value = '';
+      setTimeout(() => searchInput.focus(), 60);
+    }
+  }
+};
+
+window.clearCompanyComboboxSelection = (id, event) => {
+  if (event) event.stopPropagation();
+  window.selectCompanyComboboxItem(id, '', 'Sem empresa vinculada (Geral)');
+};
+
+window.selectCompanyComboboxItem = (id, compId, compLabel, compRegime) => {
+  const hiddenInput = document.getElementById(id);
+  const labelEl = document.getElementById(`${id}-trigger-label`);
+  const clearBtn = document.getElementById(`${id}-trigger-clear`);
+  const dropdown = document.getElementById(`${id}-dropdown`);
+  const chevron = document.getElementById(`${id}-trigger-chevron`);
+
+  if (hiddenInput) hiddenInput.value = compId || '';
+  if (labelEl) labelEl.textContent = compLabel || 'Sem empresa vinculada (Geral)';
+  if (clearBtn) {
+    if (compId) clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
+  }
+  if (dropdown) dropdown.classList.add('hidden');
+  if (chevron) chevron.classList.remove('rotate-180');
+};
 
 function initCompanyAutocomplete(id) {
   const wrapper = document.getElementById(`${id}-wrapper`);
   if (!wrapper) return;
   const hiddenInput = document.getElementById(id);
   const searchInput = document.getElementById(`${id}-search`);
-  const clearBtn = document.getElementById(`${id}-clear`);
-  const dropdown = document.getElementById(`${id}-dropdown`);
   const resultsContainer = document.getElementById(`${id}-results`);
-  if (!searchInput || !dropdown || !resultsContainer || !hiddenInput) return;
+  if (!resultsContainer || !hiddenInput) return;
 
-  function renderDropdownItems(filterText = '') {
-    const q = filterText.trim().toLowerCase();
+  function renderList(query = '') {
+    const q = query.trim().toLowerCase();
     const currentVal = hiddenInput.value;
 
     const matched = state.companies.filter(c => {
@@ -294,116 +391,86 @@ function initCompanyAutocomplete(id) {
       return n.includes(q) || cod.includes(q) || matchCnpj || matchGrupo;
     });
 
-    let html = `
-      <div
-        data-id=""
-        data-label=""
-        class="autocomplete-item px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-between cursor-pointer transition ${
-          !currentVal ? 'bg-[#3C50E0]/10 text-[#3C50E0] font-bold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'
-        }"
-      >
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full ${!currentVal ? 'bg-[#3C50E0]' : 'bg-gray-300 dark:bg-gray-600'}"></span>
-          <span>Sem empresa vinculada (Geral)</span>
-        </div>
-        ${!currentVal ? '<span class="text-[#3C50E0] font-bold">✓</span>' : ''}
-      </div>
-    `;
-
     if (matched.length === 0) {
-      html += `
-        <div class="px-3 py-3 text-center text-xs text-gray-400">
-          Nenhuma empresa encontrada com "${filterText}"
+      resultsContainer.innerHTML = `
+        <div class="px-3 py-4 text-center text-xs text-gray-400">
+          Nenhuma empresa encontrada para "<strong>${escapeHtml(query)}</strong>"
         </div>
       `;
-    } else {
-      matched.forEach(c => {
-        const isSelected = String(c.id) === String(currentVal);
-        const badgeClass = (c.regime || '').includes('Real') 
-          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' 
-          : (c.regime || '').includes('Presumido') 
-          ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400' 
-          : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400';
+      return;
+    }
 
-        html += `
-          <div
-            data-id="${c.id}"
-            data-label="${c.codigo ? c.codigo + ' - ' : ''}${c.nome.replace(/"/g, '&quot;')}"
-            class="autocomplete-item px-3 py-2 rounded-lg text-xs flex items-center justify-between cursor-pointer transition ${
-              isSelected ? 'bg-[#3C50E0]/15 text-[#3C50E0] dark:text-[#80CAEE] font-bold' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'
-            }"
-          >
-            <div class="min-w-0 pr-2">
-              <div class="font-bold truncate flex items-center gap-1.5">
-                ${c.codigo ? `<span class="font-mono text-[11px] text-amber-500 font-bold">${c.codigo}</span>` : ''}
-                <span>${c.nome}</span>
-              </div>
-              <div class="text-[10px] text-gray-400 truncate mt-0.5">
-                ${c.cnpj || ''} ${c.grupo && c.grupo !== 'GERAL' ? '&bull; ' + c.grupo : ''} &bull; ${c.colaborador || ''}
-              </div>
+    let itemsHtml = '';
+    matched.forEach(c => {
+      const isSelected = String(c.id) === String(currentVal);
+      const badgeClass = (c.regime || '').includes('Real') 
+        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' 
+        : (c.regime || '').includes('Presumido') 
+        ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400' 
+        : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400';
+
+      const label = `${c.codigo ? c.codigo + ' - ' : ''}${c.nome}`;
+
+      itemsHtml += `
+        <div
+          onclick="selectCompanyComboboxItem('${id}', '${c.id}', '${escapeHtml(label).replace(/'/g, "\\'")}', '${c.regime || ''}')"
+          class="combobox-item px-3 py-2 rounded-lg text-xs flex items-center justify-between cursor-pointer transition ${
+            isSelected ? 'bg-[#3C50E0]/15 text-[#3C50E0] dark:text-[#80CAEE] font-bold' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'
+          }"
+        >
+          <div class="min-w-0 pr-2">
+            <div class="font-bold truncate flex items-center gap-1.5">
+              ${c.codigo ? `<span class="font-mono text-[11px] text-amber-500 font-bold">${c.codigo}</span>` : ''}
+              <span>${escapeHtml(c.nome)}</span>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">
-                ${c.regime || 'Geral'}
-              </span>
-              ${isSelected ? '<span class="text-[#3C50E0] dark:text-[#80CAEE] font-bold text-sm">✓</span>' : ''}
+            <div class="text-[10.5px] text-gray-400 truncate mt-0.5">
+              ${c.cnpj || 'S/ CNPJ'} ${c.grupo && c.grupo !== 'GERAL' ? '&bull; ' + c.grupo : ''} &bull; ${c.colaborador || ''}
             </div>
           </div>
-        `;
-      });
-    }
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">
+              ${c.regime || 'Geral'}
+            </span>
+            ${isSelected ? '<span class="text-[#3C50E0] dark:text-[#80CAEE] font-bold text-sm">✓</span>' : ''}
+          </div>
+        </div>
+      `;
+    });
 
-    resultsContainer.innerHTML = html;
+    resultsContainer.innerHTML = itemsHtml;
+  }
 
-    resultsContainer.querySelectorAll('.autocomplete-item').forEach(item => {
-      item.onclick = (e) => {
-        e.stopPropagation();
-        const selectedCompId = item.getAttribute('data-id');
-        const selectedLabel = item.getAttribute('data-label') || '';
-        hiddenInput.value = selectedCompId;
-        searchInput.value = selectedLabel;
-        if (clearBtn) {
-          if (selectedCompId) clearBtn.classList.remove('hidden');
-          else clearBtn.classList.add('hidden');
-        }
-        dropdown.classList.add('hidden');
-      };
+  // Renderiza imediatamente com filtro vazio
+  renderList(searchInput ? searchInput.value : '');
+
+  if (searchInput && !searchInput.dataset.comboboxInitialized) {
+    searchInput.dataset.comboboxInitialized = 'true';
+    const debouncedFilter = debounce((val) => {
+      renderList(val);
+    }, 200);
+
+    searchInput.addEventListener('input', (e) => {
+      debouncedFilter(e.target.value);
     });
   }
 
-  const debouncedFilter = debounce((text) => {
-    renderDropdownItems(text);
-  }, 200);
-
-  searchInput.addEventListener('focus', () => {
-    dropdown.classList.remove('hidden');
-    renderDropdownItems(searchInput.value);
-  });
-
-  searchInput.addEventListener('input', (e) => {
-    dropdown.classList.remove('hidden');
-    debouncedFilter(e.target.value);
-  });
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hiddenInput.value = '';
-      searchInput.value = '';
-      clearBtn.classList.add('hidden');
-      renderDropdownItems('');
-      searchInput.focus();
+  // Fecha ao clicar fora
+  if (!wrapper.dataset.outsideClickBound) {
+    wrapper.dataset.outsideClickBound = 'true';
+    document.addEventListener('click', (evt) => {
+      if (!wrapper.contains(evt.target)) {
+        const dropdown = document.getElementById(`${id}-dropdown`);
+        const chevron = document.getElementById(`${id}-trigger-chevron`);
+        if (dropdown) dropdown.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+      }
     });
   }
-
-  document.addEventListener('click', (evt) => {
-    if (!wrapper.contains(evt.target)) {
-      dropdown.classList.add('hidden');
-      const currentSelected = state.companies.find(c => String(c.id) === String(hiddenInput.value));
-      searchInput.value = currentSelected ? `${currentSelected.codigo ? currentSelected.codigo + ' - ' : ''}${currentSelected.nome}` : '';
-    }
-  });
 }
+
+// Aliases para compatibilidade total
+const renderCompanyCombobox = renderCompanyAutocomplete;
+const initCompanyCombobox = initCompanyAutocomplete;
 
 // Estado Global da Aplicação
 // ---------------- SUPABASE CLIENT & CONFIGURAÇÃO EM NUVEM ----------------
@@ -1349,7 +1416,8 @@ const state = {
     month: new Date().getMonth(), // 0-11
     selectedDate: new Date().toISOString().split('T')[0]
   },
-  calendarViewMode: 'month', // 'day' | 'week' | 'month'
+  calendarViewMode: 'week', // 'day' | 'week' | 'month' (Padrão: Smart Calendar Board Semanal)
+  selectedCalendarColab: 'todos', // Filtro rápido por responsável na barra superior
   userProfile: initialUserData?.profile || (JSON.parse(localStorage.getItem('control_user_profile') || 'null') || {
     firstName: 'Brayann',
     lastName: 'Mikael',
@@ -1395,8 +1463,8 @@ const state = {
   modal: { isOpen: false, mode: 'create', company: null },
   taskModal: { isOpen: false, task: null }, // Modal de edição de tarefas
   activeTaskMenuId: null, // Menu de 3 pontos ativo
-  // Estado e Filtros Avançados de Gestão de Tarefas (UX/UI Redesign)
-  taskViewMode: 'lista', // 'lista' | 'kanban'
+  // Estado e Filtros Avançados de Gestão de Tarefas (UX/UI Redesign Estilo Pipefy)
+  taskViewMode: 'kanban', // 'lista' | 'kanban' (Padrão: Quadro Pipefy)
   isTaskFormOpen: false, // formulário retrátil fechado por padrão
   taskSearch: '',
   taskCompanyFilter: 'todos',
@@ -11457,37 +11525,203 @@ function renderEcdEcfModal() {
   `;
 }
 
-// ---------------- TAREFAS TAB (GOOGLE TASKS) ----------------
-// ---------------- TAREFAS TAB (REDESIGN COMPLETO UI/UX COM KANBAN, FILTROS, BULK ACTIONS E DRAWER) ----------------
+// // ---------------- FUNÇÕES DE APOIO E DRAG & DROP PIPEFY KANBAN ----------------
+function formatPipefyDate(dateStr) {
+  if (!dateStr) return 'Sem prazo';
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const monthNamesShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const mName = monthNamesShort[mIdx] || parts[1];
+      const d = parseInt(parts[2], 10);
+      return `Venc ${mName}, ${d}`;
+    }
+    return dateStr;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+window.handleKanbanDragStart = (e, taskId) => {
+  e.dataTransfer.setData('text/plain', String(taskId));
+  e.dataTransfer.effectAllowed = 'move';
+  const card = document.getElementById(`kanban-task-card-${taskId}`);
+  if (card) {
+    card.classList.add('opacity-40', 'scale-95');
+  }
+};
+
+window.handleKanbanDragEnd = (e, taskId) => {
+  const card = document.getElementById(`kanban-task-card-${taskId}`);
+  if (card) {
+    card.classList.remove('opacity-40', 'scale-95');
+  }
+};
+
+window.handleKanbanDragOver = (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const col = e.currentTarget;
+  if (col && !col.classList.contains('kanban-drag-over')) {
+    col.classList.add('kanban-drag-over');
+  }
+};
+
+window.handleKanbanDragLeave = (e) => {
+  const col = e.currentTarget;
+  if (col) {
+    col.classList.remove('kanban-drag-over');
+  }
+};
+
+window.handleKanbanDrop = async (e, targetPhaseId) => {
+  e.preventDefault();
+  const col = e.currentTarget;
+  if (col) {
+    col.classList.remove('kanban-drag-over');
+  }
+  const taskIdStr = e.dataTransfer.getData('text/plain');
+  if (!taskIdStr) return;
+  const taskId = Number(taskIdStr) || taskIdStr;
+  const task = state.tasks.find(t => String(t.id) === String(taskId));
+  if (!task) return;
+
+  task.kanbanStatus = targetPhaseId;
+  if (targetPhaseId === 'feito') {
+    task.concluida = true;
+  } else if (targetPhaseId === 'arquivado') {
+    // Mantém estado de conclusão
+  } else {
+    task.concluida = false;
+  }
+
+  const userId = dataService.getActiveUserKey();
+  if (userId) {
+    await dataService.upsertTarefa(task, userId);
+  }
+  await saveStorage();
+  render();
+};
+
+// Componente do Card de Tarefa Estilo Pipefy (Cards brancos com sombras sutis, pills de prioridade e prazo)
+function renderPipefyKanbanCard(t) {
+  const comp = t.empresaId ? state.companies.find(c => Number(c.id) === Number(t.empresaId)) : null;
+  const overdueInfo = getTaskOverdueInfo(t.data);
+  const isAtrasada = !t.concluida && overdueInfo.isOverdue;
+  const formattedVenc = formatPipefyDate(t.data);
+  const relativeText = t.concluida ? 'concluída' : overdueInfo.label;
+  
+  const solicitante = comp?.colaborador || t.autor || state.userProfile?.firstName || 'Brayann Mikael';
+
+  const priorityColor = t.urgencia === 'Alta' 
+    ? 'bg-[#EF4444] text-white' 
+    : t.urgencia === 'Media' 
+    ? 'bg-[#F59E0B] text-slate-900 font-extrabold' 
+    : 'bg-[#3B82F6] text-white';
+
+  return `
+    <div
+      id="kanban-task-card-${t.id}"
+      draggable="true"
+      ondragstart="handleKanbanDragStart(event, ${t.id})"
+      ondragend="handleKanbanDragEnd(event, ${t.id})"
+      onclick="openTaskDrawer(${t.id}, event)"
+      class="bg-white dark:bg-[#1A222C] rounded-xl shadow-xs hover:shadow-md border border-slate-200/90 dark:border-strokedark p-4 transition-all duration-150 cursor-grab active:cursor-grabbing select-none group relative space-y-3"
+    >
+      <!-- Topo: Pill de Prioridade e Ações Rápidas -->
+      <div class="flex items-center justify-between">
+        <span class="inline-block text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full ${priorityColor}">
+          ${t.urgencia === 'Media' ? 'Média' : t.urgencia}
+        </span>
+        
+        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
+          <button onclick="openEditTaskModal(${t.id})" class="p-1 rounded text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-white/10 transition" title="Editar Tarefa">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+              <path d="m15 5 4 4"></path>
+            </svg>
+          </button>
+          <button onclick="deleteTask(${t.id})" class="p-1 rounded text-gray-400 hover:text-rose-500 hover:bg-gray-100 dark:hover:bg-white/10 transition" title="Excluir Tarefa">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Título da Tarefa em Negrito (Hierarquia Visual Clara) -->
+      <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-snug line-clamp-3">
+        ${escapeHtml(t.titulo)}
+      </h4>
+
+      ${t.descricao ? `
+        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+          ${escapeHtml(t.descricao)}
+        </p>
+      ` : ''}
+
+      <!-- Identificação do Solicitante / Responsável -->
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 pt-1">
+        <div class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <span class="w-3.5 h-3.5 rounded bg-slate-100 dark:bg-white/10 flex items-center justify-center text-[9px] font-bold text-slate-600 dark:text-slate-300">A</span>
+          <span>NOME DO SOLICITANTE</span>
+        </div>
+        <div class="font-semibold text-slate-800 dark:text-slate-200 truncate pl-5">
+          ${escapeHtml(solicitante)}
+        </div>
+      </div>
+
+      <!-- Rodapé do Card: Data com Ícone de Calendário e Prazo Destacado -->
+      <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ${
+          isAtrasada ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-medium'
+        }">
+          <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span>${formattedVenc}</span>
+          <span class="opacity-75 text-[10px]">&bull; ${relativeText}</span>
+        </div>
+
+        ${comp ? `
+          <span class="text-[10.5px] text-slate-400 truncate max-w-[110px]" title="${escapeHtml(comp.nome)}">
+            ${escapeHtml(comp.nome)}
+          </span>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ---------------- TAREFAS TAB (QUADRO KANBAN ESTILO PIPEFY) ----------------
 function renderTarefasTab() {
   const urgencyWeight = { 'Alta': 3, 'Media': 2, 'Baixa': 1 };
-  
-  // Lista de empresas únicas vinculadas às tarefas para o select de filtro
   const taskCompanies = state.companies.slice().sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
 
   // 1. Filtragem Completa
   let filteredTasks = state.tasks.filter(t => {
-    // Filtro por Aba (Pendentes / Concluídas) - se estiver em modo Lista
     if (state.taskViewMode === 'lista') {
       if (state.taskFilter === 'ativas' && t.concluida) return false;
       if (state.taskFilter === 'concluidas' && !t.concluida) return false;
     }
-    // Busca por título ou descrição
     if (state.taskSearch && state.taskSearch.trim()) {
       const q = state.taskSearch.trim().toLowerCase();
       const match = (t.titulo && t.titulo.toLowerCase().includes(q)) ||
                     (t.descricao && t.descricao.toLowerCase().includes(q));
       if (!match) return false;
     }
-    // Filtro por Empresa
     if (state.taskCompanyFilter && state.taskCompanyFilter !== 'todos') {
       if (Number(t.empresaId) !== Number(state.taskCompanyFilter)) return false;
     }
-    // Filtro por Urgência / Prioridade
     if (state.taskUrgencyFilter && state.taskUrgencyFilter !== 'todas') {
       if (t.urgencia !== state.taskUrgencyFilter) return false;
     }
-    // Filtro por Responsável / "Apenas Minhas Tarefas"
     if (state.taskResponsavelFilter && state.taskResponsavelFilter !== 'todos') {
       if (state.taskResponsavelFilter === 'minhas') {
         const myName = (state.user || '').toLowerCase();
@@ -11500,13 +11734,11 @@ function renderTarefasTab() {
     return true;
   });
 
-  // Ordenação inteligente: Atrasadas > Urgência > Data
   filteredTasks.sort((a, b) => {
     const aOverdue = !a.concluida && getTaskOverdueInfo(a.data).isOverdue;
     const bOverdue = !b.concluida && getTaskOverdueInfo(b.data).isOverdue;
     if (aOverdue && !bOverdue) return -1;
     if (!aOverdue && bOverdue) return 1;
-
     const diffUrg = (urgencyWeight[b.urgencia] || 1) - (urgencyWeight[a.urgencia] || 1);
     if (diffUrg !== 0) return diffUrg;
     return new Date(a.data) - new Date(b.data);
@@ -11516,187 +11748,77 @@ function renderTarefasTab() {
   const totalConcluidas = state.tasks.filter(t => t.concluida).length;
   const totalAtrasadas = state.tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
 
-  const hasFilterActive = Boolean(state.taskSearch) ||
-                          state.taskCompanyFilter !== 'todos' ||
-                          state.taskUrgencyFilter !== 'todas' ||
-                          state.taskResponsavelFilter !== 'todos';
+  // Definição das 5 Fases Estilo Pipefy
+  const PIPEFY_COLUMNS = [
+    {
+      id: 'backlog',
+      label: 'Backlog',
+      topColor: 'bg-[#F59E0B]',
+      borderTop: 'border-t-[#F59E0B]',
+      subtext: 'Tarefas a serem executadas',
+      plusColor: 'text-[#F59E0B]',
+      hasPlus: true,
+      match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'backlog' || t.kanbanStatus === 'a_fazer')
+    },
+    {
+      id: 'fazendo',
+      label: 'Fazendo',
+      topColor: 'bg-[#3B82F6]',
+      borderTop: 'border-t-[#3B82F6]',
+      subtext: 'Atividades em execução',
+      plusColor: 'text-[#3B82F6]',
+      hasPlus: true,
+      match: (t) => !t.concluida && (t.kanbanStatus === 'fazendo' || t.kanbanStatus === 'em_andamento')
+    },
+    {
+      id: 'pausado',
+      label: 'Pausado',
+      topColor: 'bg-[#14B8A6]',
+      borderTop: 'border-t-[#14B8A6]',
+      subtext: 'Atividades pausadas a serem retomadas',
+      plusColor: 'text-[#14B8A6]',
+      hasPlus: false,
+      match: (t) => !t.concluida && (t.kanbanStatus === 'pausado' || t.kanbanStatus === 'aguardando_cliente')
+    },
+    {
+      id: 'feito',
+      label: '✓ Feito',
+      topColor: 'bg-[#10B981]',
+      borderTop: 'border-t-[#10B981]',
+      subtext: 'Tarefas executadas',
+      plusColor: 'text-[#10B981]',
+      hasPlus: false,
+      match: (t) => t.concluida || t.kanbanStatus === 'feito' || t.kanbanStatus === 'concluida'
+    },
+    {
+      id: 'arquivado',
+      label: '✓ Arquivado',
+      topColor: 'bg-[#EF4444]',
+      borderTop: 'border-t-[#EF4444]',
+      subtext: 'Tarefas não-finalizadas',
+      plusColor: 'text-[#EF4444]',
+      hasPlus: false,
+      match: (t) => t.kanbanStatus === 'arquivado'
+    }
+  ];
 
-  // 0. Injeção de Estilos CSS para Animações Magnéticas, Elásticas e Scroll Horizontal Perfeito
-  const kanbanAnimationStyles = `
-    <style id="kanban-magnetic-styles">
-      /* Scrollbar personalizada para o container horizontal do Kanban */
-      .kanban-scroll-container::-webkit-scrollbar {
-        height: 8px;
-      }
-      .kanban-scroll-container::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.05);
-        border-radius: 9999px;
-      }
-      .dark .kanban-scroll-container::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
-      }
-      .kanban-scroll-container::-webkit-scrollbar-thumb {
-        background: rgba(60, 80, 224, 0.4);
-        border-radius: 9999px;
-      }
-      .kanban-scroll-container::-webkit-scrollbar-thumb:hover {
-        background: rgba(60, 80, 224, 0.7);
-      }
-
-      /* Decolagem & Arco Magnético Parabólico para a Direita (Arc Launch & Elastic Snap) */
-      @keyframes magneticArcRight {
-        0% {
-          transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          opacity: 1;
-          z-index: 50;
-        }
-        25% {
-          transform: scale(0.96) translate3d(25px, -24px, 0) rotate(1.5deg);
-          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.25), 0 10px 10px -5px rgba(0,0,0,0.1);
-          opacity: 0.92;
-        }
-        60% {
-          transform: scale(0.94) translate3d(70px, -14px, 0) rotate(2.5deg);
-          box-shadow: 0 25px 30px -5px rgba(60,80,224,0.3);
-          opacity: 0.75;
-        }
-        85% {
-          transform: scale(0.92) translate3d(120px, 0px, 0) rotate(1deg);
-          box-shadow: 0 15px 20px -5px rgba(0,0,0,0.2);
-          opacity: 0.35;
-        }
-        100% {
-          transform: scale(0.88) translate3d(160px, 15px, 0) rotate(0deg);
-          box-shadow: 0 5px 10px rgba(0,0,0,0.05);
-          opacity: 0;
-          z-index: 50;
-        }
-      }
-
-      /* Decolagem & Arco Magnético Parabólico para a Esquerda */
-      @keyframes magneticArcLeft {
-        0% {
-          transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          opacity: 1;
-          z-index: 50;
-        }
-        25% {
-          transform: scale(0.96) translate3d(-25px, -24px, 0) rotate(-1.5deg);
-          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.25), 0 10px 10px -5px rgba(0,0,0,0.1);
-          opacity: 0.92;
-        }
-        60% {
-          transform: scale(0.94) translate3d(-70px, -14px, 0) rotate(-2.5deg);
-          box-shadow: 0 25px 30px -5px rgba(60,80,224,0.3);
-          opacity: 0.75;
-        }
-        85% {
-          transform: scale(0.92) translate3d(-120px, 0px, 0) rotate(-1deg);
-          box-shadow: 0 15px 20px -5px rgba(0,0,0,0.2);
-          opacity: 0.35;
-        }
-        100% {
-          transform: scale(0.88) translate3d(-160px, 15px, 0) rotate(0deg);
-          box-shadow: 0 5px 10px rgba(0,0,0,0.05);
-          opacity: 0;
-          z-index: 50;
-        }
-      }
-
-      /* Pouso Elástico Suave com Amortecimento (Elastic Snap / Spring) */
-      @keyframes elasticSnapIn {
-        0% {
-          transform: scale(0.94) translateY(-14px);
-          opacity: 0;
-          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
-        }
-        55% {
-          transform: scale(1.025) translateY(2px);
-          opacity: 1;
-          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15);
-        }
-        75% {
-          transform: scale(0.99) translateY(-1px);
-        }
-        100% {
-          transform: scale(1) translateY(0);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-      }
-
-      /* Pulso e Brilho Esmeralda Especial ao Concluir */
-      @keyframes successCheckboxPulse {
-        0% {
-          transform: scale(1);
-          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
-          border-color: #10B981;
-        }
-        40% {
-          transform: scale(1.3);
-          box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
-          border-color: #10B981;
-        }
-        100% {
-          transform: scale(1.1);
-          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-          border-color: #10B981;
-        }
-      }
-
-      .anim-magnetic-right {
-        animation: magneticArcRight 350ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards !important;
-        pointer-events: none;
-      }
-      .anim-magnetic-left {
-        animation: magneticArcLeft 350ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards !important;
-        pointer-events: none;
-      }
-      .anim-elastic-snap {
-        animation: elasticSnapIn 360ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
-      }
-      .checkbox-success-glow {
-        animation: successCheckboxPulse 320ms ease-out forwards !important;
-      }
-    </style>
-  `;
-
-  // Componente de Card Despoluído e com Hierarquia Refinada
-  const renderCleanTaskCard = (t, inKanban = false) => {
+  // Componente de Card Clássico para Modo Lista
+  const renderCleanTaskCard = (t) => {
     const overdueInfo = getTaskOverdueInfo(t.data);
     const isAtrasada = !t.concluida && overdueInfo.isOverdue;
-    const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+    const comp = t.empresaId ? state.companies.find(c => Number(c.id) === Number(t.empresaId)) : null;
     const isSelected = state.selectedTaskIds.includes(t.id);
-
-    // Borda lateral esquerda indicando o status
     const borderLeftColor = t.concluida ? 'border-l-emerald-500' : isAtrasada ? 'border-l-rose-500' : 'border-l-blue-500';
-
-    // Pílula dinâmica de Status / Prazo única e consolidada
-    let statusPillHtml = '';
-    if (t.concluida) {
-      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60">🟢 Concluída</span>`;
-    } else if (isAtrasada) {
-      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 animate-pulse">🔴 ${overdueInfo.label}</span>`;
-    } else if (overdueInfo.isClose) {
-      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60">🟡 ${overdueInfo.label}</span>`;
-    } else {
-      statusPillHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-800/60">🟢 Em dia</span>`;
-    }
-
-    const isKanban = state.taskViewMode === 'kanban';
-    const cardPaddingClass = isKanban ? '!p-3.5' : '!py-4 !px-5 min-h-[105px]';
 
     return `
       <div
         id="task-card-${t.id}"
         onclick="openTaskDrawer(${t.id}, event)"
-        class="panze-card ${cardPaddingClass} border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col justify-between gap-3 relative group select-none ${
+        class="panze-card !py-4 !px-5 border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col justify-between gap-3 relative group select-none ${
           t.concluida ? 'opacity-65 bg-gray-50/50 dark:bg-[#11121C]/50' : 'bg-white dark:bg-[#15151F]'
         } ${isSelected ? 'ring-2 ring-blue-500' : ''}"
       >
         <div class="flex items-start justify-between gap-3">
-          <!-- Checkbox Único e Inteligente (Conclusão Direta com clique e Seleção em Massa) -->
           <div class="flex items-center gap-2 pt-0.5 shrink-0" onclick="event.stopPropagation()">
             <button
               id="task-check-btn-${t.id}"
@@ -11719,54 +11841,38 @@ function renderTarefasTab() {
             />
           </div>
 
-          <!-- Conteúdo Principal: Título completo sem truncate agressivo (ocupa até 3 linhas) -->
           <div class="flex-1 min-w-0 pr-1">
             <h4 class="font-bold text-sm text-gray-900 dark:text-white leading-snug line-clamp-3 break-words ${t.concluida ? 'line-through text-gray-400 dark:text-gray-500 font-medium' : ''}">
-              ${t.titulo}
+              ${escapeHtml(t.titulo)}
             </h4>
             ${t.descricao ? `
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 font-normal leading-relaxed break-words">
-                ${t.descricao}
+                ${escapeHtml(t.descricao)}
               </p>
             ` : ''}
           </div>
 
-          <!-- Menu de Ações Rápido com Ícones de Traço Fino -->
           <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
-            <button
-              onclick="openEditTaskModal(${t.id})"
-              class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-              title="Editar Tarefa"
-              aria-label="Editar Tarefa"
-            >
+            <button onclick="openEditTaskModal(${t.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 transition-colors" title="Editar Tarefa">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
                 <path d="m15 5 4 4"></path>
               </svg>
             </button>
-            <button
-              onclick="deleteTask(${t.id})"
-              class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-              title="Excluir Tarefa"
-              aria-label="Excluir Tarefa"
-            >
+            <button onclick="deleteTask(${t.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors" title="Excluir Tarefa">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 6h18"></path>
                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
                 <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                <line x1="10" x2="10" y1="11" y2="17"></line>
-                <line x1="14" x2="14" y1="11" y2="17"></line>
               </svg>
             </button>
           </div>
         </div>
 
-        <!-- Rodapé do Card: Despoluído (No máximo 2 tags + datas discretas) -->
         <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-800/70 text-[11px] text-gray-400">
-          <!-- 2 Badges Consolidadas: Empresa (Neutra) e Status Dinâmico -->
           <div class="flex items-center gap-1.5 flex-wrap">
             ${comp ? `
-              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200/80 dark:border-gray-800" title="${comp.nome}">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200/80 dark:border-gray-800" title="${escapeHtml(comp.nome)}">
                 🏢 ${comp.nome.length > 22 ? comp.nome.substring(0, 20) + '...' : comp.nome}
               </span>
             ` : `
@@ -11774,322 +11880,245 @@ function renderTarefasTab() {
                 Geral
               </span>
             `}
-            ${statusPillHtml}
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+              t.concluida ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' :
+              isAtrasada ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' :
+              'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+            }">
+              ${t.concluida ? '🟢 Concluída' : isAtrasada ? `🔴 ${overdueInfo.label}` : '🟢 Em dia'}
+            </span>
           </div>
 
-          <!-- Metadados Discretos de Data (Criada em e Data Meta) com ícones pequenos -->
           <div class="flex items-center gap-3 text-[10.5px] text-gray-500 dark:text-gray-400 ml-auto">
-            <span class="inline-flex items-center gap-1" title="Data de Criação">
-              <svg class="w-3 h-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-              <span>${formatBrazilianDate(t.createdAt || t.data)}</span>
-            </span>
-            <span class="inline-flex items-center gap-1 font-semibold ${isAtrasada ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-gray-700 dark:text-gray-300'}" title="Data Meta">
-              <svg class="w-3 h-3 ${isAtrasada ? 'text-rose-500' : 'text-amber-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-              <span>${formatBrazilianDate(t.data)}</span>
-            </span>
+            <span>${formatBrazilianDate(t.data)}</span>
           </div>
         </div>
       </div>
     `;
   };
 
-  const containerWidthClass = state.taskViewMode === 'kanban' ? 'w-full max-w-full' : 'max-w-6xl mx-auto';
-
   return `
-    ${kanbanAnimationStyles}
-    <div class="space-y-6 ${containerWidthClass}">
-      
-      <!-- TOPO: Título, Métricas Rápidas e Seletor de Visualização (Lista vs Kanban) -->
-      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-2 border-b border-gray-200 dark:border-gray-800">
+    <style>
+      .kanban-drag-over {
+        background-color: rgba(60, 80, 224, 0.08) !important;
+        outline: 2px dashed #3C50E0 !important;
+        outline-offset: -2px;
+      }
+    </style>
+
+    <div class="space-y-5 w-full max-w-full">
+      <!-- ================= CABEÇALHO DO QUADRO PIPEFY ================= -->
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
           <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white uppercase">Gestão de Tarefas</h1>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Quadro Kanban</span>
+            <span class="text-slate-300 dark:text-slate-700">/</span>
+            <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Gestão de Tarefas</h1>
             ${totalAtrasadas > 0 ? `
               <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
                 ${totalAtrasadas} atrasada(s)
               </span>
             ` : ''}
           </div>
-          <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5">Organize pendências com priorização de prazos, ações em lote e fluxo Kanban.</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Fluxo de atividades estruturado em fases com suporte a arrastar e soltar (Pipefy).</p>
         </div>
 
-        <div class="flex items-center gap-3 self-end md:self-auto flex-wrap">
-          <!-- Seletor de Modo de Visualização: Lista vs Kanban -->
-          <div class="inline-flex p-1 bg-gray-100 dark:bg-[#15151F] rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-bold">
-            <button
-              onclick="setTaskViewMode('lista')"
-              class="px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-                state.taskViewMode === 'lista'
-                  ? 'bg-white dark:bg-[#20202F] text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-              <span>Lista</span>
-            </button>
-            <button
-              onclick="setTaskViewMode('kanban')"
-              class="px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-                state.taskViewMode === 'kanban'
-                  ? 'bg-white dark:bg-[#20202F] text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"></rect><rect x="14" y="3" width="7" height="18" rx="1"></rect></svg>
-              <span>Quadro / Kanban</span>
-            </button>
-          </div>
-
-          <!-- Botão Principal Retrátil: "+ Criar Nova Tarefa" -->
-          <button
-            onclick="toggleTaskFormCollapse()"
-            class="px-4 py-2 rounded-xl font-bold text-xs text-white bg-[#3C50E0] hover:bg-[#3243be] transition shadow-xs flex items-center gap-2 cursor-pointer"
-          >
-            <span class="text-base leading-none">${state.isTaskFormOpen ? '✕' : '+'}</span>
-            <span>${state.isTaskFormOpen ? 'Fechar Formulário' : 'Criar Nova Tarefa'}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 1. FORMULÁRIO DE CRIAR TAREFA RETRÁTIL (ACCORDION - FECHADO POR PADRÃO) -->
-      ${state.isTaskFormOpen ? `
-        <div class="panze-card border-2 border-blue-500/30 animate-fadeIn transition-all duration-300 space-y-4">
-          <div class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
-            <div class="flex items-center gap-2 font-bold text-sm text-gray-900 dark:text-white">
-              <span class="text-blue-500 text-base">➕</span>
-              <span>Cadastrar Nova Tarefa / Pendência</span>
-            </div>
-            <button onclick="toggleTaskFormCollapse()" class="text-xs text-gray-400 hover:text-white">Recolher ▲</button>
-          </div>
-
-          <form id="new-task-form" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Título da Tarefa *</label>
-                <input
-                  type="text"
-                  id="task-title-input"
-                  required
-                  placeholder="Ex: Conciliar extrato bancário Bradesco e fechar faturamento..."
-                  class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Descrição / Notas de Acompanhamento</label>
-                <input
-                  type="text"
-                  id="task-desc-input"
-                  placeholder="Observações complementares para a equipe..."
-                  class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition"
-                />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-12 gap-3 items-end pt-1">
-              <div class="sm:col-span-1 md:col-span-5">
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Empresa Vinculada</label>
-                ${renderCompanyAutocomplete({
-                  id: 'task-company-input',
-                  selectedId: '',
-                  placeholder: 'Buscar empresa por nome, código ou CNPJ...'
-                })}
-              </div>
-
-              <div class="sm:col-span-1 md:col-span-3">
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Data Meta *</label>
-                <input
-                  type="date"
-                  id="task-date-input"
-                  required
-                  value="${new Date().toISOString().split('T')[0]}"
-                  class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div class="sm:col-span-1 md:col-span-2">
-                <label class="block text-xs font-semibold text-gray-400 mb-1">Prioridade</label>
-                <select
-                  id="task-urgency-input"
-                  class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="Alta">Alta</option>
-                  <option value="Media" selected>Média</option>
-                  <option value="Baixa">Baixa</option>
-                </select>
-              </div>
-
-              <div class="sm:col-span-3 md:col-span-2">
-                <button
-                  type="submit"
-                  class="w-full px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm text-center"
-                >
-                  Salvar Tarefa
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      ` : ''}
-
-      <!-- 2. BARRA DE PESQUISA E FILTROS RÁPIDOS ACIMA DA LISTA -->
-      <div class="panze-card !p-3.5 space-y-3">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <!-- Campo de Busca de Tarefas -->
-          <div class="relative flex-1">
-            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+        <div class="flex items-center gap-3 self-stretch md:self-auto flex-wrap">
+          <!-- Campo de Busca "Procurar cards" Estilo Pipefy -->
+          <div class="relative flex-1 md:w-64">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             </span>
             <input
               type="text"
               id="task-search-input"
-              value="${state.taskSearch || ''}"
+              value="${escapeHtml(state.taskSearch || '')}"
               oninput="window.handleTaskSearch(this.value)"
-              placeholder="Pesquisar por título ou descrição da pendência..."
-              class="w-full pl-9 pr-8 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Procurar cards..."
+              class="w-full pl-8 pr-7 py-2 rounded-xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-strokedark text-xs text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3C50E0]/30 shadow-2xs transition"
             />
             ${state.taskSearch ? `
-              <button onclick="state.taskSearch = ''; render();" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-white text-xs">✕</button>
+              <button onclick="state.taskSearch = ''; render();" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs">✕</button>
             ` : ''}
           </div>
 
-          <!-- Filtros Dropdown Rápidos -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <!-- Filtro Empresa -->
-            <select
-              onchange="state.taskCompanyFilter = this.value; render();"
-              class="px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[160px] truncate"
+          <!-- Seletor de Modo: Kanban vs Lista -->
+          <div class="inline-flex p-1 bg-slate-100 dark:bg-[#15151F] rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+            <button
+              onclick="setTaskViewMode('kanban')"
+              class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                state.taskViewMode === 'kanban'
+                  ? 'bg-white dark:bg-[#20202F] text-blue-600 dark:text-blue-400 shadow-2xs font-black'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }"
             >
-              <option value="todos">Todas Empresas</option>
-              ${taskCompanies.map(c => `
-                <option value="${c.id}" ${state.taskCompanyFilter === String(c.id) ? 'selected' : ''}>${c.nome}</option>
-              `).join('')}
-            </select>
-
-            <!-- Filtro Urgência -->
-            <select
-              onchange="state.taskUrgencyFilter = this.value; render();"
-              class="px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"></rect><rect x="14" y="3" width="7" height="18" rx="1"></rect></svg>
+              <span>Kanban</span>
+            </button>
+            <button
+              onclick="setTaskViewMode('lista')"
+              class="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                state.taskViewMode === 'lista'
+                  ? 'bg-white dark:bg-[#20202F] text-blue-600 dark:text-blue-400 shadow-2xs font-black'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }"
             >
-              <option value="todas">Todas Prioridades</option>
-              <option value="Alta" ${state.taskUrgencyFilter === 'Alta' ? 'selected' : ''}>Alta</option>
-              <option value="Media" ${state.taskUrgencyFilter === 'Media' ? 'selected' : ''}>Média</option>
-              <option value="Baixa" ${state.taskUrgencyFilter === 'Baixa' ? 'selected' : ''}>Baixa</option>
-            </select>
-
-            <!-- Filtro Responsável ("Apenas Minhas Tarefas") -->
-            <select
-              onchange="state.taskResponsavelFilter = this.value; render();"
-              class="px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="todos">Todos Responsáveis</option>
-              <option value="minhas" ${state.taskResponsavelFilter === 'minhas' ? 'selected' : ''}>👤 Apenas Minhas Tarefas</option>
-            </select>
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              <span>Lista</span>
+            </button>
           </div>
+
+          <!-- Botão Principal "+ Nova tarefa" -->
+          <button
+            onclick="openCalendarNewEventModal()"
+            class="px-4 py-2 rounded-xl font-bold text-xs text-white bg-[#3C50E0] hover:bg-[#3243be] transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <span class="text-base font-black leading-none">+</span>
+            <span>Nova tarefa</span>
+          </button>
         </div>
-
-        <!-- Seletor de Status (Pendentes vs Concluídas) no Modo Lista -->
-        ${state.taskViewMode === 'lista' ? `
-          <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800/80">
-            <div class="flex items-center gap-1.5">
-              <button
-                onclick="setTaskFilter('ativas')"
-                class="px-3.5 py-1 rounded-xl text-xs font-bold transition ${
-                  state.taskFilter === 'ativas'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                }"
-              >
-                Pendentes (${totalPendentes})
-              </button>
-              <button
-                onclick="setTaskFilter('concluidas')"
-                class="px-3.5 py-1 rounded-xl text-xs font-bold transition ${
-                  state.taskFilter === 'concluidas'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                }"
-              >
-                Concluídas (${totalConcluidas})
-              </button>
-            </div>
-
-            <!-- Selecionar Todas as da lista atual -->
-            <div class="flex items-center gap-2 text-xs">
-              ${filteredTasks.length > 0 ? `
-                <button
-                  onclick="toggleSelectAllTasks([${filteredTasks.map(t => t.id).join(',')}])"
-                  class="text-blue-500 hover:underline font-bold"
-                >
-                  ${filteredTasks.every(t => state.selectedTaskIds.includes(t.id)) ? 'Desmarcar Todas' : 'Selecionar Todas'}
-                </button>
-              ` : ''}
-              <span class="text-gray-400">Exibindo <strong>${filteredTasks.length}</strong></span>
-            </div>
-          </div>
-        ` : ''}
       </div>
 
-      <!-- 3. VISUALIZAÇÃO: LISTA OU KANBAN -->
+      <!-- ================= BARRA DE FILTROS RÁPIDOS ================= -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#1A222C] p-3 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-2xs">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Filtro Empresa -->
+          <select
+            onchange="state.taskCompanyFilter = this.value; render();"
+            class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#11121C] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[180px] truncate"
+          >
+            <option value="todos">Todas Empresas</option>
+            ${taskCompanies.map(c => `
+              <option value="${c.id}" ${state.taskCompanyFilter === String(c.id) ? 'selected' : ''}>${escapeHtml(c.nome)}</option>
+            `).join('')}
+          </select>
+
+          <!-- Filtro Urgência -->
+          <select
+            onchange="state.taskUrgencyFilter = this.value; render();"
+            class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#11121C] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="todas">Todas Prioridades</option>
+            <option value="Alta" ${state.taskUrgencyFilter === 'Alta' ? 'selected' : ''}>Alta</option>
+            <option value="Media" ${state.taskUrgencyFilter === 'Media' ? 'selected' : ''}>Média</option>
+            <option value="Baixa" ${state.taskUrgencyFilter === 'Baixa' ? 'selected' : ''}>Baixa</option>
+          </select>
+
+          <!-- Filtro Responsável ("Apenas Minhas Tarefas") -->
+          <select
+            onchange="state.taskResponsavelFilter = this.value; render();"
+            class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#11121C] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="todos">Todos Responsáveis</option>
+            <option value="minhas" ${state.taskResponsavelFilter === 'minhas' ? 'selected' : ''}>👤 Apenas Minhas Tarefas</option>
+          </select>
+
+          ${(state.taskSearch || state.taskCompanyFilter !== 'todos' || state.taskUrgencyFilter !== 'todas' || state.taskResponsavelFilter !== 'todos') ? `
+            <button
+              onclick="state.taskSearch = ''; state.taskCompanyFilter = 'todos'; state.taskUrgencyFilter = 'todas'; state.taskResponsavelFilter = 'todos'; render();"
+              class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold ml-1"
+            >
+              Limpar Filtros
+            </button>
+          ` : ''}
+        </div>
+
+        <div class="text-xs text-slate-400 font-medium">
+          Total de cards: <strong class="text-slate-700 dark:text-slate-200">${filteredTasks.length}</strong>
+        </div>
+      </div>
+
+      <!-- ================= VISUALIZAÇÃO: KANBAN PIPEFY VS LISTA ================= -->
       ${state.taskViewMode === 'lista' ? `
         <!-- MODO LISTA -->
-        <div class="space-y-3" style="overflow: visible;">
+        <div class="space-y-3">
           ${filteredTasks.length === 0 ? `
             <div class="panze-card !p-4">
-              ${renderEmptyState('Nenhuma tarefa encontrada com os filtros selecionados!', 'Ajuste os filtros ou crie uma nova pendência no botão acima.')}
+              ${renderEmptyState('Nenhuma tarefa encontrada com os filtros selecionados!', 'Ajuste os filtros ou crie uma nova pendência no botão "+ Nova tarefa".')}
             </div>
           ` : filteredTasks.map(t => renderCleanTaskCard(t)).join('')}
         </div>
       ` : `
-        <!-- MODO QUADRO / KANBAN (A Fazer, Em Andamento, Aguardando Cliente, Concluídas) COM SCROLL HORIZONTAL FLUIDO -->
-        <div class="overflow-x-auto pb-4 pt-1 kanban-scroll-container">
+        <!-- MODO QUADRO / KANBAN PIPEFY (Backlog, Fazendo, Pausado, Feito, Arquivado) -->
+        <div class="overflow-x-auto pb-6 pt-1 kanban-scroll-container">
           <div class="flex items-start gap-4 min-w-full w-max">
-            ${[
-              { id: 'a_fazer', label: '📌 A Fazer', color: 'border-t-rose-500', headerBadge: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30', titleColor: 'text-rose-600 dark:text-rose-400', match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'a_fazer') },
-              { id: 'em_andamento', label: '⚡ Em Andamento', color: 'border-t-amber-500', headerBadge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'em_andamento' },
-              { id: 'aguardando_cliente', label: '⏳ Aguardando Cliente', color: 'border-t-purple-500', headerBadge: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => !t.concluida && t.kanbanStatus === 'aguardando_cliente' },
-              { id: 'concluida', label: '✅ Concluídas', color: 'border-t-emerald-500', headerBadge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30', titleColor: 'text-gray-800 dark:text-gray-200', match: (t) => t.concluida || t.kanbanStatus === 'concluida' }
-            ].map(col => {
+            ${PIPEFY_COLUMNS.map(col => {
               const colTasks = filteredTasks.filter(col.match);
               return `
-                <div class="w-[335px] sm:w-[350px] shrink-0 bg-gray-50/80 dark:bg-[#12131F]/90 rounded-2xl border-t-4 ${col.color} border border-gray-200/80 dark:border-gray-800 p-3.5 flex flex-col min-h-[480px]">
-                  <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-200/60 dark:border-gray-800">
-                    <h3 class="font-bold text-xs uppercase tracking-wider ${col.titleColor}">${col.label}</h3>
-                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${col.headerBadge}">
-                      ${colTasks.length}
-                    </span>
+                <div
+                  id="kanban-col-${col.id}"
+                  ondragover="handleKanbanDragOver(event)"
+                  ondragleave="handleKanbanDragLeave(event)"
+                  ondrop="handleKanbanDrop(event, '${col.id}')"
+                  class="w-[300px] shrink-0 bg-slate-50/90 dark:bg-[#121620] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col min-h-[520px] transition-colors"
+                >
+                  <!-- Linha Colorida no Topo da Coluna (Identidade Pipefy) -->
+                  <div class="h-1.5 w-full rounded-t-2xl ${col.topColor}"></div>
+
+                  <!-- Cabeçalho da Fase -->
+                  <div class="p-3.5 border-b border-slate-200/60 dark:border-slate-800">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">
+                          ${col.label}
+                        </h3>
+                        <span class="text-xs font-semibold text-slate-400">
+                          (${colTasks.length})
+                        </span>
+                      </div>
+
+                      ${col.hasPlus ? `
+                        <button
+                          onclick="openCalendarNewEventModal()"
+                          class="w-5 h-5 rounded-full flex items-center justify-center font-black text-sm ${col.plusColor} hover:bg-slate-200 dark:hover:bg-white/10 transition"
+                          title="Adicionar card em ${col.label}"
+                        >
+                          +
+                        </button>
+                      ` : ''}
+                    </div>
+
+                    <!-- Subtexto Descritivo da Coluna -->
+                    <p class="text-[11px] text-slate-400 mt-1">
+                      ${col.subtext}
+                    </p>
                   </div>
 
-                  <div class="space-y-3 flex-1 overflow-y-auto max-h-[620px] pr-1">
-                    ${colTasks.map(t => `
-                      <div class="relative group/kanban">
-                        ${renderCleanTaskCard(t, true)}
-                        <!-- Atalhos de Mover com Animação Magnética / Elástica -->
-                        <div class="mt-1.5 flex items-center justify-between text-[10px] text-gray-400 px-1" onclick="event.stopPropagation()">
-                          <span class="font-medium text-gray-400">Mover p/:</span>
-                          <div class="flex items-center gap-1">
-                            ${col.id !== 'a_fazer' ? `<button onclick="animateMoveKanban(${t.id}, 'a_fazer')" class="px-2 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white transition hover:scale-105 active:scale-95" title="Mover para A Fazer">A Fazer</button>` : ''}
-                            ${col.id !== 'em_andamento' ? `<button onclick="animateMoveKanban(${t.id}, 'em_andamento')" class="px-2 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white transition hover:scale-105 active:scale-95" title="Mover para Em Andamento">Andamento</button>` : ''}
-                            ${col.id !== 'aguardando_cliente' ? `<button onclick="animateMoveKanban(${t.id}, 'aguardando_cliente')" class="px-2 py-0.5 rounded bg-gray-200 dark:bg-white/10 hover:text-white transition hover:scale-105 active:scale-95" title="Mover para Aguardando Cliente">Cliente</button>` : ''}
-                            ${col.id !== 'concluida' ? `<button onclick="animateMoveKanban(${t.id}, 'concluida')" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 hover:bg-emerald-500/40 font-bold transition hover:scale-105 active:scale-95" title="Mover para Concluída">Concluir ✓</button>` : ''}
-                          </div>
-                        </div>
-                      </div>
-                    `).join('')}
+                  <!-- Área de Cards com Scroll Interno e Drop Target -->
+                  <div class="p-2.5 space-y-3 flex-1 overflow-y-auto max-h-[660px]">
+                    ${colTasks.map(t => renderPipefyKanbanCard(t)).join('')}
 
                     ${colTasks.length === 0 ? `
-                      <div class="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-300 dark:border-gray-800 rounded-xl">
-                        Nenhuma tarefa nesta coluna
+                      <div class="p-6 text-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                        Nenhum card nesta fase
                       </div>
                     ` : ''}
                   </div>
                 </div>
               `;
             }).join('')}
+
+            <!-- Botão / Coluna "+ Nova fase" -->
+            <div
+              class="w-[260px] shrink-0 p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs font-bold text-slate-400 hover:text-blue-500 hover:border-blue-500/50 cursor-pointer transition min-h-[520px]"
+              onclick="alert('Fases do Pipefy ativas: Backlog, Fazendo, Pausado, Feito e Arquivado.')"
+            >
+              + Nova fase
+            </div>
           </div>
         </div>
       `}
 
-      <!-- 4. BARRA FLUTUANTE DE AÇÕES EM MASSA (BULK ACTIONS BAR) -->
+      <!-- Botão Flutuante "+ Nova tarefa" no Canto Inferior Esquerdo (Estilo Pipefy) -->
+      <button
+        onclick="openCalendarNewEventModal()"
+        class="fixed bottom-6 left-6 z-40 px-5 py-3 rounded-full bg-[#1D4ED8] hover:bg-[#1E40AF] text-white font-bold text-xs shadow-2xl flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 transition"
+      >
+        <span class="text-base font-black">+</span>
+        <span>Nova tarefa</span>
+      </button>
+
+      <!-- BARRA FLUTUANTE DE AÇÕES EM MASSA -->
       ${state.selectedTaskIds.length >= 2 ? `
         <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#12131F] text-white px-5 py-3 rounded-2xl shadow-2xl border border-gray-700/80 flex items-center gap-4 animate-fadeIn">
           <div class="flex items-center gap-2 text-xs font-bold">
@@ -12112,15 +12141,6 @@ function renderTarefasTab() {
             </button>
 
             <button
-              onclick="bulkRescheduleTasks()"
-              class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
-              title="Reagendar data das selecionadas"
-            >
-              <span>📅</span>
-              <span>Reagendar Data Meta</span>
-            </button>
-
-            <button
               onclick="bulkDeleteTasks()"
               class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
               title="Excluir selecionadas"
@@ -12140,15 +12160,12 @@ function renderTarefasTab() {
         </div>
       ` : ''}
 
-      <!-- 5. PAINEL LATERAL (DRAWER / MODAL DE DETALHES, HISTÓRICO E COMENTÁRIOS) -->
+      <!-- PAINEL LATERAL (DRAWER / DETALHES DA TAREFA) -->
       ${state.taskDrawerOpen && state.taskDrawerItem ? (() => {
         const t = state.taskDrawerItem;
-        const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+        const comp = t.empresaId ? state.companies.find(c => Number(c.id) === Number(t.empresaId)) : null;
         const overdueInfo = getTaskOverdueInfo(t.data);
         const comentarios = t.comentarios || [];
-        const historico = t.historico || [
-          { data: formatBrazilianDate(t.createdAt || t.data), acao: 'Tarefa criada no sistema' }
-        ];
 
         return `
           <div class="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-fadeIn" onclick="closeTaskDrawer()">
@@ -12156,7 +12173,6 @@ function renderTarefasTab() {
               class="w-full max-w-lg bg-white dark:bg-[#161724] h-full shadow-2xl border-l border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden animate-fadeIn"
               onclick="event.stopPropagation()"
             >
-              <!-- Topo do Drawer -->
               <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-4 bg-gray-50/50 dark:bg-[#12131F]/50">
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 mb-1.5">
@@ -12171,7 +12187,7 @@ function renderTarefasTab() {
                     </span>
                   </div>
                   <h3 class="text-lg font-black text-gray-900 dark:text-white leading-snug">
-                    ${t.titulo}
+                    ${escapeHtml(t.titulo)}
                   </h3>
                 </div>
 
@@ -12193,16 +12209,14 @@ function renderTarefasTab() {
                 </div>
               </div>
 
-              <!-- Corpo do Drawer -->
               <div class="p-6 space-y-6 flex-1 overflow-y-auto">
-                <!-- Informações e Empresa -->
                 <div class="space-y-3">
                   <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400">Dados da Pendência</h4>
                   <div class="grid grid-cols-2 gap-3 text-xs">
                     <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800">
                       <span class="text-[11px] text-gray-400 block mb-0.5">Empresa Vinculada</span>
                       <strong class="text-gray-800 dark:text-gray-200 text-xs block truncate">
-                        ${comp ? comp.nome : 'Sem empresa vinculada'}
+                        ${comp ? escapeHtml(comp.nome) : 'Sem empresa vinculada'}
                       </strong>
                     </div>
 
@@ -12216,29 +12230,12 @@ function renderTarefasTab() {
 
                   ${t.descricao ? `
                     <div class="p-3.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-                      ${t.descricao}
+                      ${escapeHtml(t.descricao)}
                     </div>
                   ` : ''}
                 </div>
 
-                <!-- Histórico de Edições / Auditoria -->
-                <div class="space-y-3">
-                  <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
-                    <span>Linha do Tempo & Histórico</span>
-                    <span class="text-[10px] text-gray-500 font-normal">${historico.length} evento(s)</span>
-                  </h4>
-                  <div class="space-y-2 border-l-2 border-gray-200 dark:border-gray-800 pl-3 ml-1 text-xs">
-                    ${historico.map(h => `
-                      <div class="relative group">
-                        <div class="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white dark:ring-[#161724]"></div>
-                        <div class="text-[11px] text-gray-400">${h.data}</div>
-                        <div class="text-xs text-gray-800 dark:text-gray-200 font-medium">${h.acao}</div>
-                      </div>
-                    `).join('')}
-                  </div>
-                </div>
-
-                <!-- Comentários da Tarefa -->
+                <!-- Comentários -->
                 <div class="space-y-3 pt-2">
                   <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
                     <span>Comentários & Anotações</span>
@@ -12249,10 +12246,10 @@ function renderTarefasTab() {
                     ${comentarios.map(c => `
                       <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 space-y-1">
                         <div class="flex items-center justify-between text-[11px]">
-                          <strong class="text-blue-500 font-bold">${c.autor}</strong>
+                          <strong class="text-blue-500 font-bold">${escapeHtml(c.autor)}</strong>
                           <span class="text-gray-400">${c.data}</span>
                         </div>
-                        <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">${c.texto}</p>
+                        <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">${escapeHtml(c.texto)}</p>
                       </div>
                     `).join('')}
 
@@ -12261,7 +12258,6 @@ function renderTarefasTab() {
                     ` : ''}
                   </div>
 
-                  <!-- Caixa de Inserir Novo Comentário -->
                   <div class="mt-3 flex gap-2">
                     <input
                       type="text"
@@ -12281,7 +12277,6 @@ function renderTarefasTab() {
                 </div>
               </div>
 
-              <!-- Rodapé do Drawer -->
               <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#12131F]/50 flex items-center justify-between">
                 <button
                   onclick="deleteTask(${t.id})"
@@ -12302,14 +12297,81 @@ function renderTarefasTab() {
           </div>
         `;
       })() : ''}
-
     </div>
   `;
 }
 
-// ----------------------------------------------------
-// ABA 6.5: CALENDÁRIO INTEGRADO DE OBRIGAÇÕES E PRAZOS (MÊS / SEMANA / DIA)
-// ----------------------------------------------------
+// ====================================================
+// ABA 6.5: SMART CALENDAR BOARD (ESTILO MODERN DASHBOARD)
+// ====================================================
+
+// Identificação e Avatar de Responsável / Solicitante
+function getCalendarTaskCollaborator(t, comp) {
+  if (t.solicitante && t.solicitante.trim()) return t.solicitante.trim();
+  if (t.responsavel && t.responsavel.trim()) return t.responsavel.trim();
+  if (t.autor && t.autor.trim()) return t.autor.trim();
+  if (comp && comp.colaborador && comp.colaborador.trim()) return comp.colaborador.trim();
+  return 'Brayann Mikael';
+}
+
+function getColabBadgeInfo(colabName) {
+  const name = (colabName || 'Geral').toUpperCase();
+  if (name.includes('BRAYANN') || name.includes('MIKAEL') || name === 'BM') {
+    return { code: 'BM', name: 'Brayann', bg: 'bg-[#3C50E0]', text: 'text-white', dot: 'bg-[#3C50E0]' };
+  }
+  if (name.includes('CARLOS') || name === 'CM') {
+    return { code: 'CM', name: 'Carlos', bg: 'bg-[#8B5CF6]', text: 'text-white', dot: 'bg-[#8B5CF6]' };
+  }
+  if (name.includes('GABRIEL') || name === 'GM') {
+    return { code: 'GM', name: 'Gabriel', bg: 'bg-[#10B981]', text: 'text-white', dot: 'bg-[#10B981]' };
+  }
+  return { code: 'GR', name: 'Geral', bg: 'bg-[#64748B]', text: 'text-white', dot: 'bg-[#64748B]' };
+}
+
+// Estilos em Tons Pastéis Diferenciados por Categoria / Urgência / Regime
+function getCalendarEventCardStyle(t, comp) {
+  if (t.concluida) {
+    return {
+      cardBg: 'bg-emerald-50/90 dark:bg-emerald-950/25 border-emerald-200/80 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200',
+      tagBg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300',
+      timeColor: 'text-emerald-700 dark:text-emerald-400 font-bold',
+      dotColor: 'bg-emerald-500'
+    };
+  }
+  if (t.urgencia === 'Alta') {
+    return {
+      cardBg: 'bg-rose-50/90 dark:bg-rose-950/25 border-rose-200/80 dark:border-rose-900/40 text-rose-950 dark:text-rose-100',
+      tagBg: 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300',
+      timeColor: 'text-rose-700 dark:text-rose-400 font-bold',
+      dotColor: 'bg-rose-500'
+    };
+  }
+  const regime = comp?.regime || '';
+  if (regime === 'Lucro Real') {
+    return {
+      cardBg: 'bg-purple-50/90 dark:bg-purple-950/25 border-purple-200/80 dark:border-purple-900/40 text-purple-950 dark:text-purple-100',
+      tagBg: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300',
+      timeColor: 'text-purple-700 dark:text-purple-400 font-bold',
+      dotColor: 'bg-purple-500'
+    };
+  }
+  if (regime === 'Lucro Presumido' || t.urgencia === 'Media') {
+    return {
+      cardBg: 'bg-amber-50/90 dark:bg-amber-950/25 border-amber-200/80 dark:border-amber-900/40 text-amber-950 dark:text-amber-100',
+      tagBg: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
+      timeColor: 'text-amber-700 dark:text-amber-400 font-bold',
+      dotColor: 'bg-amber-500'
+    };
+  }
+  // Padrão / Simples Nacional / Baixa Urgência
+  return {
+    cardBg: 'bg-sky-50/90 dark:bg-sky-950/25 border-sky-200/80 dark:border-sky-900/40 text-sky-950 dark:text-sky-100',
+    tagBg: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300',
+    timeColor: 'text-sky-700 dark:text-sky-400 font-bold',
+    dotColor: 'bg-sky-500'
+  };
+}
+
 function renderCalendarioTab() {
   const calDate = state.calendarDate || { 
     year: new Date().getFullYear(), 
@@ -12319,139 +12381,407 @@ function renderCalendarioTab() {
   const year = calDate.year;
   const month = calDate.month; // 0-11
   const selectedDateStr = calDate.selectedDate || new Date().toISOString().split('T')[0];
-  const viewMode = state.calendarViewMode || 'month'; // 'day' | 'week' | 'month'
+  const viewMode = state.calendarViewMode || 'week'; // 'week' como padrão do Smart Board
+  const selectedColab = state.selectedCalendarColab || 'todos';
 
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
-  const monthTitle = `${monthNames[month]} ${year}`;
+  const monthTitle = `${monthNames[month]} de ${year}`;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Cálculo do período da semana visível
+  const selDate = new Date(selectedDateStr + 'T12:00:00');
+  const dayOfWeek = selDate.getDay(); // 0 Dom a 6 Sáb
+  const weekStart = new Date(selDate);
+  weekStart.setDate(selDate.getDate() - dayOfWeek);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  let weekPeriodLabel = '';
+  if (weekStart.getMonth() === weekEnd.getMonth()) {
+    weekPeriodLabel = `${weekStart.getDate()} a ${weekEnd.getDate()} de ${monthNames[weekStart.getMonth()]}, ${weekEnd.getFullYear()}`;
+  } else {
+    weekPeriodLabel = `${weekStart.getDate()} de ${monthNames[weekStart.getMonth()]} - ${weekEnd.getDate()} de ${monthNames[weekEnd.getMonth()]}, ${weekEnd.getFullYear()}`;
+  }
+
+  // Contagem de eventos por responsável
+  const colabCounts = { todos: state.tasks.length, BM: 0, CM: 0, GR: 0 };
+  state.tasks.forEach(t => {
+    const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+    const colabInfo = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
+    if (colabCounts[colabInfo.code] !== undefined) {
+      colabCounts[colabInfo.code]++;
+    } else {
+      colabCounts.GR++;
+    }
+  });
+
+  // Filtragem de tarefas pelo colaborador ativo no Smart Calendar
+  const filteredCalendarTasks = state.tasks.filter(t => {
+    if (selectedColab !== 'todos') {
+      const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+      const colabInfo = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
+      if (colabInfo.code !== selectedColab) return false;
+    }
+    return true;
+  });
 
   // Mapear tarefas por data (YYYY-MM-DD)
   const tasksByDate = {};
-  state.tasks.forEach(t => {
+  filteredCalendarTasks.forEach(t => {
     if (t.data) {
       if (!tasksByDate[t.data]) tasksByDate[t.data] = [];
       tasksByDate[t.data].push(t);
     }
   });
 
-  const todayStr = new Date().toISOString().split('T')[0];
-
   return `
-    <div class="space-y-5 animate-fadeIn">
-      <!-- Topbar / Cabeçalho de Navegação do Calendário Estilo TailAdmin -->
-      <div class="panze-card !p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-[#E2E8F0] dark:border-strokedark shadow-sm">
+    <div class="space-y-5 animate-fadeIn relative pb-20">
+      
+      <!-- ================= CABEÇALHO SMART CALENDAR BOARD ================= -->
+      <div class="panze-card !p-5 bg-white dark:bg-[#161724] border border-slate-200/80 dark:border-strokedark rounded-2xl shadow-sm space-y-4">
         
-        <!-- Controles de Navegação Temporal (<, Hoje, > e + Adicionar Evento) -->
-        <div class="flex items-center gap-3">
-          <div class="inline-flex items-center rounded-lg border border-[#E2E8F0] dark:border-strokedark bg-[#F8FAFC] dark:bg-[#1A222C] p-1 shadow-2xs">
-            <button
-              onclick="changeCalendarPeriod(-1)"
-              class="w-8 h-8 flex items-center justify-center rounded-md text-[#64748B] dark:text-[#8A99AD] hover:bg-white dark:hover:bg-[#1C2434] hover:text-[#1C2434] dark:hover:text-white transition"
-              title="Período Anterior"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </button>
-            <button
-              onclick="goToCalendarToday()"
-              class="px-3 h-8 text-xs font-semibold text-[#1C2434] dark:text-white hover:bg-white dark:hover:bg-[#1C2434] rounded-md transition"
-            >
-              Hoje
-            </button>
-            <button
-              onclick="changeCalendarPeriod(1)"
-              class="w-8 h-8 flex items-center justify-center rounded-md text-[#64748B] dark:text-[#8A99AD] hover:bg-white dark:hover:bg-[#1C2434] hover:text-[#1C2434] dark:hover:text-white transition"
-              title="Próximo Período"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
+        <!-- Linha Superior: Clima / Relógio e Navegação de Período -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          
+          <!-- Clima e Data Atual -->
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 flex items-center justify-center text-xl shadow-2xs">
+              🌤️
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-700 dark:text-slate-200">24°C Ensolarado</span>
+                <span class="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                <span class="text-[11px] text-slate-400">Tempo real</span>
+              </div>
+              <h2 class="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+                ${viewMode === 'week' ? weekPeriodLabel : viewMode === 'day' ? formatBrazilianDate(selectedDateStr) + ' (' + monthNames[month] + ')' : monthTitle}
+              </h2>
+            </div>
           </div>
 
-          <button
-            onclick="openCalendarNewEventModal()"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold text-white bg-[#3C50E0] hover:bg-opacity-90 transition shadow-sm"
-          >
-            <span class="text-sm leading-none">+</span>
-            <span>Adicionar Evento</span>
-          </button>
+          <!-- Controles de Navegação de Semana / Mês (< > e Hoje) -->
+          <div class="flex items-center gap-3 self-start md:self-auto">
+            <div class="inline-flex items-center rounded-xl border border-slate-200 dark:border-strokedark bg-slate-50 dark:bg-[#1A222C] p-1 shadow-2xs">
+              <button
+                onclick="changeCalendarPeriod(-1)"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs transition"
+                title="Período Anterior"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <button
+                onclick="goToCalendarToday()"
+                class="px-3 h-8 text-xs font-bold text-slate-800 dark:text-white hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs rounded-lg transition"
+              >
+                Hoje
+              </button>
+              <button
+                onclick="changeCalendarPeriod(1)"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs transition"
+                title="Próximo Período"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+
+            <!-- Seletor de Escala (Semana / Mês / Dia) -->
+            <div class="inline-flex rounded-xl border border-slate-200 dark:border-strokedark bg-slate-50 dark:bg-[#1A222C] p-1 shadow-2xs text-xs font-semibold">
+              <button
+                onclick="setCalendarViewMode('week')"
+                class="px-3 py-1.5 rounded-lg transition ${
+                  viewMode === 'week' 
+                    ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-extrabold' 
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }"
+              >
+                Semana
+              </button>
+              <button
+                onclick="setCalendarViewMode('month')"
+                class="px-3 py-1.5 rounded-lg transition ${
+                  viewMode === 'month' 
+                    ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-extrabold' 
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }"
+              >
+                Mês
+              </button>
+              <button
+                onclick="setCalendarViewMode('day')"
+                class="px-3 py-1.5 rounded-lg transition ${
+                  viewMode === 'day' 
+                    ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-extrabold' 
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }"
+              >
+                Dia
+              </button>
+            </div>
+
+            <!-- Botão Adicionar Evento -->
+            <button
+              onclick="openCalendarNewEventModal()"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#3C50E0] hover:bg-[#3243be] transition shadow-xs cursor-pointer"
+            >
+              <span class="text-base leading-none font-black">+</span>
+              <span>Adicionar Evento</span>
+            </button>
+          </div>
         </div>
 
-        <!-- Título do Período Centralizado -->
-        <div class="flex items-center justify-between lg:justify-center flex-1">
-          <div class="text-center">
-            <h2 class="text-base sm:text-lg font-bold tracking-tight text-[#1C2434] dark:text-white">
-              ${viewMode === 'day' ? formatBrazilianDate(selectedDateStr) + ' (' + monthNames[month] + ')' : monthTitle}
-            </h2>
-            <p class="text-[11px] text-[#64748B] dark:text-[#8A99AD]">
-              ${state.tasks.length} obrigações e prazos sincronizados
-            </p>
-          </div>
-        </div>
+        <!-- Linha Inferior: Filtros Rápidos por Responsável (Avatares / Badges Coloridas) -->
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">Filtrar Equipe:</span>
 
-        <!-- Seletor de Escala (Estilo Google Agenda: Dia, Semana, Mês) -->
-        <div class="flex items-center gap-2 self-end lg:self-auto">
-          <div class="inline-flex rounded-lg border border-[#E2E8F0] dark:border-strokedark bg-[#F8FAFC] dark:bg-[#1A222C] p-1 shadow-2xs">
+            <!-- Todos -->
             <button
-              onclick="setCalendarViewMode('day')"
-              class="px-3 py-1.5 rounded-md text-xs font-semibold transition ${
-                viewMode === 'day' 
-                  ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-bold' 
-                  : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434]'
+              onclick="setCalendarColabFilter('todos')"
+              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
+                selectedColab === 'todos'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-xs'
+                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
               }"
             >
-              Dia
+              <span class="w-2 h-2 rounded-full ${selectedColab === 'todos' ? 'bg-blue-400 dark:bg-blue-600' : 'bg-slate-400'}"></span>
+              <span>Todos</span>
+              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
+                ${colabCounts.todos}
+              </span>
             </button>
+
+            <!-- Brayann Mikael (BM) -->
             <button
-              onclick="setCalendarViewMode('week')"
-              class="px-3 py-1.5 rounded-md text-xs font-semibold transition ${
-                viewMode === 'week' 
-                  ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-bold' 
-                  : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434]'
+              onclick="setCalendarColabFilter('BM')"
+              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
+                selectedColab === 'BM'
+                  ? 'bg-[#3C50E0] text-white border-transparent shadow-xs'
+                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
               }"
             >
-              Semana
+              <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-extrabold shadow-2xs">BM</span>
+              <span>Brayann Mikael</span>
+              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
+                ${colabCounts.BM}
+              </span>
             </button>
+
+            <!-- Carlos (CM) -->
             <button
-              onclick="setCalendarViewMode('month')"
-              class="px-3 py-1.5 rounded-md text-xs font-semibold transition ${
-                viewMode === 'month' 
-                  ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-bold' 
-                  : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434]'
+              onclick="setCalendarColabFilter('CM')"
+              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
+                selectedColab === 'CM'
+                  ? 'bg-[#8B5CF6] text-white border-transparent shadow-xs'
+                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
               }"
             >
-              Mês
+              <span class="w-5 h-5 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[9px] font-extrabold shadow-2xs">CM</span>
+              <span>Carlos</span>
+              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
+                ${colabCounts.CM}
+              </span>
+            </button>
+
+            <!-- Geral / Outros (GR) -->
+            <button
+              onclick="setCalendarColabFilter('GR')"
+              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
+                selectedColab === 'GR'
+                  ? 'bg-slate-600 text-white border-transparent shadow-xs'
+                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
+              }"
+            >
+              <span class="w-5 h-5 rounded-full bg-slate-600 text-white flex items-center justify-center text-[9px] font-extrabold shadow-2xs">GR</span>
+              <span>Geral & Outros</span>
+              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
+                ${colabCounts.GR}
+              </span>
             </button>
           </div>
 
-          <button
-            onclick="switchTab('tarefas')"
-            class="px-3 py-1.5 rounded-md border border-[#E2E8F0] dark:border-strokedark text-xs font-semibold text-[#64748B] dark:text-[#8A99AD] hover:text-[#3C50E0] hover:border-[#3C50E0] transition"
-            title="Ir para a Lista Detalhada de Tarefas"
-          >
-            Lista de Tarefas →
-          </button>
+          <div class="flex items-center gap-2 ml-auto">
+            <button
+              onclick="switchTab('tarefas')"
+              class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-strokedark text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-[#3C50E0] hover:border-[#3C50E0] transition"
+            >
+              Ir para Quadro Kanban →
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- VISUALIZAÇÕES DO CALENDÁRIO CONFORME ESCALA -->
-      ${viewMode === 'month' ? renderCalendarMonthView(year, month, todayStr, tasksByDate) : ''}
+      <!-- ================= VISUALIZAÇÃO DO CALENDÁRIO ================= -->
       ${viewMode === 'week' ? renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) : ''}
+      ${viewMode === 'month' ? renderCalendarMonthView(year, month, todayStr, tasksByDate) : ''}
       ${viewMode === 'day' ? renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) : ''}
+
+      <!-- ================= BOTÃO FLUTUANTE DE CRIAÇÃO RÁPIDA (FAB +) ================= -->
+      <div class="fixed bottom-6 right-8 z-40">
+        <button
+          onclick="openCalendarNewEventModal()"
+          class="w-14 h-14 rounded-full bg-gradient-to-tr from-[#3C50E0] to-[#5569f2] text-white flex items-center justify-center text-2xl font-bold shadow-2xl hover:shadow-[#3C50E0]/40 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
+          title="Criar Novo Evento ou Obrigação (+)"
+        >
+          <svg class="w-7 h-7 transition-transform group-hover:rotate-90 duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
     </div>
   `;
 }
 
-// 1. VISUALIZAÇÃO MÊS (GRADE CLÁSSICA DE 7 COLUNAS COM BADGES TAILADMIN)
+// ----------------------------------------------------------------------
+// 1. VISUALIZAÇÃO SEMANA (SMART CALENDAR BOARD: 7 COLUNAS COM CARDS PASTÉIS)
+// ----------------------------------------------------------------------
+function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
+  const selDate = new Date(selectedDateStr + 'T12:00:00');
+  const dayOfWeek = selDate.getDay(); // 0 Dom a 6 Sáb
+  const weekStart = new Date(selDate);
+  weekStart.setDate(selDate.getDate() - dayOfWeek);
+
+  const dayNamesShort = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const dayNamesFull = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+  const weekDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    weekDays.push({
+      dateStr,
+      dayNum: d.getDate(),
+      dayNameShort: dayNamesShort[i],
+      dayNameFull: dayNamesFull[i],
+      isToday: dateStr === todayStr
+    });
+  }
+
+  return `
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5">
+      ${weekDays.map(w => {
+        const dayTasks = tasksByDate[w.dateStr] || [];
+
+        return `
+          <div class="flex flex-col bg-slate-50/70 dark:bg-[#12131F]/50 rounded-2xl border ${
+            w.isToday ? 'border-[#3C50E0]/50 shadow-sm ring-1 ring-[#3C50E0]/30' : 'border-slate-200/70 dark:border-slate-800/80'
+          } p-2.5 min-h-[500px]">
+            
+            <!-- Cabeçalho Arredondado do Dia com Pill de Contraste para Hoje -->
+            <div class="pb-2.5 mb-2.5 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between">
+              <div>
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  ${w.dayNameShort}
+                </div>
+                <div class="mt-0.5 flex items-center gap-1.5">
+                  ${w.isToday ? `
+                    <span class="px-2 py-0.5 rounded-full bg-[#3C50E0] text-white text-xs font-black shadow-xs flex items-center gap-1">
+                      <span>${w.dayNum}</span>
+                      <span class="text-[9px] uppercase font-bold opacity-90">&bull; Hoje</span>
+                    </span>
+                  ` : `
+                    <span class="text-base font-extrabold text-slate-800 dark:text-white">
+                      ${w.dayNum}
+                    </span>
+                  `}
+                </div>
+              </div>
+
+              <!-- Contador de Eventos e Botão Rápido (+) -->
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-bold text-slate-400 bg-white dark:bg-white/5 px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-slate-800">
+                  ${dayTasks.length}
+                </span>
+                <button
+                  onclick="openCalendarNewEventModal('${w.dateStr}')"
+                  class="w-6 h-6 rounded-lg bg-white dark:bg-white/5 border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-[#3C50E0] hover:border-[#3C50E0] flex items-center justify-center text-xs font-bold transition shadow-2xs cursor-pointer"
+                  title="Adicionar evento no dia ${w.dayNum}"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <!-- Lista de Cards de Eventos em Tons Pastéis -->
+            <div class="space-y-2.5 flex-1 overflow-y-auto max-h-[620px] pr-0.5">
+              ${dayTasks.map(t => {
+                const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+                const cardStyle = getCalendarEventCardStyle(t, comp);
+                const colab = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
+
+                return `
+                  <div
+                    onclick="openTaskDrawer(${t.id}, event)"
+                    class="p-3 rounded-xl border ${cardStyle.cardBg} transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-md hover:scale-[1.01] flex flex-col justify-between gap-2 relative group select-none"
+                    title="${escapeHtml(t.titulo)} ${comp ? ' - ' + escapeHtml(comp.nome) : ''}"
+                  >
+                    <!-- Topo do Card: Horário & Badge de Categoria/Urgência -->
+                    <div class="flex items-center justify-between gap-1 text-[11px]">
+                      <span class="${cardStyle.timeColor} flex items-center gap-1 text-[10.5px]">
+                        <svg class="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <span>${t.horaInicio || '09:00'} - ${t.horaFim || '10:00'}</span>
+                      </span>
+
+                      <span class="px-2 py-0.5 rounded-md text-[9.5px] font-extrabold uppercase tracking-wider ${cardStyle.tagBg}">
+                        ${t.concluida ? 'Feito' : t.urgencia}
+                      </span>
+                    </div>
+
+                    <!-- Título do Evento em Negrito -->
+                    <h5 class="text-xs font-bold leading-snug line-clamp-2 ${t.concluida ? 'line-through opacity-70' : ''}">
+                      ${escapeHtml(t.titulo)}
+                    </h5>
+
+                    <!-- Rodapé do Card: Tag da Empresa e Avatar do Responsável -->
+                    <div class="flex items-center justify-between gap-2 pt-1 border-t border-black/5 dark:border-white/5 text-[10.5px]">
+                      <span class="truncate opacity-80 font-medium max-w-[110px]" title="${escapeHtml(comp?.nome || 'Geral')}">
+                        ${comp ? '🏢 ' + escapeHtml(comp.nome) : '📌 Geral'}
+                      </span>
+
+                      <span class="w-5 h-5 rounded-full ${colab.bg} ${colab.text} flex items-center justify-center text-[9px] font-extrabold shrink-0 shadow-2xs" title="Responsável: ${colab.name}">
+                        ${colab.code}
+                      </span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+
+              ${dayTasks.length === 0 ? `
+                <div
+                  onclick="openCalendarNewEventModal('${w.dateStr}')"
+                  class="h-28 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-[#3C50E0] hover:border-[#3C50E0]/50 hover:bg-white/40 dark:hover:bg-white/5 transition-all cursor-pointer group"
+                >
+                  <span class="text-base group-hover:scale-110 transition-transform font-bold">+</span>
+                  <span class="text-[10px] font-semibold">Sem obrigações</span>
+                </div>
+              ` : ''}
+            </div>
+
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ----------------------------------------------------------------------
+// 2. VISUALIZAÇÃO MÊS (GRADE COM PILL CONTRASTANTE E BADGES PASTÉIS)
+// ----------------------------------------------------------------------
 function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
   const firstDayIndex = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
 
   return `
-    <div class="panze-card !p-0 overflow-hidden shadow-sm border border-[#E2E8F0] dark:border-strokedark">
+    <div class="panze-card !p-0 overflow-hidden shadow-sm border border-slate-200/80 dark:border-strokedark rounded-2xl">
       <!-- Cabeçalho dos Dias da Semana -->
-      <div class="grid grid-cols-7 border-b border-[#E2E8F0] dark:border-strokedark bg-[#F8FAFC] dark:bg-[#1A222C] text-center text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD]">
+      <div class="grid grid-cols-7 border-b border-slate-200 dark:border-strokedark bg-slate-50 dark:bg-[#1A222C] text-center text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         <div class="py-3 px-2">Dom</div>
         <div class="py-3 px-2">Seg</div>
         <div class="py-3 px-2">Ter</div>
@@ -12461,8 +12791,8 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
         <div class="py-3 px-2">Sáb</div>
       </div>
 
-      <!-- Grade de Células Mensais -->
-      <div class="grid grid-cols-7 divide-x divide-y divide-[#E2E8F0] dark:divide-strokedark">
+      <!-- Grade Mensal -->
+      <div class="grid grid-cols-7 divide-x divide-y divide-slate-200/80 dark:divide-strokedark">
         ${(() => {
           const cells = [];
 
@@ -12470,7 +12800,7 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
           for (let i = firstDayIndex - 1; i >= 0; i--) {
             const prevDayNum = daysInPrevMonth - i;
             cells.push(`
-              <div class="min-h-[110px] md:min-h-[130px] p-2 bg-[#F8FAFC]/50 dark:bg-[#121721]/40 text-[#94A3B8] dark:text-[#64748B] select-none">
+              <div class="min-h-[110px] md:min-h-[125px] p-2 bg-slate-50/40 dark:bg-[#121721]/40 text-slate-400 dark:text-slate-600 select-none">
                 <span class="text-xs font-medium">${prevDayNum}</span>
               </div>
             `);
@@ -12485,49 +12815,44 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
             cells.push(`
               <div
                 onclick="selectCalendarDateAndOpenModal('${dateStr}')"
-                class="min-h-[110px] md:min-h-[130px] p-2 transition-colors duration-150 cursor-pointer flex flex-col justify-between group ${
-                  isToday ? 'bg-[#3C50E0]/5 dark:bg-[#3C50E0]/10' : 'hover:bg-[#F8FAFC] dark:hover:bg-[#1A222C]'
+                class="min-h-[110px] md:min-h-[125px] p-2 transition-colors duration-150 cursor-pointer flex flex-col justify-between group ${
+                  isToday ? 'bg-[#3C50E0]/5 dark:bg-[#3C50E0]/10' : 'hover:bg-slate-50 dark:hover:bg-[#1A222C]'
                 }"
               >
                 <div class="flex items-center justify-between">
                   <span class="w-6 h-6 flex items-center justify-center text-xs rounded-full font-bold transition ${
                     isToday
-                      ? 'bg-[#3C50E0] text-white shadow-xs'
-                      : 'text-[#1C2434] dark:text-white group-hover:text-[#3C50E0]'
+                      ? 'bg-[#3C50E0] text-white shadow-xs font-black'
+                      : 'text-slate-800 dark:text-white group-hover:text-[#3C50E0]'
                   }">
                     ${d}
                   </span>
                   <button
                     onclick="event.stopPropagation(); openCalendarNewEventModal('${dateStr}')"
-                    class="opacity-0 group-hover:opacity-100 text-[11px] font-bold text-[#64748B] hover:text-[#3C50E0] transition px-1"
-                    title="Adicionar evento neste dia"
+                    class="opacity-0 group-hover:opacity-100 text-[11px] font-bold text-slate-400 hover:text-[#3C50E0] transition px-1"
+                    title="Adicionar evento"
                   >
                     +
                   </button>
                 </div>
 
-                <!-- Lista de Tarefas Renderizadas com Badge por Regime Tributário -->
+                <!-- Eventos do Dia em Badges Pastéis -->
                 <div class="mt-1.5 space-y-1 flex-1 overflow-y-auto max-h-[85px] pr-0.5">
                   ${dayTasks.map(t => {
-                    const isDone = !!t.concluida;
                     const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
-                    const badge = getRegimeBadgeLightBg(comp?.regime);
+                    const cardStyle = getCalendarEventCardStyle(t, comp);
 
                     return `
                       <div
-                        onclick="event.stopPropagation(); toggleTaskComplete(${t.id})"
-                        class="px-2 py-1 rounded-md text-[11px] leading-tight font-medium transition flex items-center justify-between gap-1 border ${
-                          isDone 
-                            ? 'bg-slate-100 dark:bg-meta-4 text-slate-400 border-slate-200 dark:border-strokedark line-through' 
-                            : `${badge.bg} ${badge.text} ${badge.border} hover:opacity-90 shadow-2xs`
-                        }"
-                        title="${isDone ? 'Concluída (clique para reabrir)' : 'Pendente (clique para concluir)'}: ${t.titulo} ${comp ? '[' + comp.regime + ' - ' + comp.nome + ']' : ''}"
+                        onclick="event.stopPropagation(); openTaskDrawer(${t.id}, event)"
+                        class="px-2 py-0.5 rounded-md text-[10.5px] leading-tight font-medium transition flex items-center justify-between gap-1 border ${cardStyle.cardBg} shadow-2xs hover:shadow-xs truncate"
+                        title="${escapeHtml(t.titulo)}"
                       >
-                        <div class="flex items-center gap-1.5 min-w-0">
-                          <span class="w-1.5 h-1.5 rounded-full shrink-0 ${isDone ? 'bg-slate-400' : badge.dot}"></span>
-                          <span class="truncate">${t.titulo}</span>
+                        <div class="flex items-center gap-1 min-w-0">
+                          <span class="w-1.5 h-1.5 rounded-full shrink-0 ${cardStyle.dotColor}"></span>
+                          <span class="truncate">${escapeHtml(t.titulo)}</span>
                         </div>
-                        <span class="text-[9px] shrink-0 font-bold opacity-80">${isDone ? '✓' : (t.horaInicio || '•')}</span>
+                        <span class="text-[9px] shrink-0 font-bold opacity-75">${t.concluida ? '✓' : (t.horaInicio || '•')}</span>
                       </div>
                     `;
                   }).join('')}
@@ -12541,7 +12866,7 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
           const remaining = (7 - (totalCells % 7)) % 7;
           for (let nextD = 1; nextD <= remaining; nextD++) {
             cells.push(`
-              <div class="min-h-[110px] md:min-h-[130px] p-2 bg-[#F8FAFC]/50 dark:bg-[#121721]/40 text-[#94A3B8] dark:text-[#64748B] select-none">
+              <div class="min-h-[110px] md:min-h-[125px] p-2 bg-slate-50/40 dark:bg-[#121721]/40 text-slate-400 dark:text-slate-600 select-none">
                 <span class="text-xs font-medium">${nextD}</span>
               </div>
             `);
@@ -12554,101 +12879,9 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
   `;
 }
 
-// 2. VISUALIZAÇÃO SEMANA (7 COLUNAS COM LINHAS VERTICAIS DE DIAS)
-function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
-  const selDate = new Date(selectedDateStr + 'T12:00:00');
-  const dayOfWeek = selDate.getDay(); // 0 Dom a 6 Sab
-  const weekStart = new Date(selDate);
-  weekStart.setDate(selDate.getDate() - dayOfWeek);
-
-  const weekDays = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
-    weekDays.push({
-      dateStr,
-      dayNum: d.getDate(),
-      dayName: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][i],
-      isToday: dateStr === todayStr
-    });
-  }
-
-  return `
-    <div class="panze-card !p-0 overflow-hidden shadow-sm border border-[#E2E8F0] dark:border-strokedark">
-      <!-- Cabeçalho da Semana com Data e Dia -->
-      <div class="grid grid-cols-7 border-b border-[#E2E8F0] dark:border-strokedark bg-[#F8FAFC] dark:bg-[#1A222C]">
-        ${weekDays.map(w => `
-          <div class="py-3 px-2 text-center border-r last:border-r-0 border-[#E2E8F0] dark:border-strokedark ${w.isToday ? 'bg-[#3C50E0]/10' : ''}">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD]">${w.dayName}</div>
-            <div class="text-sm font-extrabold mt-0.5 ${w.isToday ? 'text-[#3C50E0]' : 'text-[#1C2434] dark:text-white'}">
-              ${w.dayNum}
-            </div>
-          </div>
-        `).join('')}
-      </div>
-
-      <!-- Colunas dos Dias da Semana -->
-      <div class="grid grid-cols-7 divide-x divide-[#E2E8F0] dark:divide-strokedark min-h-[480px]">
-        ${weekDays.map(w => {
-          const dayTasks = tasksByDate[w.dateStr] || [];
-          return `
-            <div
-              onclick="selectCalendarDateAndOpenModal('${w.dateStr}')"
-              class="p-2 space-y-2 cursor-pointer hover:bg-[#F8FAFC] dark:hover:bg-[#1A222C]/40 transition flex flex-col justify-start ${
-                w.isToday ? 'bg-[#3C50E0]/5 dark:bg-[#3C50E0]/5' : ''
-              }"
-            >
-              <div class="flex items-center justify-between pb-1 border-b border-[#E2E8F0]/60 dark:border-strokedark/60 text-[10px] text-[#64748B]">
-                <span>${dayTasks.length} evento(s)</span>
-                <button
-                  onclick="event.stopPropagation(); openCalendarNewEventModal('${w.dateStr}')"
-                  class="font-bold hover:text-[#3C50E0]"
-                  title="Novo Evento"
-                >
-                  +
-                </button>
-              </div>
-
-              <div class="space-y-1.5 overflow-y-auto max-h-[440px]">
-                ${dayTasks.map(t => {
-                  const isDone = !!t.concluida;
-                  const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
-                  const badge = getRegimeBadgeLightBg(comp?.regime);
-
-                  return `
-                    <div
-                      onclick="event.stopPropagation(); toggleTaskComplete(${t.id})"
-                      class="p-2 rounded-lg text-xs font-medium border transition ${
-                        isDone
-                          ? 'bg-slate-100 dark:bg-meta-4 text-slate-400 border-slate-200 dark:border-strokedark line-through'
-                          : `${badge.bg} ${badge.text} ${badge.border} hover:shadow-xs`
-                      }"
-                      title="${t.titulo}${comp ? ' (' + comp.nome + ')' : ''}"
-                    >
-                      <div class="flex items-center justify-between text-[10px] opacity-80 mb-1">
-                        <span class="font-bold">${t.horaInicio || '09:00'} - ${t.horaFim || '10:00'}</span>
-                        <span>${isDone ? '✓' : '•'}</span>
-                      </div>
-                      <div class="font-semibold text-xs leading-snug truncate">${t.titulo}</div>
-                      ${comp ? `
-                        <div class="text-[10px] opacity-90 truncate mt-0.5">
-                          🏢 ${comp.nome}
-                        </div>
-                      ` : ''}
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-  `;
-}
-
-// 3. VISUALIZAÇÃO DIA (LINHA DO TEMPO DAS HORAS COM BLOCOS DE AGENDAMENTO)
+// ----------------------------------------------------------------------
+// 3. VISUALIZAÇÃO DIA (TIMELINE HORÁRIA SMART BOARD)
+// ----------------------------------------------------------------------
 function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
   const dayTasks = tasksByDate[selectedDateStr] || [];
   const hours = [];
@@ -12657,27 +12890,26 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
   }
 
   return `
-    <div class="panze-card !p-0 overflow-hidden shadow-sm border border-[#E2E8F0] dark:border-strokedark">
+    <div class="panze-card !p-0 overflow-hidden shadow-sm border border-slate-200/80 dark:border-strokedark rounded-2xl">
       <!-- Cabeçalho do Dia Focado -->
-      <div class="p-4 border-b border-[#E2E8F0] dark:border-strokedark bg-[#F8FAFC] dark:bg-[#1A222C] flex items-center justify-between">
+      <div class="p-4 border-b border-slate-200/80 dark:border-strokedark bg-slate-50 dark:bg-[#1A222C] flex items-center justify-between">
         <div>
-          <span class="text-xs font-bold text-[#3C50E0] uppercase tracking-wider">Visualização Diária Focada</span>
-          <h3 class="text-base font-extrabold text-[#1C2434] dark:text-white mt-0.5">
-            ${formatBrazilianDate(selectedDateStr)} (${dayTasks.length} obrigações agendadas)
+          <span class="text-xs font-bold text-[#3C50E0] uppercase tracking-wider">Visualização Diária Smart Board</span>
+          <h3 class="text-base font-extrabold text-slate-800 dark:text-white mt-0.5">
+            ${formatBrazilianDate(selectedDateStr)} (${dayTasks.length} ${dayTasks.length === 1 ? 'evento agendado' : 'eventos agendados'})
           </h3>
         </div>
         <button
           onclick="openCalendarNewEventModal('${selectedDateStr}')"
-          class="px-3.5 py-1.5 rounded-md bg-[#3C50E0] text-white text-xs font-bold hover:bg-opacity-90 shadow-sm transition"
+          class="px-4 py-2 rounded-xl bg-[#3C50E0] text-white text-xs font-bold hover:bg-[#3243be] shadow-sm transition"
         >
           + Agendar no Dia
         </button>
       </div>
 
       <!-- Timeline por Horário -->
-      <div class="divide-y divide-[#E2E8F0] dark:divide-strokedark">
+      <div class="divide-y divide-slate-200/80 dark:divide-strokedark">
         ${hours.map(hour => {
-          // Filtra tarefas que caem nesta hora aproximada
           const matchingTasks = dayTasks.filter(t => {
             const hStart = (t.horaInicio || '09:00').substring(0, 2);
             return hStart === hour.substring(0, 2);
@@ -12686,36 +12918,35 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
           return `
             <div
               onclick="openCalendarNewEventModal('${selectedDateStr}')"
-              class="flex items-start gap-4 p-3 hover:bg-[#F8FAFC] dark:hover:bg-[#1A222C]/40 transition min-h-[60px] cursor-pointer group"
+              class="flex items-start gap-4 p-3 hover:bg-slate-50 dark:hover:bg-[#1A222C]/40 transition min-h-[64px] cursor-pointer group"
             >
-              <div class="w-16 shrink-0 text-xs font-mono font-bold text-[#64748B] dark:text-[#8A99AD] pt-1">
+              <div class="w-16 shrink-0 text-xs font-mono font-bold text-slate-500 dark:text-slate-400 pt-1">
                 ${hour}
               </div>
 
               <div class="flex-1 flex flex-wrap gap-2">
                 ${matchingTasks.map(t => {
-                  const isDone = !!t.concluida;
                   const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
-                  const badge = getRegimeBadgeLightBg(comp?.regime);
+                  const cardStyle = getCalendarEventCardStyle(t, comp);
+                  const colab = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
 
                   return `
                     <div
-                      onclick="event.stopPropagation(); toggleTaskComplete(${t.id})"
-                      class="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 transition ${
-                        isDone
-                          ? 'bg-slate-100 dark:bg-meta-4 text-slate-400 border-slate-200 dark:border-strokedark line-through'
-                          : `${badge.bg} ${badge.text} ${badge.border} shadow-2xs`
-                      }"
+                      onclick="event.stopPropagation(); openTaskDrawer(${t.id}, event)"
+                      class="px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition ${cardStyle.cardBg} shadow-2xs hover:shadow-xs"
                     >
-                      <span class="w-2 h-2 rounded-full ${isDone ? 'bg-slate-400' : badge.dot}"></span>
-                      <span>${t.horaInicio || hour} - ${t.horaFim || ''}</span>
-                      <strong class="font-bold">${t.titulo}</strong>
-                      ${comp ? `<span class="opacity-80 text-[11px]">(${comp.nome})</span>` : ''}
+                      <span class="w-2 h-2 rounded-full ${cardStyle.dotColor}"></span>
+                      <span class="font-bold">${t.horaInicio || hour} - ${t.horaFim || ''}</span>
+                      <strong class="font-extrabold">${escapeHtml(t.titulo)}</strong>
+                      ${comp ? `<span class="opacity-80 text-[11px]">🏢 ${escapeHtml(comp.nome)}</span>` : ''}
+                      <span class="w-5 h-5 rounded-full ${colab.bg} ${colab.text} flex items-center justify-center text-[9px] font-extrabold shrink-0 shadow-2xs">
+                        ${colab.code}
+                      </span>
                     </div>
                   `;
                 }).join('')}
                 ${matchingTasks.length === 0 ? `
-                  <span class="text-[11px] text-[#94A3B8] opacity-0 group-hover:opacity-100 transition pt-1">
+                  <span class="text-[11px] text-slate-400 opacity-0 group-hover:opacity-100 transition pt-1">
                     + Clique para agendar às ${hour}
                   </span>
                 ` : ''}
@@ -12728,9 +12959,16 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
   `;
 }
 
-// Controles de Navegação e Zoom do Calendário
+// ----------------------------------------------------
+// AÇÕES DO CALENDÁRIO (CONTROLE DE ESTADO E FILTROS)
+// ----------------------------------------------------
 window.setCalendarViewMode = (mode) => {
   state.calendarViewMode = mode;
+  render();
+};
+
+window.setCalendarColabFilter = (colab) => {
+  state.selectedCalendarColab = colab;
   render();
 };
 
@@ -12789,7 +13027,7 @@ window.selectCalendarDateAndOpenModal = (dateStr) => {
 };
 
 window.openCalendarNewEventModal = (defaultDate) => {
-  const chosenDate = defaultDate || state.calendarDate?.selectedDate || `${state.calendarDate.year}-${String(state.calendarDate.month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+  const chosenDate = defaultDate || state.calendarDate?.selectedDate || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
   state.taskModal = {
     isOpen: true,
     task: {
