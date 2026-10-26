@@ -3368,14 +3368,33 @@ function triggerExecutiveReport() {
 
 // Helper para verificar status de atraso de tarefas (Comparando data atual vs data meta)
 function getTaskOverdueInfo(taskDateStr) {
-  if (!taskDateStr) return { isOverdue: false, daysDiff: 0, text: 'Sem data' };
+  const fallback = {
+    isOverdue: false,
+    isClose: false,
+    diffDays: 0,
+    label: 'Sem prazo',
+    text: 'Sem data',
+    css: 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-800'
+  };
+
+  if (!taskDateStr || typeof taskDateStr !== 'string' || !taskDateStr.includes('-')) {
+    return fallback;
+  }
+
+  const parts = taskDateStr.split('-');
+  if (parts.length < 3) return fallback;
+
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return fallback;
+
+  const dueDate = new Date(y, m, d);
+  dueDate.setHours(0, 0, 0, 0);
+  if (isNaN(dueDate.getTime())) return fallback;
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  // Normaliza formato YYYY-MM-DD
-  const parts = taskDateStr.split('-');
-  const dueDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-  dueDate.setHours(0, 0, 0, 0);
 
   const diffTime = dueDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -3386,6 +3405,7 @@ function getTaskOverdueInfo(taskDateStr) {
       isClose: false,
       diffDays,
       label: `Atrasada (${Math.abs(diffDays)}d)`,
+      text: `Atrasada há ${Math.abs(diffDays)} dia(s)`,
       css: 'bg-rose-500/15 text-rose-500 border-rose-500/30'
     };
   } else if (diffDays === 0) {
@@ -3394,6 +3414,7 @@ function getTaskOverdueInfo(taskDateStr) {
       isClose: true,
       diffDays,
       label: 'Vence Hoje',
+      text: 'Vence hoje',
       css: 'bg-amber-500/15 text-amber-500 border-amber-500/30'
     };
   } else if (diffDays <= 3) {
@@ -3402,6 +3423,7 @@ function getTaskOverdueInfo(taskDateStr) {
       isClose: true,
       diffDays,
       label: `Vence em ${diffDays}d`,
+      text: `Vence em ${diffDays} dia(s)`,
       css: 'bg-amber-500/10 text-amber-500 border-amber-500/20'
     };
   } else {
@@ -3410,6 +3432,7 @@ function getTaskOverdueInfo(taskDateStr) {
       isClose: false,
       diffDays,
       label: `No prazo (${diffDays}d)`,
+      text: `No prazo (${diffDays} dia(s))`,
       css: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
     };
   }
@@ -3417,9 +3440,9 @@ function getTaskOverdueInfo(taskDateStr) {
 
 // Helper para formatar datas YYYY-MM-DD para DD/MM/AAAA
 function formatBrazilianDate(dateStr) {
-  if (!dateStr) return '';
+  if (!dateStr || typeof dateStr !== 'string') return '';
   const parts = dateStr.split('-');
-  if (parts.length === 3) {
+  if (parts.length === 3 && parts[0].length === 4) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   return dateStr;
@@ -4782,7 +4805,8 @@ function render() {
                     return `
                       <div
                         data-tab="${tab.id}"
-                        class="panze-nav-item tab-btn ${isActive ? 'active' : ''}"
+                        onclick="switchTab('${tab.id}')"
+                        class="panze-nav-item tab-btn ${isActive ? 'active' : ''} cursor-pointer"
                       >
                         <div class="flex items-center gap-3 min-w-0">
                           <span class="nav-icon shrink-0">${tab.icon}</span>
@@ -4839,7 +4863,8 @@ function render() {
           ].filter(tab => !isOperacional || !tab.fiscal).map(tab => `
             <button
               data-tab="${tab.id}"
-              class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+              onclick="switchTab('${tab.id}')"
+              class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition cursor-pointer ${
                 state.activeTab === tab.id ? 'bg-[#1E2032] text-white font-bold' : 'text-gray-400 hover:text-white'
               }"
             >
@@ -5542,6 +5567,35 @@ function renderAuthScreen(root) {
   }
 }
 
+// Renderizador de Fallback Seguro para Abas com Erro de Execução
+function renderTabError(tabName, err) {
+  return `
+    <div class="panze-card p-8 text-center max-w-lg mx-auto my-12 bg-white dark:bg-[#1C2434] border border-rose-200 dark:border-rose-900/50 rounded-2xl shadow-xl">
+      <div class="w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center text-2xl mx-auto mb-4 border border-rose-200 dark:border-rose-800 shadow-xs">
+        ⚠️
+      </div>
+      <h3 class="text-base font-extrabold text-slate-800 dark:text-white">Aba de ${escapeHtml(tabName)} em Ajuste</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+        Não foi possível carregar o conteúdo: ${escapeHtml(err?.message || 'Erro inesperado')}
+      </p>
+      <div class="mt-6 flex items-center justify-center gap-3">
+        <button
+          onclick="state.activeTab = 'dashboard'; render();"
+          class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+        >
+          Voltar ao Dashboard
+        </button>
+        <button
+          onclick="render();"
+          class="px-4 py-2 rounded-xl text-xs font-bold bg-[#3C50E0] hover:bg-[#3243be] text-white transition shadow-sm"
+        >
+          Recarregar
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function renderActiveTab(filtered) {
   switch (state.activeTab) {
     case 'dashboard':
@@ -5559,9 +5613,19 @@ function renderActiveTab(filtered) {
     case 'ecd_ecf':
       return renderEcdEcfTab(filtered);
     case 'tarefas':
-      return renderTarefasTab();
+      try {
+        return renderTarefasTab();
+      } catch (err) {
+        console.error('Erro ao renderizar aba de Tarefas:', err);
+        return renderTabError('Tarefas', err);
+      }
     case 'calendario':
-      return renderCalendarioTab();
+      try {
+        return renderCalendarioTab();
+      } catch (err) {
+        console.error('Erro ao renderizar aba de Calendário:', err);
+        return renderTabError('Calendário', err);
+      }
     case 'empresas':
       return renderEmpresasTab(filtered);
     case 'profile':
@@ -11568,7 +11632,7 @@ function renderEcdEcfModal() {
 
 // // ---------------- FUNÇÕES DE APOIO E DRAG & DROP PIPEFY KANBAN ----------------
 function formatPipefyDate(dateStr) {
-  if (!dateStr) return 'Sem prazo';
+  if (!dateStr || typeof dateStr !== 'string') return 'Sem prazo';
   try {
     const parts = dateStr.split('-');
     if (parts.length === 3) {
@@ -11580,7 +11644,7 @@ function formatPipefyDate(dateStr) {
     }
     return dateStr;
   } catch (e) {
-    return dateStr;
+    return String(dateStr);
   }
 }
 
@@ -11624,8 +11688,8 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   }
   const taskIdStr = e.dataTransfer.getData('text/plain');
   if (!taskIdStr) return;
-  const taskId = Number(taskIdStr) || taskIdStr;
-  const task = state.tasks.find(t => String(t.id) === String(taskId));
+  const taskId = taskIdStr;
+  const task = (state.tasks || []).find(t => t && String(t.id) === String(taskId));
   if (!task) return;
 
   task.kanbanStatus = targetPhaseId;
@@ -11652,7 +11716,7 @@ function renderPipefyKanbanCard(t) {
   const overdueInfo = getTaskOverdueInfo(t.data);
   const isAtrasada = !t.concluida && overdueInfo.isOverdue;
   const formattedVenc = formatPipefyDate(t.data);
-  const relativeText = t.concluida ? 'concluída' : overdueInfo.label;
+  const relativeText = t.concluida ? 'concluída' : (overdueInfo.label || 'No prazo');
   
   const solicitante = comp?.colaborador || t.autor || state.userProfile?.firstName || 'Brayann Mikael';
 
@@ -11666,25 +11730,25 @@ function renderPipefyKanbanCard(t) {
     <div
       id="kanban-task-card-${t.id}"
       draggable="true"
-      ondragstart="handleKanbanDragStart(event, ${t.id})"
-      ondragend="handleKanbanDragEnd(event, ${t.id})"
-      onclick="openTaskDrawer(${t.id}, event)"
+      ondragstart="handleKanbanDragStart(event, '${t.id}')"
+      ondragend="handleKanbanDragEnd(event, '${t.id}')"
+      onclick="openTaskDrawer('${t.id}', event)"
       class="bg-white dark:bg-[#1A222C] rounded-xl shadow-xs hover:shadow-md border border-slate-200/90 dark:border-strokedark p-4 transition-all duration-150 cursor-grab active:cursor-grabbing select-none group relative space-y-3"
     >
       <!-- Topo: Pill de Prioridade e Ações Rápidas -->
       <div class="flex items-center justify-between">
         <span class="inline-block text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full ${priorityColor}">
-          ${t.urgencia === 'Media' ? 'Média' : t.urgencia}
+          ${t.urgencia === 'Media' ? 'Média' : (t.urgencia || 'Baixa')}
         </span>
         
         <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
-          <button onclick="openEditTaskModal(${t.id})" class="p-1 rounded text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-white/10 transition" title="Editar Tarefa">
+          <button onclick="openEditTaskModal('${t.id}')" class="p-1 rounded text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-white/10 transition" title="Editar Tarefa">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
               <path d="m15 5 4 4"></path>
             </svg>
           </button>
-          <button onclick="deleteTask(${t.id})" class="p-1 rounded text-gray-400 hover:text-rose-500 hover:bg-gray-100 dark:hover:bg-white/10 transition" title="Excluir Tarefa">
+          <button onclick="deleteTask('${t.id}')" class="p-1 rounded text-gray-400 hover:text-rose-500 hover:bg-gray-100 dark:hover:bg-white/10 transition" title="Excluir Tarefa">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 6h18"></path>
               <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
@@ -11745,6 +11809,7 @@ function renderPipefyKanbanCard(t) {
 function renderTarefasTab() {
   const urgencyWeight = { 'Alta': 3, 'Media': 2, 'Baixa': 1 };
   const taskCompanies = (state.companies || []).slice().sort((a,b) => (a?.nome || '').localeCompare(b?.nome || ''));
+  if (!state.selectedTaskIds) state.selectedTaskIds = [];
 
   // 1. Filtragem Completa
   let filteredTasks = (state.tasks || []).filter(t => {
@@ -11849,14 +11914,14 @@ function renderTarefasTab() {
   const renderCleanTaskCard = (t) => {
     const overdueInfo = getTaskOverdueInfo(t.data);
     const isAtrasada = !t.concluida && overdueInfo.isOverdue;
-    const comp = t.empresaId ? state.companies.find(c => Number(c.id) === Number(t.empresaId)) : null;
-    const isSelected = state.selectedTaskIds.includes(t.id);
+    const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
+    const isSelected = (state.selectedTaskIds || []).includes(t.id);
     const borderLeftColor = t.concluida ? 'border-l-emerald-500' : isAtrasada ? 'border-l-rose-500' : 'border-l-blue-500';
 
     return `
       <div
         id="task-card-${t.id}"
-        onclick="openTaskDrawer(${t.id}, event)"
+        onclick="openTaskDrawer('${t.id}', event)"
         class="panze-card !py-4 !px-5 border-l-4 ${borderLeftColor} transition-all duration-200 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col justify-between gap-3 relative group select-none ${
           t.concluida ? 'opacity-65 bg-gray-50/50 dark:bg-[#11121C]/50' : 'bg-white dark:bg-[#15151F]'
         } ${isSelected ? 'ring-2 ring-blue-500' : ''}"
@@ -11865,7 +11930,7 @@ function renderTarefasTab() {
           <div class="flex items-center gap-2 pt-0.5 shrink-0" onclick="event.stopPropagation()">
             <button
               id="task-check-btn-${t.id}"
-              onclick="animateTaskComplete(${t.id}, event)"
+              onclick="animateTaskComplete('${t.id}', event)"
               class="w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
                 t.concluida 
                   ? 'bg-emerald-500 border-emerald-500 text-white font-bold text-xs shadow-xs' 
@@ -11878,7 +11943,7 @@ function renderTarefasTab() {
             <input
               type="checkbox"
               ${isSelected ? 'checked' : ''}
-              onchange="toggleSelectTask(${t.id}, event)"
+              onchange="toggleSelectTask('${t.id}', event)"
               class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer border-gray-300 dark:border-gray-700 opacity-60 group-hover:opacity-100 transition-opacity"
               title="Selecionar para ações em lote"
             />
@@ -11896,13 +11961,13 @@ function renderTarefasTab() {
           </div>
 
           <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
-            <button onclick="openEditTaskModal(${t.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 transition-colors" title="Editar Tarefa">
+            <button onclick="openEditTaskModal('${t.id}')" class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 transition-colors" title="Editar Tarefa">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
                 <path d="m15 5 4 4"></path>
               </svg>
             </button>
-            <button onclick="deleteTask(${t.id})" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors" title="Excluir Tarefa">
+            <button onclick="deleteTask('${t.id}')" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors" title="Excluir Tarefa">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 6h18"></path>
                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
@@ -12206,7 +12271,7 @@ function renderTarefasTab() {
       <!-- PAINEL LATERAL (DRAWER / DETALHES DA TAREFA) -->
       ${state.taskDrawerOpen && state.taskDrawerItem ? (() => {
         const t = state.taskDrawerItem;
-        const comp = t.empresaId ? state.companies.find(c => Number(c.id) === Number(t.empresaId)) : null;
+        const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
         const overdueInfo = getTaskOverdueInfo(t.data);
         const comentarios = t.comentarios || [];
 
@@ -12223,10 +12288,10 @@ function renderTarefasTab() {
                       t.urgencia === 'Alta' ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30' :
                       t.urgencia === 'Media' ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30' :
                       'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                    }">Prioridade ${t.urgencia}</span>
+                    }">Prioridade ${t.urgencia || 'Baixa'}</span>
                     <span class="text-xs text-gray-400">&bull;</span>
                     <span class="text-xs font-semibold ${t.concluida ? 'text-emerald-500' : overdueInfo.isOverdue ? 'text-rose-500 font-bold' : 'text-blue-500'}">
-                      ${t.concluida ? 'Concluída' : overdueInfo.label}
+                      ${t.concluida ? 'Concluída' : (overdueInfo.label || 'No prazo')}
                     </span>
                   </div>
                   <h3 class="text-lg font-black text-gray-900 dark:text-white leading-snug">
@@ -12236,7 +12301,7 @@ function renderTarefasTab() {
 
                 <div class="flex items-center gap-2 shrink-0">
                   <button
-                    onclick="openEditTaskModal(${t.id})"
+                    onclick="openEditTaskModal('${t.id}')"
                     class="p-2 rounded-xl text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-white/5 transition"
                     title="Editar Tarefa"
                   >
@@ -12306,12 +12371,12 @@ function renderTarefasTab() {
                       type="text"
                       id="drawer-comment-input"
                       placeholder="Escreva um comentário ou nota..."
-                      onkeydown="if(event.key === 'Enter') { addTaskComment(${t.id}, this.value); this.value = ''; }"
+                      onkeydown="if(event.key === 'Enter') { addTaskComment('${t.id}', this.value); this.value = ''; }"
                       class="flex-1 px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <button
                       type="button"
-                      onclick="const el = document.getElementById('drawer-comment-input'); addTaskComment(${t.id}, el.value); el.value = '';"
+                      onclick="const el = document.getElementById('drawer-comment-input'); addTaskComment('${t.id}', el.value); el.value = '';"
                       class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition"
                     >
                       Enviar
@@ -12322,13 +12387,13 @@ function renderTarefasTab() {
 
               <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#12131F]/50 flex items-center justify-between">
                 <button
-                  onclick="deleteTask(${t.id})"
+                  onclick="deleteTask('${t.id}')"
                   class="px-3 py-1.5 rounded-lg text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition"
                 >
                   Excluir Tarefa
                 </button>
                 <button
-                  onclick="toggleTaskComplete(${t.id})"
+                  onclick="toggleTaskComplete('${t.id}')"
                   class="px-4 py-2 rounded-xl text-xs font-bold text-white transition ${
                     t.concluida ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
                   }"
@@ -12416,14 +12481,13 @@ function getCalendarEventCardStyle(t, comp) {
 }
 
 function renderCalendarioTab() {
-  const calDate = state.calendarDate || { 
-    year: new Date().getFullYear(), 
-    month: new Date().getMonth(),
-    selectedDate: new Date().toISOString().split('T')[0]
-  };
-  const year = calDate.year;
-  const month = calDate.month; // 0-11
-  const selectedDateStr = calDate.selectedDate || new Date().toISOString().split('T')[0];
+  const calDate = state.calendarDate || {};
+  const today = new Date();
+  const year = Number(calDate.year) || today.getFullYear();
+  const month = (calDate.month !== undefined && !isNaN(Number(calDate.month))) ? Number(calDate.month) : today.getMonth(); // 0-11
+  const selectedDateStr = (calDate.selectedDate && typeof calDate.selectedDate === 'string' && calDate.selectedDate.includes('-'))
+    ? calDate.selectedDate
+    : today.toISOString().split('T')[0];
   const viewMode = state.calendarViewMode || 'week'; // 'week' como padrão do Smart Board
   const selectedColab = state.selectedCalendarColab || 'todos';
 
@@ -12431,11 +12495,14 @@ function renderCalendarioTab() {
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
-  const monthTitle = `${monthNames[month]} de ${year}`;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const monthTitle = `${monthNames[month] || ''} de ${year}`;
+  const todayStr = today.toISOString().split('T')[0];
 
-  // Cálculo do período da semana visível
-  const selDate = new Date(selectedDateStr + 'T12:00:00');
+  // Cálculo do período da semana visível com validação
+  let selDate = new Date(selectedDateStr + 'T12:00:00');
+  if (isNaN(selDate.getTime())) {
+    selDate = new Date();
+  }
   const dayOfWeek = selDate.getDay(); // 0 Dom a 6 Sáb
   const weekStart = new Date(selDate);
   weekStart.setDate(selDate.getDate() - dayOfWeek);
@@ -12444,9 +12511,9 @@ function renderCalendarioTab() {
 
   let weekPeriodLabel = '';
   if (weekStart.getMonth() === weekEnd.getMonth()) {
-    weekPeriodLabel = `${weekStart.getDate()} a ${weekEnd.getDate()} de ${monthNames[weekStart.getMonth()]}, ${weekEnd.getFullYear()}`;
+    weekPeriodLabel = `${weekStart.getDate()} a ${weekEnd.getDate()} de ${monthNames[weekStart.getMonth()] || ''}, ${weekEnd.getFullYear()}`;
   } else {
-    weekPeriodLabel = `${weekStart.getDate()} de ${monthNames[weekStart.getMonth()]} - ${weekEnd.getDate()} de ${monthNames[weekEnd.getMonth()]}, ${weekEnd.getFullYear()}`;
+    weekPeriodLabel = `${weekStart.getDate()} de ${monthNames[weekStart.getMonth()] || ''} - ${weekEnd.getDate()} de ${monthNames[weekEnd.getMonth()] || ''}, ${weekEnd.getFullYear()}`;
   }
 
   // Contagem de eventos por responsável
@@ -12686,7 +12753,10 @@ function renderCalendarioTab() {
 // 1. VISUALIZAÇÃO SEMANA (SMART CALENDAR BOARD: 7 COLUNAS COM CARDS PASTÉIS)
 // ----------------------------------------------------------------------
 function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
-  const selDate = new Date(selectedDateStr + 'T12:00:00');
+  let selDate = new Date((selectedDateStr || '') + 'T12:00:00');
+  if (isNaN(selDate.getTime())) {
+    selDate = new Date();
+  }
   const dayOfWeek = selDate.getDay(); // 0 Dom a 6 Sáb
   const weekStart = new Date(selDate);
   weekStart.setDate(selDate.getDate() - dayOfWeek);
@@ -12698,7 +12768,12 @@ function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart);
     d.setDate(weekStart.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    let dateStr = '';
+    try {
+      dateStr = d.toISOString().split('T')[0];
+    } catch (e) {
+      dateStr = new Date().toISOString().split('T')[0];
+    }
     weekDays.push({
       dateStr,
       dayNum: d.getDate(),
@@ -12711,7 +12786,7 @@ function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
   return `
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5">
       ${weekDays.map(w => {
-        const dayTasks = tasksByDate[w.dateStr] || [];
+        const dayTasks = (tasksByDate && tasksByDate[w.dateStr]) || [];
 
         return `
           <div class="flex flex-col bg-slate-50/70 dark:bg-[#12131F]/50 rounded-2xl border ${
@@ -12763,7 +12838,7 @@ function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
 
                 return `
                   <div
-                    onclick="openTaskDrawer(${t.id}, event)"
+                    onclick="openTaskDrawer('${t.id}', event)"
                     class="p-3 rounded-xl border ${cardStyle.cardBg} transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-md hover:scale-[1.01] flex flex-col justify-between gap-2 relative group select-none"
                     title="${escapeHtml(t.titulo)} ${comp ? ' - ' + escapeHtml(comp.nome) : ''}"
                   >
@@ -12775,7 +12850,7 @@ function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
                       </span>
 
                       <span class="px-2 py-0.5 rounded-md text-[9.5px] font-extrabold uppercase tracking-wider ${cardStyle.tagBg}">
-                        ${t.concluida ? 'Feito' : t.urgencia}
+                        ${t.concluida ? 'Feito' : (t.urgencia || 'Baixa')}
                       </span>
                     </div>
 
@@ -12820,9 +12895,11 @@ function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
 // 2. VISUALIZAÇÃO MÊS (GRADE COM PILL CONTRASTANTE E BADGES PASTÉIS)
 // ----------------------------------------------------------------------
 function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
-  const firstDayIndex = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  const safeYear = Number(year) || new Date().getFullYear();
+  const safeMonth = (month !== undefined && !isNaN(Number(month))) ? Number(month) : new Date().getMonth();
+  const firstDayIndex = new Date(safeYear, safeMonth, 1).getDay();
+  const daysInMonth = new Date(safeYear, safeMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(safeYear, safeMonth, 0).getDate();
 
   return `
     <div class="panze-card !p-0 overflow-hidden shadow-sm border border-slate-200/80 dark:border-strokedark rounded-2xl">
@@ -12854,9 +12931,9 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
 
           // Dias do mês atual
           for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dateStr = `${safeYear}-${String(safeMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const isToday = dateStr === todayStr;
-            const dayTasks = tasksByDate[dateStr] || [];
+            const dayTasks = (tasksByDate && tasksByDate[dateStr]) || [];
 
             cells.push(`
               <div
@@ -12891,7 +12968,7 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
 
                     return `
                       <div
-                        onclick="event.stopPropagation(); openTaskDrawer(${t.id}, event)"
+                        onclick="event.stopPropagation(); openTaskDrawer('${t.id}', event)"
                         class="px-2 py-0.5 rounded-md text-[10.5px] leading-tight font-medium transition flex items-center justify-between gap-1 border ${cardStyle.cardBg} shadow-2xs hover:shadow-xs truncate"
                         title="${escapeHtml(t.titulo)}"
                       >
@@ -12930,7 +13007,7 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
 // 3. VISUALIZAÇÃO DIA (TIMELINE HORÁRIA SMART BOARD)
 // ----------------------------------------------------------------------
 function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
-  const dayTasks = tasksByDate[selectedDateStr] || [];
+  const dayTasks = (tasksByDate && tasksByDate[selectedDateStr]) || [];
   const hours = [];
   for (let h = 7; h <= 20; h++) {
     hours.push(`${String(h).padStart(2, '0')}:00`);
@@ -12980,7 +13057,7 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
 
                   return `
                     <div
-                      onclick="event.stopPropagation(); openTaskDrawer(${t.id}, event)"
+                      onclick="event.stopPropagation(); openTaskDrawer('${t.id}', event)"
                       class="px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition ${cardStyle.cardBg} shadow-2xs hover:shadow-xs"
                     >
                       <span class="w-2 h-2 rounded-full ${cardStyle.dotColor}"></span>
@@ -12993,6 +13070,19 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
                     </div>
                   `;
                 }).join('')}
+                ${matchingTasks.length === 0 ? `
+                  <span class="text-[11px] text-slate-400 opacity-0 group-hover:opacity-100 transition pt-1">
+                    + Clique para agendar às ${hour}
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
                 ${matchingTasks.length === 0 ? `
                   <span class="text-[11px] text-slate-400 opacity-0 group-hover:opacity-100 transition pt-1">
                     + Clique para agendar às ${hour}
@@ -14264,10 +14354,12 @@ function renderEditTaskModal() {
 function attachEventHandlers() {
   // Troca de Abas
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.activeTab = btn.getAttribute('data-tab');
-      render();
-    });
+    btn.onclick = (e) => {
+      const tabId = btn.getAttribute('data-tab');
+      if (tabId) {
+        switchTab(tabId);
+      }
+    };
   });
 
   // Atualização da Posição do Indicador Fluido do Menu Lateral
@@ -15077,7 +15169,7 @@ window.bulkDeleteTasks = async () => {
 // Painel Lateral (Drawer) de Detalhes da Tarefa
 window.openTaskDrawer = (id, event) => {
   if (event) event.stopPropagation();
-  const t = state.tasks.find(x => x.id === id);
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(id));
   if (!t) return;
   state.taskDrawerItem = t;
   state.taskDrawerOpen = true;
@@ -15092,7 +15184,7 @@ window.closeTaskDrawer = () => {
 
 window.addTaskComment = async (taskId, commentText) => {
   if (!commentText || !commentText.trim()) return;
-  const t = state.tasks.find(x => x.id === taskId);
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
   if (!t) return;
   t.comentarios = t.comentarios || [];
   t.comentarios.push({
@@ -15117,7 +15209,7 @@ window.animateMoveKanban = async (taskId, targetStatus) => {
   const cardEl = document.getElementById(`task-card-${taskId}`);
   const statusOrder = { 'a_fazer': 0, 'em_andamento': 1, 'aguardando_cliente': 2, 'concluida': 3 };
   
-  const t = state.tasks.find(x => x.id === taskId);
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
   const currentStatus = t ? (t.kanbanStatus || (t.concluida ? 'concluida' : 'a_fazer')) : 'a_fazer';
   
   const fromIdx = statusOrder[currentStatus] ?? 0;
@@ -15160,7 +15252,7 @@ window.animateTaskComplete = async (taskId, event) => {
   if (event) event.stopPropagation();
   const cardEl = document.getElementById(`task-card-${taskId}`);
   const checkBtn = document.getElementById(`task-check-btn-${taskId}`);
-  const t = state.tasks.find(x => x.id === taskId);
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
 
   if (!t) return;
 
@@ -15191,7 +15283,7 @@ window.animateTaskComplete = async (taskId, event) => {
 };
 
 window.setTaskKanbanStatus = async (taskId, newStatus) => {
-  const t = state.tasks.find(x => x.id === taskId);
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
   if (!t) return;
   t.kanbanStatus = newStatus;
   if (newStatus === 'concluida') {
@@ -15211,7 +15303,7 @@ window.setTaskKanbanStatus = async (taskId, newStatus) => {
 };
 
 window.toggleTaskComplete = async (id) => {
-  const t = state.tasks.find(x => x.id === id);
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(id));
   if (t) {
     t.concluida = !t.concluida;
     t.kanbanStatus = t.concluida ? 'concluida' : 'a_fazer';
@@ -15231,11 +15323,11 @@ window.toggleTaskComplete = async (id) => {
 window.deleteTask = async (id) => {
   state.activeTaskMenuId = null;
   if (confirm('Deseja excluir esta tarefa?')) {
-    state.tasks = state.tasks.filter(x => x.id !== id);
-    if (state.selectedTaskIds.includes(id)) {
-      state.selectedTaskIds = state.selectedTaskIds.filter(x => x !== id);
+    state.tasks = (state.tasks || []).filter(x => String(x.id) !== String(id));
+    if (state.selectedTaskIds) {
+      state.selectedTaskIds = state.selectedTaskIds.filter(x => String(x) !== String(id));
     }
-    if (state.taskDrawerItem?.id === id) {
+    if (state.taskDrawerItem && String(state.taskDrawerItem.id) === String(id)) {
       state.taskDrawerOpen = false;
       state.taskDrawerItem = null;
     }
@@ -15260,7 +15352,7 @@ window.closeAllTaskMenus = () => {
 };
 window.openEditTaskModal = (id) => {
   state.activeTaskMenuId = null;
-  const t = state.tasks.find(x => x.id === id);
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(id));
   if (t) {
     state.taskModal = { isOpen: true, task: { ...t } };
     render();
