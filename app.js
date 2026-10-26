@@ -13083,19 +13083,6 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
     </div>
   `;
 }
-                ${matchingTasks.length === 0 ? `
-                  <span class="text-[11px] text-slate-400 opacity-0 group-hover:opacity-100 transition pt-1">
-                    + Clique para agendar às ${hour}
-                  </span>
-                ` : ''}
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-  `;
-}
 
 // ----------------------------------------------------
 // AÇÕES DO CALENDÁRIO (CONTROLE DE ESTADO E FILTROS)
