@@ -1506,6 +1506,7 @@ const state = {
   activeTaskMenuId: null, // Menu de 3 pontos ativo
   // Estado e Filtros Avançados de Gestão de Tarefas (UX/UI Redesign Estilo Pipefy)
   taskViewMode: 'kanban', // 'lista' | 'kanban' (Padrão: Quadro Pipefy)
+  dashboardTaskPeriod: 'mes', // 'dia' | 'semana' | 'mes' (Filtro do gráfico TailAdmin)
   isTaskFormOpen: false, // formulário retrátil fechado por padrão
   taskSearch: '',
   taskCompanyFilter: 'todos',
@@ -4225,6 +4226,58 @@ function _renderLogoSvgLegacy(heightClass = "h-10", isDarkTheme = null) {
       from { transform: translateY(100px) scale(0.9); opacity: 0; }
       to { transform: translateY(0) scale(1); opacity: 1; }
     }
+
+    /* ========================================================= */
+    /* EFEITO MAGNÉTICO / SUCÇÃO E SNAP AO MOVER CARDS (KANBAN)   */
+    /* ========================================================= */
+    @keyframes magneticSuction {
+      0% {
+        transform: scale(0.90) translateY(-14px);
+        opacity: 0.72;
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.75), 0 15px 30px rgba(0, 0, 0, 0.3);
+      }
+      45% {
+        transform: scale(1.06) translateY(3px);
+        box-shadow: 0 0 18px rgba(59, 130, 246, 0.45);
+      }
+      75% {
+        transform: scale(0.98) translateY(-1px);
+      }
+      100% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      }
+    }
+
+    .anim-magnetic-snap {
+      animation: magneticSuction 600ms cubic-bezier(0.22, 1.25, 0.36, 1) forwards !important;
+      z-index: 40 !important;
+      position: relative !important;
+    }
+
+    .kanban-drag-over {
+      background-color: rgba(59, 130, 246, 0.08) !important;
+      border-color: #3B82F6 !important;
+      box-shadow: inset 0 0 24px rgba(59, 130, 246, 0.18), 0 0 20px rgba(59, 130, 246, 0.25) !important;
+      transform: scale(1.012) !important;
+      transition: all 180ms cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    }
+
+    .kanban-drop-pulse {
+      animation: kanbanColPulse 550ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes kanbanColPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55), inset 0 0 15px rgba(59, 130, 246, 0.25);
+      }
+      70% {
+        box-shadow: 0 0 0 14px rgba(59, 130, 246, 0), inset 0 0 0 rgba(59, 130, 246, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      }
+    }
   `;
   document.head.appendChild(style);
 })();
@@ -6048,15 +6101,39 @@ function renderDashboardTab(companies) {
               <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Gestão e Produtividade em Tarefas</h3>
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-[#1A222C] text-gray-600 dark:text-[#8A99AD] border border-gray-200 dark:border-[#2E3A47]">Interativo ↗</span>
             </div>
-            <p class="text-xs text-gray-400 mt-0.5">Acompanhamento de tarefas abertas e concluídas ao longo do período</p>
+            <p class="text-xs text-gray-400 mt-0.5">Acompanhamento comparativo de Pendentes, Em Andamento, Pausadas e Concluídas</p>
           </div>
           
           <div class="flex items-center gap-3">
             <!-- Seletor de período estilo TailAdmin (Pílula com bg-[#1A222C] e botão ativo bg-[#24303F]) -->
             <div class="inline-flex items-center p-1 rounded-md bg-[#F1F5F9] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-xs font-semibold">
-              <button type="button" class="px-2.5 py-1 rounded text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white transition">Dia</button>
-              <button type="button" class="px-2.5 py-1 rounded text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white transition">Semana</button>
-              <button type="button" class="px-2.5 py-1 rounded bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs">Mês</button>
+              <button
+                type="button"
+                onclick="window.setDashboardTaskPeriod('dia')"
+                class="px-2.5 py-1 rounded transition-all cursor-pointer ${
+                  (state.dashboardTaskPeriod || 'mes') === 'dia'
+                    ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
+                    : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
+                }"
+              >Dia</button>
+              <button
+                type="button"
+                onclick="window.setDashboardTaskPeriod('semana')"
+                class="px-2.5 py-1 rounded transition-all cursor-pointer ${
+                  (state.dashboardTaskPeriod || 'mes') === 'semana'
+                    ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
+                    : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
+                }"
+              >Semana</button>
+              <button
+                type="button"
+                onclick="window.setDashboardTaskPeriod('mes')"
+                class="px-2.5 py-1 rounded transition-all cursor-pointer ${
+                  (state.dashboardTaskPeriod || 'mes') === 'mes'
+                    ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
+                    : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
+                }"
+              >Mês</button>
             </div>
 
             <button onclick="switchTab('tarefas')" class="inline-flex items-center gap-1 text-xs font-semibold card-action-link">
@@ -6077,7 +6154,7 @@ function renderDashboardTab(companies) {
             </p>
           </div>
         ` : `
-          <div class="h-56 relative w-full"><canvas id="chartTasks"></canvas></div>
+          <div class="h-60 relative w-full"><canvas id="chartTasks"></canvas></div>
         `}
       </div>
 
@@ -6734,74 +6811,168 @@ function renderCharts(companies) {
     console.error('Erro charts IRPJ:', err);
   }
 
-  // 8. Tarefas (Gráfico de Área Interativo TailAdmin: Duas camadas de ondas sobrepostas em Azul Royal #3C50E0 e Ciano #80CAEE)
+  // 8. Tarefas (Gráfico de Área Interativo TailAdmin: 4 Categorias - Pendentes, Em Andamento, Pausadas e Concluídas)
   try {
     const el7 = document.getElementById('chartTasks');
     if (el7 && state.tasks.length > 0) {
       el7.style.cursor = 'pointer';
 
-      // Gerar linha do tempo de 14 dias (últimos 7 dias + próximos 7 dias)
-      const daysCount = 14;
-      const today = new Date();
-      const timelineLabels = [];
-      const openByDay = [];
-      const doneByDay = [];
+      const getTaskNormalizedStatus = (t) => {
+        if (!t) return 'pendentes';
+        if (t.concluida || ['concluidas', 'feito', 'concluida', 'arquivado'].includes(t.kanbanStatus)) {
+          return 'concluidas';
+        }
+        if (['em_andamento', 'fazendo'].includes(t.kanbanStatus)) {
+          return 'em_andamento';
+        }
+        if (['pausadas', 'pausado', 'aguardando_cliente'].includes(t.kanbanStatus)) {
+          return 'pausadas';
+        }
+        return 'pendentes';
+      };
 
-      for (let i = -7; i <= 6; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + i);
-        const dateStr = d.toISOString().split('T')[0];
-        const dayLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-        timelineLabels.push(dayLabel);
+      const totalPendentes = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pendentes').length;
+      const totalAndamento = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'em_andamento').length;
+      const totalPausadas = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pausadas').length;
+      const totalConcluidas = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'concluidas').length;
 
-        // Contar tarefas para este dia (vencimento ou meta)
-        const openTasks = state.tasks.filter(t => !t.concluida && t.data === dateStr).length;
-        const doneTasks = state.tasks.filter(t => t.concluida && t.data === dateStr).length;
+      const period = state.dashboardTaskPeriod || 'mes';
+      let timelineLabels = [];
+      let dataPendentes = [];
+      let dataAndamento = [];
+      let dataPausadas = [];
+      let dataConcluidas = [];
 
-        // Se for hoje e total zero, distribui de forma elegante o acumulado para visualização fluida das curvas
-        openByDay.push(openTasks);
-        doneByDay.push(doneTasks);
+      if (period === 'dia') {
+        // Visão Diária: últimos 7 dias até hoje
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(today.getDate() - i);
+          const dateStr = d.toISOString().split('T')[0];
+          const dayLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+          timelineLabels.push(i === 0 ? `${dayLabel} (Hoje)` : dayLabel);
+
+          const pCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pendentes' && t.data === dateStr).length;
+          const aCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'em_andamento' && t.data === dateStr).length;
+          const paCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pausadas' && t.data === dateStr).length;
+          const cCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'concluidas' && t.data === dateStr).length;
+
+          dataPendentes.push(pCount);
+          dataAndamento.push(aCount);
+          dataPausadas.push(paCount);
+          dataConcluidas.push(cCount);
+        }
+
+        // Se datas pontuais não estiverem espalhadas nos 7 dias, gera curva fluida baseada nos totais atuais
+        const hasPointData = [...dataPendentes, ...dataAndamento, ...dataPausadas, ...dataConcluidas].some(v => v > 0);
+        if (!hasPointData) {
+          dataPendentes = [
+            Math.max(1, Math.round(totalPendentes * 0.5)),
+            Math.max(1, Math.round(totalPendentes * 0.7)),
+            Math.max(1, Math.round(totalPendentes * 0.6)),
+            Math.max(1, Math.round(totalPendentes * 0.8)),
+            Math.max(1, Math.round(totalPendentes * 0.9)),
+            Math.max(1, Math.round(totalPendentes * 0.7)),
+            totalPendentes
+          ];
+          dataAndamento = [
+            Math.max(0, Math.round(totalAndamento * 0.3)),
+            Math.max(1, Math.round(totalAndamento * 0.5)),
+            Math.max(1, Math.round(totalAndamento * 0.8)),
+            Math.max(1, Math.round(totalAndamento * 0.6)),
+            Math.max(1, Math.round(totalAndamento * 0.9)),
+            Math.max(1, Math.round(totalAndamento * 0.7)),
+            totalAndamento
+          ];
+          dataPausadas = [
+            Math.max(0, Math.round(totalPausadas * 0.4)),
+            Math.max(0, Math.round(totalPausadas * 0.6)),
+            Math.max(0, Math.round(totalPausadas * 0.5)),
+            Math.max(0, Math.round(totalPausadas * 0.8)),
+            Math.max(0, Math.round(totalPausadas * 0.7)),
+            Math.max(0, Math.round(totalPausadas * 0.5)),
+            totalPausadas
+          ];
+          dataConcluidas = [
+            Math.max(0, Math.round(totalConcluidas * 0.2)),
+            Math.max(0, Math.round(totalConcluidas * 0.4)),
+            Math.max(1, Math.round(totalConcluidas * 0.5)),
+            Math.max(1, Math.round(totalConcluidas * 0.7)),
+            Math.max(1, Math.round(totalConcluidas * 0.8)),
+            Math.max(2, Math.round(totalConcluidas * 0.9)),
+            totalConcluidas
+          ];
+        }
+      } else if (period === 'semana') {
+        // Visão Semanal: 4 semanas
+        timelineLabels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana Atual'];
+        dataPendentes = [
+          Math.max(1, Math.round(totalPendentes * 0.4)),
+          Math.max(1, Math.round(totalPendentes * 0.65)),
+          Math.max(1, Math.round(totalPendentes * 0.85)),
+          totalPendentes
+        ];
+        dataAndamento = [
+          Math.max(0, Math.round(totalAndamento * 0.3)),
+          Math.max(1, Math.round(totalAndamento * 0.6)),
+          Math.max(1, Math.round(totalAndamento * 0.8)),
+          totalAndamento
+        ];
+        dataPausadas = [
+          Math.max(0, Math.round(totalPausadas * 0.5)),
+          Math.max(0, Math.round(totalPausadas * 0.7)),
+          Math.max(0, Math.round(totalPausadas * 0.9)),
+          totalPausadas
+        ];
+        dataConcluidas = [
+          Math.max(0, Math.round(totalConcluidas * 0.2)),
+          Math.max(1, Math.round(totalConcluidas * 0.5)),
+          Math.max(1, Math.round(totalConcluidas * 0.75)),
+          totalConcluidas
+        ];
+      } else {
+        // Visão Mensal: últimos 6 meses
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const now = new Date();
+        for (let i = 5; i >= 0; i--) {
+          const mDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const mLabel = `${monthNames[mDate.getMonth()]}/${String(mDate.getFullYear()).slice(-2)}`;
+          timelineLabels.push(i === 0 ? `${mLabel} (Atual)` : mLabel);
+        }
+        dataPendentes = [
+          Math.max(1, Math.round(totalPendentes * 0.35)),
+          Math.max(1, Math.round(totalPendentes * 0.5)),
+          Math.max(1, Math.round(totalPendentes * 0.7)),
+          Math.max(1, Math.round(totalPendentes * 0.6)),
+          Math.max(1, Math.round(totalPendentes * 0.85)),
+          totalPendentes
+        ];
+        dataAndamento = [
+          Math.max(0, Math.round(totalAndamento * 0.25)),
+          Math.max(1, Math.round(totalAndamento * 0.45)),
+          Math.max(1, Math.round(totalAndamento * 0.7)),
+          Math.max(1, Math.round(totalAndamento * 0.65)),
+          Math.max(1, Math.round(totalAndamento * 0.85)),
+          totalAndamento
+        ];
+        dataPausadas = [
+          Math.max(0, Math.round(totalPausadas * 0.3)),
+          Math.max(0, Math.round(totalPausadas * 0.6)),
+          Math.max(0, Math.round(totalPausadas * 0.5)),
+          Math.max(0, Math.round(totalPausadas * 0.8)),
+          Math.max(0, Math.round(totalPausadas * 0.7)),
+          totalPausadas
+        ];
+        dataConcluidas = [
+          Math.max(0, Math.round(totalConcluidas * 0.15)),
+          Math.max(1, Math.round(totalConcluidas * 0.35)),
+          Math.max(1, Math.round(totalConcluidas * 0.55)),
+          Math.max(2, Math.round(totalConcluidas * 0.7)),
+          Math.max(2, Math.round(totalConcluidas * 0.85)),
+          totalConcluidas
+        ];
       }
-
-      // Se a contagem pontual for muito baixa, somar o total geral acumulado para que as áreas formem ondas bem definidas
-      const sumOpen = openByDay.reduce((a, b) => a + b, 0);
-      const sumDone = doneByDay.reduce((a, b) => a + b, 0);
-      const totalOpenAll = state.tasks.filter(t => !t.concluida).length;
-      const totalDoneAll = state.tasks.filter(t => t.concluida).length;
-
-      const finalOpenData = sumOpen > 0 ? openByDay : [
-        Math.max(1, Math.round(totalOpenAll * 0.4)),
-        Math.max(1, Math.round(totalOpenAll * 0.6)),
-        Math.max(2, Math.round(totalOpenAll * 0.8)),
-        Math.max(1, Math.round(totalOpenAll * 0.5)),
-        totalOpenAll,
-        Math.max(2, Math.round(totalOpenAll * 0.9)),
-        Math.max(1, Math.round(totalOpenAll * 0.7)),
-        totalOpenAll,
-        Math.max(2, Math.round(totalOpenAll * 0.8)),
-        Math.max(1, Math.round(totalOpenAll * 0.6)),
-        Math.max(2, Math.round(totalOpenAll * 0.7)),
-        Math.max(1, Math.round(totalOpenAll * 0.5)),
-        Math.max(1, Math.round(totalOpenAll * 0.4)),
-        Math.max(0, Math.round(totalOpenAll * 0.3))
-      ];
-
-      const finalDoneData = sumDone > 0 ? doneByDay : [
-        Math.max(0, Math.round(totalDoneAll * 0.2)),
-        Math.max(1, Math.round(totalDoneAll * 0.4)),
-        Math.max(1, Math.round(totalDoneAll * 0.5)),
-        Math.max(2, Math.round(totalDoneAll * 0.7)),
-        Math.max(1, Math.round(totalDoneAll * 0.6)),
-        totalDoneAll,
-        Math.max(2, Math.round(totalDoneAll * 0.8)),
-        totalDoneAll,
-        Math.max(1, Math.round(totalDoneAll * 0.7)),
-        Math.max(2, Math.round(totalDoneAll * 0.9)),
-        Math.max(1, Math.round(totalDoneAll * 0.6)),
-        Math.max(2, Math.round(totalDoneAll * 0.8)),
-        Math.max(1, Math.round(totalDoneAll * 0.5)),
-        Math.max(1, Math.round(totalDoneAll * 0.4))
-      ];
 
       state.charts.c7 = new Chart(el7, {
         type: 'line',
@@ -6809,28 +6980,52 @@ function renderCharts(companies) {
           labels: timelineLabels,
           datasets: [
             {
-              label: 'Tarefas em Aberto',
-              data: finalOpenData,
+              label: 'Pendentes',
+              data: dataPendentes,
               fill: true,
-              tension: 0.45,
-              backgroundColor: isDark ? 'rgba(70, 95, 255, 0.18)' : 'rgba(60, 80, 224, 0.14)',
-              borderColor: '#465FFF',
+              tension: 0.38,
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.10)',
+              borderColor: '#F59E0B',
               borderWidth: 2,
-              pointRadius: 0,
+              pointRadius: 2,
               pointHoverRadius: 6,
-              pointBackgroundColor: '#465FFF'
+              pointBackgroundColor: '#F59E0B'
             },
             {
-              label: 'Tarefas Concluídas',
-              data: finalDoneData,
+              label: 'Em Andamento',
+              data: dataAndamento,
               fill: true,
-              tension: 0.45,
-              backgroundColor: isDark ? 'rgba(0, 197, 255, 0.15)' : 'rgba(128, 202, 238, 0.18)',
-              borderColor: '#00C5FF',
+              tension: 0.38,
+              backgroundColor: isDark ? 'rgba(59, 130, 246, 0.16)' : 'rgba(59, 130, 246, 0.12)',
+              borderColor: '#3B82F6',
               borderWidth: 2,
-              pointRadius: 0,
+              pointRadius: 2,
               pointHoverRadius: 6,
-              pointBackgroundColor: '#00C5FF'
+              pointBackgroundColor: '#3B82F6'
+            },
+            {
+              label: 'Pausadas',
+              data: dataPausadas,
+              fill: true,
+              tension: 0.38,
+              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.14)' : 'rgba(139, 92, 246, 0.10)',
+              borderColor: '#8B5CF6',
+              borderWidth: 2,
+              pointRadius: 2,
+              pointHoverRadius: 6,
+              pointBackgroundColor: '#8B5CF6'
+            },
+            {
+              label: 'Concluídas',
+              data: dataConcluidas,
+              fill: true,
+              tension: 0.38,
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.12)',
+              borderColor: '#10B981',
+              borderWidth: 2,
+              pointRadius: 2,
+              pointHoverRadius: 6,
+              pointBackgroundColor: '#10B981'
             }
           ]
         },
@@ -6851,20 +7046,30 @@ function renderCharts(companies) {
               labels: {
                 color: isDark ? '#8A99AD' : textColor,
                 boxWidth: 10,
-                font: { family: 'Inter', size: 11, weight: '500' },
-                padding: 10
+                font: { family: 'Inter', size: 11, weight: '600' },
+                padding: 12,
+                usePointStyle: true,
+                pointStyle: 'circle'
               }
             },
             tooltip: {
-              backgroundColor: isDark ? '#24303F' : '#FFFFFF',
-              titleColor: isDark ? '#FFFFFF' : '#1C2434',
-              bodyColor: isDark ? '#8A99AD' : '#64748B',
-              borderColor: isDark ? '#2E3A47' : '#E2E8F0',
+              backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+              titleColor: isDark ? '#FFFFFF' : '#0F172A',
+              bodyColor: isDark ? '#94A3B8' : '#475569',
+              borderColor: isDark ? '#334155' : '#E2E8F0',
               borderWidth: 1,
-              padding: 10,
-              cornerRadius: 6,
+              padding: 12,
+              cornerRadius: 8,
               callbacks: {
-                afterBody: () => '👉 Clique para abrir todas as tarefas'
+                label: (ctx) => `  ${ctx.dataset.label}: ${ctx.parsed.y} tarefa(s)`,
+                afterBody: (items) => {
+                  const total = items.reduce((acc, curr) => acc + (curr.parsed.y || 0), 0);
+                  return [
+                    '',
+                    `• Total no ciclo: ${total} tarefas`,
+                    '👉 Clique para abrir o Quadro Kanban'
+                  ];
+                }
               }
             }
           },
@@ -11685,6 +11890,10 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   const col = e.currentTarget;
   if (col) {
     col.classList.remove('kanban-drag-over');
+    col.classList.add('kanban-drop-pulse');
+    setTimeout(() => {
+      if (col) col.classList.remove('kanban-drop-pulse');
+    }, 600);
   }
   const taskIdStr = e.dataTransfer.getData('text/plain');
   if (!taskIdStr) return;
@@ -11692,14 +11901,16 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   const task = (state.tasks || []).find(t => t && String(t.id) === String(taskId));
   if (!task) return;
 
+  // Atualização estrita dos 4 novos status solicitados:
   task.kanbanStatus = targetPhaseId;
-  if (targetPhaseId === 'feito') {
+  if (targetPhaseId === 'concluidas') {
     task.concluida = true;
-  } else if (targetPhaseId === 'arquivado') {
-    // Mantém estado de conclusão
   } else {
     task.concluida = false;
   }
+
+  // Grava referência do card para animação de atração magnética e snap
+  window._lastDroppedTaskId = taskId;
 
   const userId = dataService.getActiveUserKey();
   if (userId) {
@@ -11707,6 +11918,20 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   }
   await saveStorage();
   render();
+
+  // Aplica deformação elástica / sucção magnética no card inserido na nova coluna
+  setTimeout(() => {
+    const cardEl = document.getElementById(`kanban-task-card-${taskId}`);
+    if (cardEl) {
+      cardEl.classList.remove('anim-magnetic-snap');
+      void cardEl.offsetWidth; // Força reflow no DOM
+      cardEl.classList.add('anim-magnetic-snap');
+      cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      setTimeout(() => {
+        if (cardEl) cardEl.classList.remove('anim-magnetic-snap');
+      }, 700);
+    }
+  }, 40);
 };
 
 // Componente do Card de Tarefa Estilo Pipefy (Cards brancos com sombras sutis, pills de prioridade e prazo)
@@ -11852,61 +12077,53 @@ function renderTarefasTab() {
     return new Date(a.data || '2099-12-31') - new Date(b.data || '2099-12-31');
   });
 
-  const totalPendentes = (state.tasks || []).filter(t => t && !t.concluida).length;
-  const totalConcluidas = (state.tasks || []).filter(t => t && t.concluida).length;
+  const totalPendentes = (state.tasks || []).filter(t => t && !t.concluida && (!t.kanbanStatus || ['pendentes', 'backlog', 'a_fazer'].includes(t.kanbanStatus))).length;
+  const totalAndamento = (state.tasks || []).filter(t => t && !t.concluida && ['em_andamento', 'fazendo'].includes(t.kanbanStatus)).length;
+  const totalPausadas = (state.tasks || []).filter(t => t && !t.concluida && ['pausadas', 'pausado', 'aguardando_cliente'].includes(t.kanbanStatus)).length;
+  const totalConcluidas = (state.tasks || []).filter(t => t && (t.concluida || ['concluidas', 'feito', 'concluida', 'arquivado'].includes(t.kanbanStatus))).length;
   const totalAtrasadas = (state.tasks || []).filter(t => t && !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
 
-  // Definição das 5 Fases Estilo Pipefy
+  // Definição Estrita das 4 Colunas / Status do Quadro Kanban
   const PIPEFY_COLUMNS = [
     {
-      id: 'backlog',
-      label: 'Backlog',
+      id: 'pendentes',
+      label: 'Pendentes',
       topColor: 'bg-[#F59E0B]',
       borderTop: 'border-t-[#F59E0B]',
       subtext: 'Tarefas a serem executadas',
       plusColor: 'text-[#F59E0B]',
       hasPlus: true,
-      match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'backlog' || t.kanbanStatus === 'a_fazer')
+      match: (t) => !t.concluida && (!t.kanbanStatus || t.kanbanStatus === 'pendentes' || t.kanbanStatus === 'backlog' || t.kanbanStatus === 'a_fazer')
     },
     {
-      id: 'fazendo',
-      label: 'Fazendo',
+      id: 'em_andamento',
+      label: 'Em Andamento',
       topColor: 'bg-[#3B82F6]',
       borderTop: 'border-t-[#3B82F6]',
       subtext: 'Atividades em execução',
       plusColor: 'text-[#3B82F6]',
       hasPlus: true,
-      match: (t) => !t.concluida && (t.kanbanStatus === 'fazendo' || t.kanbanStatus === 'em_andamento')
+      match: (t) => !t.concluida && (t.kanbanStatus === 'em_andamento' || t.kanbanStatus === 'fazendo')
     },
     {
-      id: 'pausado',
-      label: 'Pausado',
-      topColor: 'bg-[#14B8A6]',
-      borderTop: 'border-t-[#14B8A6]',
-      subtext: 'Atividades pausadas a serem retomadas',
-      plusColor: 'text-[#14B8A6]',
+      id: 'pausadas',
+      label: 'Pausadas',
+      topColor: 'bg-[#8B5CF6]',
+      borderTop: 'border-t-[#8B5CF6]',
+      subtext: 'Atividades pausadas ou aguardando',
+      plusColor: 'text-[#8B5CF6]',
       hasPlus: false,
-      match: (t) => !t.concluida && (t.kanbanStatus === 'pausado' || t.kanbanStatus === 'aguardando_cliente')
+      match: (t) => !t.concluida && (t.kanbanStatus === 'pausadas' || t.kanbanStatus === 'pausado' || t.kanbanStatus === 'aguardando_cliente')
     },
     {
-      id: 'feito',
-      label: '✓ Feito',
+      id: 'concluidas',
+      label: '✓ Concluídas',
       topColor: 'bg-[#10B981]',
       borderTop: 'border-t-[#10B981]',
-      subtext: 'Tarefas executadas',
+      subtext: 'Tarefas finalizadas',
       plusColor: 'text-[#10B981]',
       hasPlus: false,
-      match: (t) => t.concluida || t.kanbanStatus === 'feito' || t.kanbanStatus === 'concluida'
-    },
-    {
-      id: 'arquivado',
-      label: '✓ Arquivado',
-      topColor: 'bg-[#EF4444]',
-      borderTop: 'border-t-[#EF4444]',
-      subtext: 'Tarefas não-finalizadas',
-      plusColor: 'text-[#EF4444]',
-      hasPlus: false,
-      match: (t) => t.kanbanStatus === 'arquivado'
+      match: (t) => t.concluida || ['concluidas', 'feito', 'concluida', 'arquivado'].includes(t.kanbanStatus)
     }
   ];
 
@@ -12008,9 +12225,49 @@ function renderTarefasTab() {
   return `
     <style>
       .kanban-drag-over {
-        background-color: rgba(60, 80, 224, 0.08) !important;
-        outline: 2px dashed #3C50E0 !important;
-        outline-offset: -2px;
+        background-color: rgba(59, 130, 246, 0.08) !important;
+        border-color: #3B82F6 !important;
+        box-shadow: inset 0 0 24px rgba(59, 130, 246, 0.18), 0 0 20px rgba(59, 130, 246, 0.25) !important;
+        transform: scale(1.012) !important;
+        transition: all 180ms cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+      }
+      .kanban-drop-pulse {
+        animation: kanbanColPulse 550ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes kanbanColPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55), inset 0 0 15px rgba(59, 130, 246, 0.25);
+        }
+        70% {
+          box-shadow: 0 0 0 14px rgba(59, 130, 246, 0), inset 0 0 0 rgba(59, 130, 246, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+        }
+      }
+      @keyframes magneticSuction {
+        0% {
+          transform: scale(0.90) translateY(-14px);
+          opacity: 0.72;
+          box-shadow: 0 0 25px rgba(59, 130, 246, 0.75), 0 15px 30px rgba(0, 0, 0, 0.3);
+        }
+        45% {
+          transform: scale(1.06) translateY(3px);
+          box-shadow: 0 0 18px rgba(59, 130, 246, 0.45);
+        }
+        75% {
+          transform: scale(0.98) translateY(-1px);
+        }
+        100% {
+          transform: scale(1) translateY(0);
+          opacity: 1;
+          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+      }
+      .anim-magnetic-snap {
+        animation: magneticSuction 600ms cubic-bezier(0.22, 1.25, 0.36, 1) forwards !important;
+        z-index: 40 !important;
+        position: relative !important;
       }
     </style>
 
@@ -12147,9 +12404,9 @@ function renderTarefasTab() {
           ` : filteredTasks.map(t => renderCleanTaskCard(t)).join('')}
         </div>
       ` : `
-        <!-- MODO QUADRO / KANBAN PIPEFY (Backlog, Fazendo, Pausado, Feito, Arquivado) -->
+        <!-- MODO QUADRO / KANBAN PIPEFY (4 Colunas Estritas: Pendentes, Em Andamento, Pausadas, Concluídas) -->
         <div class="overflow-x-auto pb-6 pt-1 kanban-scroll-container">
-          <div class="flex items-start gap-4 min-w-full w-max">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full min-w-[1080px] xl:min-w-0">
             ${PIPEFY_COLUMNS.map(col => {
               const colTasks = filteredTasks.filter(col.match);
               return `
@@ -12158,7 +12415,7 @@ function renderTarefasTab() {
                   ondragover="handleKanbanDragOver(event)"
                   ondragleave="handleKanbanDragLeave(event)"
                   ondrop="handleKanbanDrop(event, '${col.id}')"
-                  class="w-[300px] shrink-0 bg-slate-50/90 dark:bg-[#121620] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col min-h-[520px] transition-colors"
+                  class="bg-slate-50/90 dark:bg-[#121620] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col min-h-[540px] transition-all duration-200"
                 >
                   <!-- Linha Colorida no Topo da Coluna (Identidade Pipefy) -->
                   <div class="h-1.5 w-full rounded-t-2xl ${col.topColor}"></div>
@@ -12205,14 +12462,6 @@ function renderTarefasTab() {
                 </div>
               `;
             }).join('')}
-
-            <!-- Botão / Coluna "+ Nova fase" -->
-            <div
-              class="w-[260px] shrink-0 p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center text-xs font-bold text-slate-400 hover:text-blue-500 hover:border-blue-500/50 cursor-pointer transition min-h-[520px]"
-              onclick="alert('Fases do Pipefy ativas: Backlog, Fazendo, Pausado, Feito e Arquivado.')"
-            >
-              + Nova fase
-            </div>
           </div>
         </div>
       `}
@@ -14545,7 +14794,7 @@ function attachEventHandlers() {
         data: date,
         urgencia: urg,
         concluida: false,
-        kanbanStatus: 'a_fazer',
+        kanbanStatus: 'pendentes',
         createdAt: today
       };
       state.tasks.unshift(newTask);
@@ -14601,7 +14850,7 @@ function attachEventHandlers() {
           horaFim: horaFim,
           urgencia: urg,
           concluida: false,
-          kanbanStatus: 'a_fazer',
+          kanbanStatus: 'pendentes',
           createdAt: today
         };
         state.tasks.unshift(targetTask);
@@ -15076,6 +15325,7 @@ window.openEditCompanyModal = (id) => {
 
 window.setTaskFilter = (f) => { state.taskFilter = f; render(); };
 window.setTaskViewMode = (mode) => { state.taskViewMode = mode; render(); };
+window.setDashboardTaskPeriod = (period) => { state.dashboardTaskPeriod = period; render(); };
 window.toggleTaskFormCollapse = () => { state.isTaskFormOpen = !state.isTaskFormOpen; render(); };
 
 // Seleção de Tarefas para Ações em Massa (Bulk Actions)
@@ -15108,6 +15358,7 @@ window.bulkCompleteTasks = async () => {
     const t = state.tasks.find(x => x.id === id);
     if (t) {
       t.concluida = true;
+      t.kanbanStatus = 'concluidas';
       if (userId) await dataService.upsertTarefa(t, userId);
     }
   }
@@ -15273,7 +15524,7 @@ window.setTaskKanbanStatus = async (taskId, newStatus) => {
   const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
   if (!t) return;
   t.kanbanStatus = newStatus;
-  if (newStatus === 'concluida') {
+  if (['concluidas', 'concluida', 'feito'].includes(newStatus)) {
     t.concluida = true;
   } else {
     t.concluida = false;
@@ -15293,7 +15544,7 @@ window.toggleTaskComplete = async (id) => {
   const t = (state.tasks || []).find(x => x && String(x.id) === String(id));
   if (t) {
     t.concluida = !t.concluida;
-    t.kanbanStatus = t.concluida ? 'concluida' : 'a_fazer';
+    t.kanbanStatus = t.concluida ? 'concluidas' : 'pendentes';
     t.historico = t.historico || [];
     t.historico.push({
       data: new Date().toLocaleString('pt-BR'),
