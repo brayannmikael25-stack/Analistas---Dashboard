@@ -5153,11 +5153,13 @@ function renderAuthScreen(root) {
                   />
                   <button
                     type="button"
-                    onclick="togglePasswordVisibility('login-password', this)"
+                    id="toggle-login-password-btn"
+                    onclick="window.togglePasswordVisibility('login-password', this)"
                     class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition cursor-pointer"
-                    title="Alternar visualização da senha"
+                    title="Mostrar senha"
+                    aria-label="Mostrar senha"
                   >
-                    <svg class="w-4 h-4 eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="w-4 h-4 eye-icon text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                       <circle cx="12" cy="12" r="3"></circle>
                     </svg>
@@ -5489,6 +5491,16 @@ function renderAuthScreen(root) {
           </div>
         `;
       }
+    });
+  }
+
+  // Alternador de Visibilidade de Senha na Tela de Login
+  const toggleLoginPassBtn = document.getElementById('toggle-login-password-btn');
+  if (toggleLoginPassBtn) {
+    toggleLoginPassBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.togglePasswordVisibility('login-password', toggleLoginPassBtn);
     });
   }
 
@@ -11934,6 +11946,62 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   }, 40);
 };
 
+// Transição de Status via Menu do Card com o mesmo Efeito Magnético de Arrastar e Soltar
+window.moveTaskWithMagneticEffect = async (taskId, targetStatus) => {
+  const cardEl = document.getElementById(`kanban-task-card-${taskId}`);
+  const targetCol = document.getElementById(`kanban-col-${targetStatus}`);
+
+  // Animação imediata de atração e saída
+  if (cardEl) {
+    cardEl.classList.add('opacity-40', 'scale-95');
+  }
+  if (targetCol) {
+    targetCol.classList.add('kanban-drag-over');
+  }
+
+  const task = (state.tasks || []).find(t => t && String(t.id) === String(taskId));
+  if (!task) return;
+
+  task.kanbanStatus = targetStatus;
+  if (targetStatus === 'concluidas') {
+    task.concluida = true;
+  } else {
+    task.concluida = false;
+  }
+
+  window._lastDroppedTaskId = taskId;
+
+  const userId = dataService.getActiveUserKey();
+  if (userId) {
+    await dataService.upsertTarefa(task, userId);
+  }
+  await saveStorage();
+
+  // Pequena pausa para sensação tátil de sucção magnética
+  await new Promise(r => setTimeout(r, 120));
+  render();
+
+  // Efeito magnético e pulso na coluna de destino pós-render
+  setTimeout(() => {
+    const newCol = document.getElementById(`kanban-col-${targetStatus}`);
+    if (newCol) {
+      newCol.classList.add('kanban-drop-pulse');
+      setTimeout(() => newCol.classList.remove('kanban-drop-pulse'), 600);
+    }
+
+    const newCardEl = document.getElementById(`kanban-task-card-${taskId}`);
+    if (newCardEl) {
+      newCardEl.classList.remove('anim-magnetic-snap');
+      void newCardEl.offsetWidth; // Reflow
+      newCardEl.classList.add('anim-magnetic-snap');
+      newCardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      setTimeout(() => {
+        if (newCardEl) newCardEl.classList.remove('anim-magnetic-snap');
+      }, 700);
+    }
+  }, 40);
+};
+
 // Componente do Card de Tarefa Estilo Pipefy (Cards brancos com sombras sutis, pills de prioridade e prazo)
 function renderPipefyKanbanCard(t) {
   if (!t) return '';
@@ -11950,6 +12018,14 @@ function renderPipefyKanbanCard(t) {
     : t.urgencia === 'Media' 
     ? 'bg-[#F59E0B] text-slate-900 font-extrabold' 
     : 'bg-[#3B82F6] text-white';
+
+  const currentNormalizedStatus = (t.concluida || ['concluidas', 'feito', 'concluida', 'arquivado'].includes(t.kanbanStatus))
+    ? 'concluidas'
+    : (t.kanbanStatus === 'em_andamento' || t.kanbanStatus === 'fazendo')
+    ? 'em_andamento'
+    : (t.kanbanStatus === 'pausadas' || t.kanbanStatus === 'pausado' || t.kanbanStatus === 'aguardando_cliente')
+    ? 'pausadas'
+    : 'pendentes';
 
   return `
     <div
@@ -12005,7 +12081,7 @@ function renderPipefyKanbanCard(t) {
         </div>
       </div>
 
-      <!-- Rodapé do Card: Data com Ícone de Calendário e Prazo Destacado -->
+      <!-- Data com Ícone de Calendário e Prazo Destacado -->
       <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
         <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ${
           isAtrasada ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-medium'
@@ -12025,6 +12101,32 @@ function renderPipefyKanbanCard(t) {
             ${escapeHtml(comp.nome)}
           </span>
         ` : ''}
+      </div>
+
+      <!-- Barra Inferior de Controle Rápido de Status (Mover com Efeito Magnético) -->
+      <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2" onclick="event.stopPropagation()">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Mover:</span>
+        <div class="relative flex-1">
+          <select
+            onchange="window.moveTaskWithMagneticEffect('${t.id}', this.value)"
+            class="w-full text-[11px] font-bold py-1 pl-2.5 pr-7 rounded-lg border cursor-pointer transition-all appearance-none ${
+              currentNormalizedStatus === 'pendentes' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300/80 dark:border-amber-800' :
+              currentNormalizedStatus === 'em_andamento' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-300/80 dark:border-blue-800' :
+              currentNormalizedStatus === 'pausadas' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-300/80 dark:border-purple-800' :
+              'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/80 dark:border-emerald-800'
+            } focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="pendentes" ${currentNormalizedStatus === 'pendentes' ? 'selected' : ''}>🟠 Pendentes</option>
+            <option value="em_andamento" ${currentNormalizedStatus === 'em_andamento' ? 'selected' : ''}>🔵 Em Andamento</option>
+            <option value="pausadas" ${currentNormalizedStatus === 'pausadas' ? 'selected' : ''}>🟣 Pausadas</option>
+            <option value="concluidas" ${currentNormalizedStatus === 'concluidas' ? 'selected' : ''}>🟢 Concluídas</option>
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -12765,29 +12867,8 @@ function renderCalendarioTab() {
     weekPeriodLabel = `${weekStart.getDate()} de ${monthNames[weekStart.getMonth()] || ''} - ${weekEnd.getDate()} de ${monthNames[weekEnd.getMonth()] || ''}, ${weekEnd.getFullYear()}`;
   }
 
-  // Contagem de eventos por responsável
-  const colabCounts = { todos: (state.tasks || []).length, BM: 0, CM: 0, GR: 0 };
-  (state.tasks || []).forEach(t => {
-    if (!t) return;
-    const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
-    const colabInfo = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
-    if (colabCounts[colabInfo.code] !== undefined) {
-      colabCounts[colabInfo.code]++;
-    } else {
-      colabCounts.GR++;
-    }
-  });
-
-  // Filtragem de tarefas pelo colaborador ativo no Smart Calendar
-  const filteredCalendarTasks = (state.tasks || []).filter(t => {
-    if (!t) return false;
-    if (selectedColab !== 'todos') {
-      const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
-      const colabInfo = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
-      if (colabInfo.code !== selectedColab) return false;
-    }
-    return true;
-  });
+  // Exibição 100% consolidada de todas as obrigações e eventos no Calendário (Sem filtro de equipe)
+  const filteredCalendarTasks = (state.tasks || []).filter(t => Boolean(t));
 
   // Mapear tarefas por data (YYYY-MM-DD)
   const tasksByDate = {};
@@ -12801,10 +12882,10 @@ function renderCalendarioTab() {
   return `
     <div class="space-y-5 animate-fadeIn relative pb-20">
       
-      <!-- ================= CABEÇALHO SMART CALENDAR BOARD ================= -->
-      <div class="panze-card !p-5 bg-white dark:bg-[#161724] border border-slate-200/80 dark:border-strokedark rounded-2xl shadow-sm space-y-4">
+      <!-- ================= CABEÇALHO SMART CALENDAR BOARD CONSOLIDADO ================= -->
+      <div class="panze-card !p-5 bg-white dark:bg-[#161724] border border-slate-200/80 dark:border-strokedark rounded-2xl shadow-sm">
         
-        <!-- Linha Superior: Clima / Relógio e Navegação de Período -->
+        <!-- Clima, Período, Navegação e Ações Rápidas -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           
           <!-- Clima e Data Atual -->
@@ -12824,25 +12905,25 @@ function renderCalendarioTab() {
             </div>
           </div>
 
-          <!-- Controles de Navegação de Semana / Mês (< > e Hoje) -->
-          <div class="flex items-center gap-3 self-start md:self-auto">
+          <!-- Controles de Navegação de Semana / Mês (< > e Hoje), Escala e Atalhos -->
+          <div class="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
             <div class="inline-flex items-center rounded-xl border border-slate-200 dark:border-strokedark bg-slate-50 dark:bg-[#1A222C] p-1 shadow-2xs">
               <button
                 onclick="changeCalendarPeriod(-1)"
-                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs transition"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs transition cursor-pointer"
                 title="Período Anterior"
               >
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
               </button>
               <button
                 onclick="goToCalendarToday()"
-                class="px-3 h-8 text-xs font-bold text-slate-800 dark:text-white hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs rounded-lg transition"
+                class="px-3 h-8 text-xs font-bold text-slate-800 dark:text-white hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs rounded-lg transition cursor-pointer"
               >
                 Hoje
               </button>
               <button
                 onclick="changeCalendarPeriod(1)"
-                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs transition"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1C2434] hover:shadow-2xs transition cursor-pointer"
                 title="Próximo Período"
               >
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -12853,7 +12934,7 @@ function renderCalendarioTab() {
             <div class="inline-flex rounded-xl border border-slate-200 dark:border-strokedark bg-slate-50 dark:bg-[#1A222C] p-1 shadow-2xs text-xs font-semibold">
               <button
                 onclick="setCalendarViewMode('week')"
-                class="px-3 py-1.5 rounded-lg transition ${
+                class="px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   viewMode === 'week' 
                     ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-extrabold' 
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -12863,7 +12944,7 @@ function renderCalendarioTab() {
               </button>
               <button
                 onclick="setCalendarViewMode('month')"
-                class="px-3 py-1.5 rounded-lg transition ${
+                class="px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   viewMode === 'month' 
                     ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-extrabold' 
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -12873,7 +12954,7 @@ function renderCalendarioTab() {
               </button>
               <button
                 onclick="setCalendarViewMode('day')"
-                class="px-3 py-1.5 rounded-lg transition ${
+                class="px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   viewMode === 'day' 
                     ? 'bg-white dark:bg-[#1C2434] text-[#3C50E0] shadow-2xs font-extrabold' 
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -12883,6 +12964,14 @@ function renderCalendarioTab() {
               </button>
             </div>
 
+            <!-- Botão Ir para Quadro Kanban -->
+            <button
+              onclick="switchTab('tarefas')"
+              class="px-3 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-[#3C50E0] hover:border-[#3C50E0] transition cursor-pointer"
+            >
+              Ir para Quadro Kanban →
+            </button>
+
             <!-- Botão Adicionar Evento -->
             <button
               onclick="openCalendarNewEventModal()"
@@ -12890,86 +12979,6 @@ function renderCalendarioTab() {
             >
               <span class="text-base leading-none font-black">+</span>
               <span>Adicionar Evento</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Linha Inferior: Filtros Rápidos por Responsável (Avatares / Badges Coloridas) -->
-        <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">Filtrar Equipe:</span>
-
-            <!-- Todos -->
-            <button
-              onclick="setCalendarColabFilter('todos')"
-              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
-                selectedColab === 'todos'
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-xs'
-                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-              }"
-            >
-              <span class="w-2 h-2 rounded-full ${selectedColab === 'todos' ? 'bg-blue-400 dark:bg-blue-600' : 'bg-slate-400'}"></span>
-              <span>Todos</span>
-              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
-                ${colabCounts.todos}
-              </span>
-            </button>
-
-            <!-- Brayann Mikael (BM) -->
-            <button
-              onclick="setCalendarColabFilter('BM')"
-              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
-                selectedColab === 'BM'
-                  ? 'bg-[#3C50E0] text-white border-transparent shadow-xs'
-                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-              }"
-            >
-              <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-extrabold shadow-2xs">BM</span>
-              <span>Brayann Mikael</span>
-              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
-                ${colabCounts.BM}
-              </span>
-            </button>
-
-            <!-- Carlos (CM) -->
-            <button
-              onclick="setCalendarColabFilter('CM')"
-              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
-                selectedColab === 'CM'
-                  ? 'bg-[#8B5CF6] text-white border-transparent shadow-xs'
-                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-              }"
-            >
-              <span class="w-5 h-5 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[9px] font-extrabold shadow-2xs">CM</span>
-              <span>Carlos</span>
-              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
-                ${colabCounts.CM}
-              </span>
-            </button>
-
-            <!-- Geral / Outros (GR) -->
-            <button
-              onclick="setCalendarColabFilter('GR')"
-              class="px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
-                selectedColab === 'GR'
-                  ? 'bg-slate-600 text-white border-transparent shadow-xs'
-                  : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300'
-              }"
-            >
-              <span class="w-5 h-5 rounded-full bg-slate-600 text-white flex items-center justify-center text-[9px] font-extrabold shadow-2xs">GR</span>
-              <span>Geral & Outros</span>
-              <span class="px-1.5 py-0.2 rounded-md text-[10px] font-extrabold opacity-75 bg-black/10 dark:bg-white/10">
-                ${colabCounts.GR}
-              </span>
-            </button>
-          </div>
-
-          <div class="flex items-center gap-2 ml-auto">
-            <button
-              onclick="switchTab('tarefas')"
-              class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-strokedark text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-[#3C50E0] hover:border-[#3C50E0] transition"
-            >
-              Ir para Quadro Kanban →
             </button>
           </div>
         </div>
@@ -15037,6 +15046,40 @@ function attachEventHandlers() {
 }
 
 // ---------------- FUNÇÕES GLOBAIS EXPOSTAS ----------------
+window.togglePasswordVisibility = function(inputId, btn) {
+  const input = typeof inputId === 'string' ? document.getElementById(inputId) : inputId;
+  if (!input) return;
+  const isCurrentlyPass = input.type === 'password';
+  input.type = isCurrentlyPass ? 'text' : 'password';
+
+  const targetBtn = btn || (input.parentElement ? input.parentElement.querySelector('button') : null);
+  if (targetBtn) {
+    if (isCurrentlyPass) {
+      // Senha visível -> Mostra ícone com barra cortada (olho riscado / eye-off)
+      targetBtn.innerHTML = `
+        <svg class="w-4 h-4 eye-icon text-[#1D4ED8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
+          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
+          <line x1="2" y1="2" x2="22" y2="22"></line>
+        </svg>
+      `;
+      targetBtn.setAttribute('title', 'Ocultar senha');
+      targetBtn.setAttribute('aria-label', 'Ocultar senha');
+    } else {
+      // Senha oculta -> Mostra ícone de olho normal
+      targetBtn.innerHTML = `
+        <svg class="w-4 h-4 eye-icon text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      `;
+      targetBtn.setAttribute('title', 'Mostrar senha');
+      targetBtn.setAttribute('aria-label', 'Mostrar senha');
+    }
+  }
+};
+
 window.handleAppLogout = async () => {
   try {
     if (sb && sb.auth) {
