@@ -165,6 +165,46 @@ function getAutoCompetencies(refDate = new Date()) {
 
 const autoComp = getAutoCompetencies();
 
+// ---------------- SANITIZAÇÃO E ESCAPING HTML SEGURO ----------------
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+window.escapeHtml = escapeHtml;
+
+// Função Universal de Troca de Abas
+function switchTab(tabName, optFilter) {
+  if (optFilter && tabName === 'tarefas') {
+    state.taskFilter = optFilter;
+  }
+  state.activeTab = tabName;
+  render();
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 50);
+}
+window.switchTab = switchTab;
+window.navigateToTab = switchTab;
+
+// Função Utilitária para Telas Vazias (Empty States)
+function renderEmptyState(title = 'Nenhum registro encontrado', desc = 'Tente ajustar os filtros ou a pesquisa para encontrar o que procura.') {
+  return `
+    <div class="py-12 px-4 text-center flex flex-col items-center justify-center">
+      <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-slate-500 flex items-center justify-center text-xl mb-3 shadow-2xs">
+        🔍
+      </div>
+      <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">${escapeHtml(title)}</h3>
+      <p class="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">${escapeHtml(desc)}</p>
+    </div>
+  `;
+}
+window.renderEmptyState = renderEmptyState;
+
 // ---------------- UTILITÁRIO DE DEBOUNCE & THROTTLE PARA MÁXIMA PERFORMANCE ----------------
 function debounce(fn, wait = 250) {
   let timeout;
@@ -380,7 +420,8 @@ function initCompanyAutocomplete(id) {
     const q = query.trim().toLowerCase();
     const currentVal = hiddenInput.value;
 
-    const matched = state.companies.filter(c => {
+    const matched = (state.companies || []).filter(c => {
+      if (!c) return false;
       if (!q) return true;
       const n = (c.nome || '').toLowerCase();
       const cod = String(c.codigo || '').toLowerCase();
@@ -11606,7 +11647,8 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
 
 // Componente do Card de Tarefa Estilo Pipefy (Cards brancos com sombras sutis, pills de prioridade e prazo)
 function renderPipefyKanbanCard(t) {
-  const comp = t.empresaId ? state.companies.find(c => Number(c.id) === Number(t.empresaId)) : null;
+  if (!t) return '';
+  const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
   const overdueInfo = getTaskOverdueInfo(t.data);
   const isAtrasada = !t.concluida && overdueInfo.isOverdue;
   const formattedVenc = formatPipefyDate(t.data);
@@ -11702,10 +11744,11 @@ function renderPipefyKanbanCard(t) {
 // ---------------- TAREFAS TAB (QUADRO KANBAN ESTILO PIPEFY) ----------------
 function renderTarefasTab() {
   const urgencyWeight = { 'Alta': 3, 'Media': 2, 'Baixa': 1 };
-  const taskCompanies = state.companies.slice().sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+  const taskCompanies = (state.companies || []).slice().sort((a,b) => (a?.nome || '').localeCompare(b?.nome || ''));
 
   // 1. Filtragem Completa
-  let filteredTasks = state.tasks.filter(t => {
+  let filteredTasks = (state.tasks || []).filter(t => {
+    if (!t) return false;
     if (state.taskViewMode === 'lista') {
       if (state.taskFilter === 'ativas' && t.concluida) return false;
       if (state.taskFilter === 'concluidas' && !t.concluida) return false;
@@ -11725,7 +11768,7 @@ function renderTarefasTab() {
     if (state.taskResponsavelFilter && state.taskResponsavelFilter !== 'todos') {
       if (state.taskResponsavelFilter === 'minhas') {
         const myName = (state.user || '').toLowerCase();
-        const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+        const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
         const matchesColab = comp && comp.colaborador && comp.colaborador.toLowerCase().includes(myName);
         const matchesAuthor = t.autor && t.autor.toLowerCase().includes(myName);
         if (!matchesColab && !matchesAuthor) return false;
@@ -11741,12 +11784,12 @@ function renderTarefasTab() {
     if (!aOverdue && bOverdue) return 1;
     const diffUrg = (urgencyWeight[b.urgencia] || 1) - (urgencyWeight[a.urgencia] || 1);
     if (diffUrg !== 0) return diffUrg;
-    return new Date(a.data) - new Date(b.data);
+    return new Date(a.data || '2099-12-31') - new Date(b.data || '2099-12-31');
   });
 
-  const totalPendentes = state.tasks.filter(t => !t.concluida).length;
-  const totalConcluidas = state.tasks.filter(t => t.concluida).length;
-  const totalAtrasadas = state.tasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
+  const totalPendentes = (state.tasks || []).filter(t => t && !t.concluida).length;
+  const totalConcluidas = (state.tasks || []).filter(t => t && t.concluida).length;
+  const totalAtrasadas = (state.tasks || []).filter(t => t && !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length;
 
   // Definição das 5 Fases Estilo Pipefy
   const PIPEFY_COLUMNS = [
@@ -12407,9 +12450,10 @@ function renderCalendarioTab() {
   }
 
   // Contagem de eventos por responsável
-  const colabCounts = { todos: state.tasks.length, BM: 0, CM: 0, GR: 0 };
-  state.tasks.forEach(t => {
-    const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+  const colabCounts = { todos: (state.tasks || []).length, BM: 0, CM: 0, GR: 0 };
+  (state.tasks || []).forEach(t => {
+    if (!t) return;
+    const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
     const colabInfo = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
     if (colabCounts[colabInfo.code] !== undefined) {
       colabCounts[colabInfo.code]++;
@@ -12419,9 +12463,10 @@ function renderCalendarioTab() {
   });
 
   // Filtragem de tarefas pelo colaborador ativo no Smart Calendar
-  const filteredCalendarTasks = state.tasks.filter(t => {
+  const filteredCalendarTasks = (state.tasks || []).filter(t => {
+    if (!t) return false;
     if (selectedColab !== 'todos') {
-      const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+      const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
       const colabInfo = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
       if (colabInfo.code !== selectedColab) return false;
     }
@@ -12431,7 +12476,7 @@ function renderCalendarioTab() {
   // Mapear tarefas por data (YYYY-MM-DD)
   const tasksByDate = {};
   filteredCalendarTasks.forEach(t => {
-    if (t.data) {
+    if (t && t.data) {
       if (!tasksByDate[t.data]) tasksByDate[t.data] = [];
       tasksByDate[t.data].push(t);
     }
@@ -12711,7 +12756,8 @@ function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
             <!-- Lista de Cards de Eventos em Tons Pastéis -->
             <div class="space-y-2.5 flex-1 overflow-y-auto max-h-[620px] pr-0.5">
               ${dayTasks.map(t => {
-                const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+                if (!t) return '';
+                const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
                 const cardStyle = getCalendarEventCardStyle(t, comp);
                 const colab = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
 
@@ -12839,7 +12885,8 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
                 <!-- Eventos do Dia em Badges Pastéis -->
                 <div class="mt-1.5 space-y-1 flex-1 overflow-y-auto max-h-[85px] pr-0.5">
                   ${dayTasks.map(t => {
-                    const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+                    if (!t) return '';
+                    const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
                     const cardStyle = getCalendarEventCardStyle(t, comp);
 
                     return `
@@ -12926,7 +12973,8 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
 
               <div class="flex-1 flex flex-wrap gap-2">
                 ${matchingTasks.map(t => {
-                  const comp = t.empresaId ? state.companies.find(c => c.id === Number(t.empresaId)) : null;
+                  if (!t) return '';
+                  const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
                   const cardStyle = getCalendarEventCardStyle(t, comp);
                   const colab = getColabBadgeInfo(getCalendarTaskCollaborator(t, comp));
 
@@ -14109,7 +14157,7 @@ function renderEditTaskModal() {
               type="text"
               id="edit-task-title"
               required
-              value="${t.titulo.replace(/"/g, '&quot;')}"
+              value="${escapeHtml(t.titulo || '')}"
               placeholder="Título da tarefa..."
               class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition"
             />
@@ -14144,7 +14192,7 @@ function renderEditTaskModal() {
                 type="date"
                 id="edit-task-date"
                 required
-                value="${t.data}"
+                value="${t.data || new Date().toISOString().split('T')[0]}"
                 class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0]"
               />
             </div>
