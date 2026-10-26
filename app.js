@@ -3367,15 +3367,18 @@ function triggerExecutiveReport() {
   window.print();
 }
 
-// Helper para verificar status de atraso de tarefas (Comparando data atual vs data meta)
+// Helper para verificar status de atraso de tarefas (Destaque visual dinâmico: Crítico / Preventivo / Padrão)
 function getTaskOverdueInfo(taskDateStr) {
   const fallback = {
     isOverdue: false,
+    isCritical: false,
     isClose: false,
-    diffDays: 0,
+    diffDays: 999,
     label: 'Sem prazo',
-    text: 'Sem data',
-    css: 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-800'
+    text: 'Sem prazo definido',
+    css: 'bg-slate-100 dark:bg-white/5 text-slate-500 border border-slate-200/60 dark:border-slate-800',
+    tagCss: 'bg-slate-100 dark:bg-white/5 text-slate-500 border border-slate-200/60 dark:border-slate-800',
+    cardBorder: 'border-slate-200/90 dark:border-strokedark'
   };
 
   if (!taskDateStr || typeof taskDateStr !== 'string' || !taskDateStr.includes('-')) {
@@ -3401,40 +3404,56 @@ function getTaskOverdueInfo(taskDateStr) {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) {
+    // 1. Vermelho (Alerta Crítico: Vencida)
     return {
       isOverdue: true,
+      isCritical: true,
       isClose: false,
       diffDays,
       label: `Atrasada (${Math.abs(diffDays)}d)`,
       text: `Atrasada há ${Math.abs(diffDays)} dia(s)`,
-      css: 'bg-rose-500/15 text-rose-500 border-rose-500/30'
+      css: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30',
+      tagCss: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/35 font-bold',
+      cardBorder: 'border-rose-400/80 dark:border-rose-500/60 shadow-xs shadow-rose-500/10'
     };
   } else if (diffDays === 0) {
+    // 2. Vermelho (Alerta Crítico: Vence Hoje)
     return {
       isOverdue: false,
+      isCritical: true,
       isClose: true,
       diffDays,
       label: 'Vence Hoje',
-      text: 'Vence hoje',
-      css: 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+      text: 'Vence no dia de hoje',
+      css: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30',
+      tagCss: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/35 font-bold animate-pulse',
+      cardBorder: 'border-rose-400/80 dark:border-rose-500/60 shadow-xs shadow-rose-500/10'
     };
-  } else if (diffDays <= 3) {
+  } else if (diffDays === 1 || diffDays === 2) {
+    // 3. Amarelo (Aviso Preventivo: Vence em 1 ou 2 dias)
     return {
       isOverdue: false,
+      isCritical: false,
       isClose: true,
       diffDays,
-      label: `Vence em ${diffDays}d`,
-      text: `Vence em ${diffDays} dia(s)`,
-      css: 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+      label: diffDays === 1 ? 'Vence amanhã' : 'Vence em 2d',
+      text: diffDays === 1 ? 'Vence amanhã' : 'Vence em 2 dias',
+      css: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30',
+      tagCss: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/35 font-semibold',
+      cardBorder: 'border-amber-400/70 dark:border-amber-500/40 shadow-xs shadow-amber-500/5'
     };
   } else {
+    // 4. Padrão / Cinza (Vencimento distante)
     return {
       isOverdue: false,
+      isCritical: false,
       isClose: false,
       diffDays,
-      label: `No prazo (${diffDays}d)`,
-      text: `No prazo (${diffDays} dia(s))`,
-      css: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+      label: `Vence em ${diffDays}d`,
+      text: `No prazo (faltam ${diffDays} dias)`,
+      css: 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-800',
+      tagCss: 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-800 font-medium',
+      cardBorder: 'border-slate-200/90 dark:border-strokedark'
     };
   }
 }
@@ -11910,6 +11929,10 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   const taskIdStr = e.dataTransfer.getData('text/plain');
   if (!taskIdStr) return;
   const taskId = taskIdStr;
+
+  const sourceCard = document.getElementById(`kanban-task-card-${taskId}`);
+  const firstRect = sourceCard ? sourceCard.getBoundingClientRect() : null;
+
   const task = (state.tasks || []).find(t => t && String(t.id) === String(taskId));
   if (!task) return;
 
@@ -11931,32 +11954,110 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   await saveStorage();
   render();
 
-  // Aplica deformação elástica / sucção magnética no card inserido na nova coluna
-  setTimeout(() => {
-    const cardEl = document.getElementById(`kanban-task-card-${taskId}`);
-    if (cardEl) {
-      cardEl.classList.remove('anim-magnetic-snap');
-      void cardEl.offsetWidth; // Força reflow no DOM
-      cardEl.classList.add('anim-magnetic-snap');
-      cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  // Executa voo em arco do spring estilo Framer Motion (stiffness: 300, damping: 25)
+  requestAnimationFrame(() => {
+    const destCard = document.getElementById(`kanban-task-card-${taskId}`);
+    if (destCard && firstRect) {
+      const lastRect = destCard.getBoundingClientRect();
+      window.playFramerSpringFlight(destCard, firstRect, lastRect);
+    }
+  });
+};
+
+// Física de Mola Estilo Framer Motion (stiffness: 300, damping: 25) com trajetória em arco parabólico e snap magnético
+window.playFramerSpringFlight = function(destCard, firstRect, lastRect) {
+  if (!destCard || !firstRect || !lastRect) return;
+
+  const deltaX = lastRect.left - firstRect.left;
+  const deltaY = lastRect.top - firstRect.top;
+
+  // Se não houve movimentação espacial perceptível, apenas aplica o snap magnético
+  if (Math.hypot(deltaX, deltaY) < 5) {
+    destCard.classList.remove('anim-magnetic-snap');
+    void destCard.offsetWidth;
+    destCard.classList.add('anim-magnetic-snap');
+    return;
+  }
+
+  // Cria clone portalizado fixo no document.body (evita overflow clipping das colunas do Kanban)
+  const clone = destCard.cloneNode(true);
+  clone.id = `spring-flight-${destCard.id}`;
+  clone.style.position = 'fixed';
+  clone.style.left = `${firstRect.left}px`;
+  clone.style.top = `${firstRect.top}px`;
+  clone.style.width = `${firstRect.width}px`;
+  clone.style.height = `${firstRect.height}px`;
+  clone.style.margin = '0';
+  clone.style.zIndex = '999999';
+  clone.style.pointerEvents = 'none';
+  clone.style.transformOrigin = 'center center';
+  clone.style.boxShadow = '0 20px 35px -8px rgba(59, 130, 246, 0.45), 0 10px 18px -4px rgba(0, 0, 0, 0.28)';
+  clone.style.borderColor = '#3B82F6';
+  document.body.appendChild(clone);
+
+  // Oculta o card no destino durante a transição fluida do clone
+  destCard.style.opacity = '0';
+
+  // Parâmetros exatos solicitados para a física do Spring:
+  // stiffness: 300, damping: 25, mass: 1
+  // omega0 = sqrt(k/m) = sqrt(300) = 17.3205
+  // zeta = c / (2 * omega0) = 25 / (2 * 17.3205) = 0.7217
+  // omegad = omega0 * sqrt(1 - zeta^2) = 11.9896
+  const omega0 = 17.3205;
+  const zeta = 0.7217;
+  const omegad = 11.9896;
+  const duration = 480; // ms de tempo de acomodação
+  const startTime = performance.now();
+  const arcLift = Math.min(55, Math.max(20, Math.hypot(deltaX, deltaY) * 0.1));
+  const tiltSign = deltaX >= 0 ? 1 : -1;
+
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    const tSec = Math.min(elapsed / 1000, duration / 1000);
+    const progressNorm = Math.min(elapsed / duration, 1);
+
+    // Resposta analítica ao degrau de oscilador harmônico amortecido (Framer Motion)
+    const decay = Math.exp(-zeta * omega0 * tSec);
+    const springFactor = 1 - decay * (Math.cos(omegad * tSec) + (zeta * omega0 / omegad) * Math.sin(omegad * tSec));
+
+    // Trajetória parabólica em arco suave sobre as colunas
+    const arc = -arcLift * 4 * progressNorm * (1 - progressNorm);
+    const curX = deltaX * springFactor;
+    const curY = deltaY * springFactor + arc;
+    const scale = 1 + 0.035 * Math.sin(Math.PI * progressNorm);
+    const rotate = (tiltSign * 2.2) * Math.sin(Math.PI * progressNorm);
+
+    clone.style.transform = `translate3d(${curX}px, ${curY}px, 0) scale(${scale}) rotate(${rotate}deg)`;
+
+    if (elapsed < duration) {
+      requestAnimationFrame(step);
+    } else {
+      if (clone.parentNode) clone.parentNode.removeChild(clone);
+      destCard.style.opacity = '';
+      destCard.classList.remove('anim-magnetic-snap');
+      void destCard.offsetWidth;
+      destCard.classList.add('anim-magnetic-snap');
+      destCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       setTimeout(() => {
-        if (cardEl) cardEl.classList.remove('anim-magnetic-snap');
+        if (destCard) destCard.classList.remove('anim-magnetic-snap');
       }, 700);
     }
-  }, 40);
+  }
+
+  requestAnimationFrame(step);
 };
 
 // Transição de Status via Menu do Card com o mesmo Efeito Magnético de Arrastar e Soltar
 window.moveTaskWithMagneticEffect = async (taskId, targetStatus) => {
-  const cardEl = document.getElementById(`kanban-task-card-${taskId}`);
-  const targetCol = document.getElementById(`kanban-col-${targetStatus}`);
+  const sourceCard = document.getElementById(`kanban-task-card-${taskId}`);
+  const firstRect = sourceCard ? sourceCard.getBoundingClientRect() : null;
 
-  // Animação imediata de atração e saída
-  if (cardEl) {
-    cardEl.classList.add('opacity-40', 'scale-95');
-  }
+  const targetCol = document.getElementById(`kanban-col-${targetStatus}`);
   if (targetCol) {
     targetCol.classList.add('kanban-drag-over');
+    setTimeout(() => {
+      if (targetCol) targetCol.classList.remove('kanban-drag-over');
+    }, 450);
   }
 
   const task = (state.tasks || []).find(t => t && String(t.id) === String(taskId));
@@ -11976,42 +12077,37 @@ window.moveTaskWithMagneticEffect = async (taskId, targetStatus) => {
     await dataService.upsertTarefa(task, userId);
   }
   await saveStorage();
-
-  // Pequena pausa para sensação tátil de sucção magnética
-  await new Promise(r => setTimeout(r, 120));
   render();
 
-  // Efeito magnético e pulso na coluna de destino pós-render
-  setTimeout(() => {
-    const newCol = document.getElementById(`kanban-col-${targetStatus}`);
-    if (newCol) {
-      newCol.classList.add('kanban-drop-pulse');
-      setTimeout(() => newCol.classList.remove('kanban-drop-pulse'), 600);
+  // Executa voo em arco do spring estilo Framer Motion (stiffness: 300, damping: 25)
+  requestAnimationFrame(() => {
+    const destCard = document.getElementById(`kanban-task-card-${taskId}`);
+    if (destCard && firstRect) {
+      const lastRect = destCard.getBoundingClientRect();
+      window.playFramerSpringFlight(destCard, firstRect, lastRect);
     }
-
-    const newCardEl = document.getElementById(`kanban-task-card-${taskId}`);
-    if (newCardEl) {
-      newCardEl.classList.remove('anim-magnetic-snap');
-      void newCardEl.offsetWidth; // Reflow
-      newCardEl.classList.add('anim-magnetic-snap');
-      newCardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      setTimeout(() => {
-        if (newCardEl) newCardEl.classList.remove('anim-magnetic-snap');
-      }, 700);
-    }
-  }, 40);
+  });
 };
+
+// Helper para obter iniciais limpas do solicitante
+function getSolicitanteInitials(name) {
+  if (!name) return 'BM';
+  const clean = String(name).trim().replace(/[^a-zA-ZÀ-ÿ\s]/g, '');
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'BM';
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 // Componente do Card de Tarefa Estilo Pipefy (Cards brancos com sombras sutis, pills de prioridade e prazo)
 function renderPipefyKanbanCard(t) {
   if (!t) return '';
   const comp = t.empresaId ? (state.companies || []).find(c => c && Number(c.id) === Number(t.empresaId)) : null;
   const overdueInfo = getTaskOverdueInfo(t.data);
-  const isAtrasada = !t.concluida && overdueInfo.isOverdue;
   const formattedVenc = formatPipefyDate(t.data);
-  const relativeText = t.concluida ? 'concluída' : (overdueInfo.label || 'No prazo');
   
   const solicitante = comp?.colaborador || t.autor || state.userProfile?.firstName || 'Brayann Mikael';
+  const solicitanteInitials = getSolicitanteInitials(solicitante);
 
   const priorityColor = t.urgencia === 'Alta' 
     ? 'bg-[#EF4444] text-white' 
@@ -12027,22 +12123,55 @@ function renderPipefyKanbanCard(t) {
     ? 'pausadas'
     : 'pendentes';
 
+  // 2. Destaque Visual Dinâmico por Data de Vencimento
+  let cardBorder = 'border-slate-200/90 dark:border-strokedark';
+  let cardBgHighlight = 'bg-white dark:bg-[#1A222C]';
+  let dateBadgeCss = 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-slate-800';
+  let relativeText = overdueInfo.label || 'No prazo';
+
+  if (currentNormalizedStatus === 'concluidas') {
+    cardBorder = 'border-emerald-300/70 dark:border-emerald-800/60';
+    cardBgHighlight = 'bg-emerald-50/[0.15] dark:bg-emerald-950/10';
+    dateBadgeCss = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300/50';
+    relativeText = 'Concluída';
+  } else if (overdueInfo.isCritical) {
+    // Vermelho (Alerta Crítico): Vence hoje ou atrasada
+    cardBorder = overdueInfo.cardBorder || 'border-rose-400/80 dark:border-rose-500/60 shadow-xs shadow-rose-500/10';
+    cardBgHighlight = 'bg-rose-50/[0.25] dark:bg-rose-950/20';
+    dateBadgeCss = overdueInfo.tagCss || 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/35 font-bold';
+    relativeText = overdueInfo.label;
+  } else if (overdueInfo.isClose) {
+    // Amarelo (Aviso Preventivo): Vence em 1 ou 2 dias
+    cardBorder = overdueInfo.cardBorder || 'border-amber-400/70 dark:border-amber-500/40 shadow-xs shadow-amber-500/5';
+    cardBgHighlight = 'bg-amber-50/[0.20] dark:bg-amber-950/15';
+    dateBadgeCss = overdueInfo.tagCss || 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/35 font-semibold';
+    relativeText = overdueInfo.label;
+  }
+
   return `
     <div
       id="kanban-task-card-${t.id}"
+      data-layout-id="${t.id}"
       draggable="true"
       ondragstart="handleKanbanDragStart(event, '${t.id}')"
       ondragend="handleKanbanDragEnd(event, '${t.id}')"
       onclick="openTaskDrawer('${t.id}', event)"
-      class="bg-white dark:bg-[#1A222C] rounded-xl shadow-xs hover:shadow-md border border-slate-200/90 dark:border-strokedark p-4 transition-all duration-150 cursor-grab active:cursor-grabbing select-none group relative space-y-3"
+      class="${cardBgHighlight} rounded-xl shadow-xs hover:shadow-md border ${cardBorder} p-3 transition-all duration-150 cursor-grab active:cursor-grabbing select-none group relative space-y-2"
     >
       <!-- Topo: Pill de Prioridade e Ações Rápidas -->
       <div class="flex items-center justify-between">
-        <span class="inline-block text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full ${priorityColor}">
-          ${t.urgencia === 'Media' ? 'Média' : (t.urgencia || 'Baixa')}
-        </span>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="inline-block text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold ${priorityColor}">
+            ${t.urgencia === 'Media' ? 'Média' : (t.urgencia || 'Baixa')}
+          </span>
+          ${comp ? `
+            <span class="text-[10px] text-slate-400 dark:text-slate-400 truncate max-w-[120px] font-medium" title="${escapeHtml(comp.nome)}">
+              ${escapeHtml(comp.nome)}
+            </span>
+          ` : ''}
+        </div>
         
-        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
+        <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
           <button onclick="openEditTaskModal('${t.id}')" class="p-1 rounded text-gray-400 hover:text-amber-500 hover:bg-gray-100 dark:hover:bg-white/10 transition" title="Editar Tarefa">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
@@ -12059,72 +12188,63 @@ function renderPipefyKanbanCard(t) {
         </div>
       </div>
 
-      <!-- Título da Tarefa em Negrito (Hierarquia Visual Clara) -->
-      <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-snug line-clamp-3">
+      <!-- Título da Tarefa Enxuto e Claro -->
+      <h4 class="font-bold text-[13px] text-slate-800 dark:text-white leading-snug line-clamp-2">
         ${escapeHtml(t.titulo)}
       </h4>
 
+      <!-- Descrição Secundária: Oculta no modo geral, revelada no hover do card -->
       ${t.descricao ? `
-        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed hidden group-hover:block transition-all duration-200">
           ${escapeHtml(t.descricao)}
         </p>
       ` : ''}
 
-      <!-- Identificação do Solicitante / Responsável -->
-      <div class="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 pt-1">
-        <div class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-          <span class="w-3.5 h-3.5 rounded bg-slate-100 dark:bg-white/10 flex items-center justify-center text-[9px] font-bold text-slate-600 dark:text-slate-300">A</span>
-          <span>NOME DO SOLICITANTE</span>
-        </div>
-        <div class="font-semibold text-slate-800 dark:text-slate-200 truncate pl-5">
-          ${escapeHtml(solicitante)}
-        </div>
-      </div>
-
-      <!-- Data com Ícone de Calendário e Prazo Destacado -->
-      <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ${
-          isAtrasada ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-medium'
-        }">
-          <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Rodapé Integrado Minimalista: Data Dinâmica + Seletor de Status Compacto + Avatar com Iniciais -->
+      <div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2" onclick="event.stopPropagation()">
+        <!-- Tag de Data com Destaque Dinâmico -->
+        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] border ${dateBadgeCss}" title="${escapeHtml(overdueInfo.text || relativeText)}">
+          <svg class="w-3.5 h-3.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
-          <span>${formattedVenc}</span>
-          <span class="opacity-75 text-[10px]">&bull; ${relativeText}</span>
+          <span class="font-medium">${formattedVenc}</span>
+          <span class="opacity-80 text-[9.5px]">&bull; ${relativeText}</span>
         </div>
 
-        ${comp ? `
-          <span class="text-[10.5px] text-slate-400 truncate max-w-[110px]" title="${escapeHtml(comp.nome)}">
-            ${escapeHtml(comp.nome)}
-          </span>
-        ` : ''}
-      </div>
+        <!-- Seletor Minimalista de Status + Avatar com Iniciais -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <div class="relative inline-flex items-center">
+            <select
+              onchange="window.moveTaskWithMagneticEffect('${t.id}', this.value)"
+              class="text-[10px] font-bold py-0.5 pl-2 pr-5 rounded-md border cursor-pointer transition-all appearance-none ${
+                currentNormalizedStatus === 'pendentes' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-400/50' :
+                currentNormalizedStatus === 'em_andamento' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-400/50' :
+                currentNormalizedStatus === 'pausadas' ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-400/50' :
+                'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-400/50'
+              } focus:outline-none focus:ring-1 focus:ring-blue-500"
+              title="Mover tarefa de coluna"
+            >
+              <option value="pendentes" ${currentNormalizedStatus === 'pendentes' ? 'selected' : ''}>🟠 Pendente</option>
+              <option value="em_andamento" ${currentNormalizedStatus === 'em_andamento' ? 'selected' : ''}>🔵 Andamento</option>
+              <option value="pausadas" ${currentNormalizedStatus === 'pausadas' ? 'selected' : ''}>🟣 Pausada</option>
+              <option value="concluidas" ${currentNormalizedStatus === 'concluidas' ? 'selected' : ''}>🟢 Concluída</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1 text-slate-400">
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+          </div>
 
-      <!-- Barra Inferior de Controle Rápido de Status (Mover com Efeito Magnético) -->
-      <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2" onclick="event.stopPropagation()">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Mover:</span>
-        <div class="relative flex-1">
-          <select
-            onchange="window.moveTaskWithMagneticEffect('${t.id}', this.value)"
-            class="w-full text-[11px] font-bold py-1 pl-2.5 pr-7 rounded-lg border cursor-pointer transition-all appearance-none ${
-              currentNormalizedStatus === 'pendentes' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300/80 dark:border-amber-800' :
-              currentNormalizedStatus === 'em_andamento' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-300/80 dark:border-blue-800' :
-              currentNormalizedStatus === 'pausadas' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-300/80 dark:border-purple-800' :
-              'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/80 dark:border-emerald-800'
-            } focus:outline-none focus:ring-1 focus:ring-blue-500"
+          <!-- Avatar Discreto com Iniciais do Solicitante -->
+          <div
+            class="w-5 h-5 rounded-full bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300/70 dark:border-slate-600 flex items-center justify-center text-[9px] font-bold shadow-xs select-none shrink-0"
+            title="Solicitante: ${escapeHtml(solicitante)}"
           >
-            <option value="pendentes" ${currentNormalizedStatus === 'pendentes' ? 'selected' : ''}>🟠 Pendentes</option>
-            <option value="em_andamento" ${currentNormalizedStatus === 'em_andamento' ? 'selected' : ''}>🔵 Em Andamento</option>
-            <option value="pausadas" ${currentNormalizedStatus === 'pausadas' ? 'selected' : ''}>🟣 Pausadas</option>
-            <option value="concluidas" ${currentNormalizedStatus === 'concluidas' ? 'selected' : ''}>🟢 Concluídas</option>
-          </select>
-          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-            </svg>
+            ${escapeHtml(solicitanteInitials)}
           </div>
         </div>
       </div>
