@@ -12858,7 +12858,7 @@ function renderConversorFolhaTab(companies) {
                       `;
                     }).join('')}
 
-                    ${filteredSelecionadas.length === 0 ? `
+                    ${filteredCadastradas.length === 0 ? `
                       <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-8">
                         <span>Nenhuma rubrica vinculada a este lançamento</span>
                         <span class="text-[10px] mt-1 text-slate-500">Selecione rubricas à esquerda e clique em ➔</span>
