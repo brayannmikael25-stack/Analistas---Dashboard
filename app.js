@@ -1707,7 +1707,17 @@ const state = {
     selectedRubricasDireita: [],
     generatedTxt: null,
     isParsingPdf: false,
-    parseError: null
+    parseError: null,
+    // Estados interativos de UI/UX adicionados:
+    companySearchQuery: '',
+    isCompanyDropdownOpen: false,
+    isCompetenciaModalOpen: false,
+    competenciaModalYear: 2026, // 2025 | 2026 | 2027 | 2028
+    processedCompetenciasByCompany: (initialUserData && initialUserData.conversorFolhaProcessados) ? initialUserData.conversorFolhaProcessados : {},
+    debitoSearchQuery: '',
+    isDebitoDropdownOpen: false,
+    creditoSearchQuery: '',
+    isCreditoDropdownOpen: false
   }
 };
 
@@ -1770,6 +1780,9 @@ function applyPackageToState(pkg) {
   }
   if (pkg.conversorFolhaPlanoContas && state.conversorFolha) {
     state.conversorFolha.planoContasByCompany = pkg.conversorFolhaPlanoContas;
+  }
+  if (pkg.conversorFolhaProcessados && state.conversorFolha) {
+    state.conversorFolha.processedCompetenciasByCompany = pkg.conversorFolhaProcessados;
   }
   if (pkg.updatedAt) {
     state.lastUpdatedAt = pkg.updatedAt;
@@ -1982,6 +1995,7 @@ function saveLocalCacheOnly(userId, timestampIso, isUserModified = true) {
       fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
       conversorFolhaRegras: state.conversorFolha ? state.conversorFolha.regrasByCompany : {},
       conversorFolhaPlanoContas: state.conversorFolha ? state.conversorFolha.planoContasByCompany : {},
+      conversorFolhaProcessados: state.conversorFolha ? state.conversorFolha.processedCompetenciasByCompany : {},
       updatedAt: timestampIso
     };
     const serialized = JSON.stringify(userPayload);
@@ -2236,6 +2250,7 @@ async function saveStorage(options = {}) {
     fechamentoIAData: state.fechamentoIA ? state.fechamentoIA.auditData : {},
     conversorFolhaRegras: state.conversorFolha ? state.conversorFolha.regrasByCompany : {},
     conversorFolhaPlanoContas: state.conversorFolha ? state.conversorFolha.planoContasByCompany : {},
+    conversorFolhaProcessados: state.conversorFolha ? state.conversorFolha.processedCompetenciasByCompany : {},
     updatedAt: nowIso
   };
 
@@ -12243,156 +12258,13 @@ function extractFortesDataFromText(rawText) {
 }
 
 // Inicializa regras padrão de lançamento (De-Para) para uma nova empresa
+// Estado limpo: empresa nova ou sem parametrização prévia começa zerada
 function getInitialRegrasConversor(companyId) {
   return {
-    folha: [
-      {
-        id: 1,
-        codigo: 1,
-        descricao: 'SALÁRIOS E ORDENADOS A PAGAR',
-        debito: '3101', // Despesa c/ Salários
-        credito: '2105', // Salários a Pagar
-        historicoCod: '10',
-        historicoTemplate: 'REFERENTE A <<Descricao>> - <<Competencia>>',
-        rubricas: ['011', '013', '016', '060', '061', '171', '172', '173', '174', '923', '961', '962']
-      },
-      {
-        id: 2,
-        codigo: 2,
-        descricao: 'SALÁRIO-FAMÍLIA',
-        debito: '2108', // INSS a Recolher (dedução)
-        credito: '2105', // Salários a Pagar
-        historicoCod: '15',
-        historicoTemplate: 'REFERENTE A <<Descricao>> - <<Competencia>>',
-        rubricas: ['010']
-      },
-      {
-        id: 3,
-        codigo: 3,
-        descricao: 'INSS RETIDO DOS EMPREGADOS',
-        debito: '2105', // Salários a Pagar
-        credito: '2108', // INSS a Recolher
-        historicoCod: '22',
-        historicoTemplate: 'REFERENTE INSS RETIDO S/ FOLHA - <<Competencia>>',
-        rubricas: ['310']
-      },
-      {
-        id: 4,
-        codigo: 4,
-        descricao: 'VALE TRANSPORTE DESCONTADO',
-        debito: '2105', // Salários a Pagar
-        credito: '3115', // Despesa c/ Vale Transporte
-        historicoCod: '30',
-        historicoTemplate: 'REFERENTE DESC. VALE TRANSPORTE - <<Competencia>>',
-        rubricas: ['320']
-      },
-      {
-        id: 5,
-        codigo: 5,
-        descricao: 'VALE ALIMENTAÇÃO / REFEIÇÃO',
-        debito: '2105', // Salários a Pagar
-        credito: '3116', // Despesa c/ Vale Alimentação
-        historicoCod: '32',
-        historicoTemplate: 'REFERENTE DESC. ALIMENTACAO - <<Competencia>>',
-        rubricas: ['024', '974']
-      },
-      {
-        id: 6,
-        codigo: 6,
-        descricao: 'FALTAS E SUSPENSÕES',
-        debito: '2105', // Salários a Pagar
-        credito: '3101', // Despesa c/ Salários
-        historicoCod: '40',
-        historicoTemplate: 'REFERENTE FALTAS NO MES - <<Competencia>>',
-        rubricas: ['321', '971']
-      },
-      {
-        id: 7,
-        codigo: 7,
-        descricao: 'EMPRÉSTIMOS CONSIGNADOS',
-        debito: '2105', // Salários a Pagar
-        credito: '2120', // Consignados a Repassar
-        historicoCod: '50',
-        historicoTemplate: 'REFERENTE CONSIGNADOS EM FOLHA - <<Competencia>>',
-        rubricas: ['127', '950', '951', '952', '953', '954']
-      },
-      {
-        id: 8,
-        codigo: 8,
-        descricao: 'PLANO DE SAÚDE',
-        debito: '2105', // Salários a Pagar
-        credito: '3125', // Despesa c/ Assistência Médica
-        historicoCod: '60',
-        historicoTemplate: 'REFERENTE DESC. PLANO DE SAUDE - <<Competencia>>',
-        rubricas: ['905', '921']
-      }
-    ],
-    ferias: [
-      {
-        id: 101,
-        codigo: 101,
-        descricao: 'FÉRIAS GOZADAS E 1/3 CONSTITUCIONAL',
-        debito: '2106', // Provisão de Férias
-        credito: '2107', // Férias a Pagar
-        historicoCod: '70',
-        historicoTemplate: 'REFERENTE A <<Descricao>> - <<Competencia>>',
-        rubricas: ['110', '111']
-      },
-      {
-        id: 102,
-        codigo: 102,
-        descricao: 'INSS S/ FÉRIAS',
-        debito: '2107', // Férias a Pagar
-        credito: '2108', // INSS a Recolher
-        historicoCod: '72',
-        historicoTemplate: 'REFERENTE INSS S/ FERIAS - <<Competencia>>',
-        rubricas: ['310']
-      }
-    ],
-    rescisao: [
-      {
-        id: 201,
-        codigo: 201,
-        descricao: 'RESCISÕES CONTRATUAIS A PAGAR',
-        debito: '3101', // Salários / Rescisões
-        credito: '2109', // Rescisões a Pagar
-        historicoCod: '80',
-        historicoTemplate: 'REFERENTE RESCISOES DO MES - <<Competencia>>',
-        rubricas: ['199', '200', '203', '205', '206', '208', '209', '211', '212']
-      },
-      {
-        id: 202,
-        codigo: 202,
-        descricao: 'DESCONTOS EM RESCISÃO',
-        debito: '2109', // Rescisões a Pagar
-        credito: '3101', // Recuperação / Salários
-        historicoCod: '85',
-        historicoTemplate: 'REFERENTE DESCONTOS EM RESCISAO - <<Competencia>>',
-        rubricas: ['500', '501', '502', '504', '967', '968', '969', '970']
-      }
-    ],
-    empresa: [
-      {
-        id: 301,
-        codigo: 301,
-        descricao: 'FGTS S/ FOLHA DE PAGAMENTO',
-        debito: '3108', // Despesa c/ FGTS
-        credito: '2112', // FGTS a Recolher
-        historicoCod: '90',
-        historicoTemplate: 'VALOR DO FGTS S/ FOLHA DE PAGAMENTO - <<Competencia>>',
-        rubricas: ['FGTS_TOTAL']
-      },
-      {
-        id: 302,
-        codigo: 302,
-        descricao: 'INSS PATRONAL / PREVIDÊNCIA SOCIAL',
-        debito: '3105', // Despesa c/ INSS Patronal
-        credito: '2108', // INSS a Recolher
-        historicoCod: '92',
-        historicoTemplate: 'VALOR DO INSS PATRONAL S/ FOLHA - <<Competencia>>',
-        rubricas: ['INSS_TOTAL']
-      }
-    ],
+    folha: [],
+    ferias: [],
+    rescisao: [],
+    empresa: [],
     patrimonial: []
   };
 }
@@ -12409,7 +12281,7 @@ function renderConversorFolhaTab(companies) {
   const selectedCompany = companies.find(c => String(c.id) === String(folhaState.selectedCompanyId)) || companies[0];
   const companyKey = selectedCompany ? String(selectedCompany.id) : 'default';
 
-  // Carrega ou inicializa as regras De-Para da empresa selecionada
+  // Carrega ou inicializa as regras De-Para da empresa selecionada (começa limpo se não houver dados salvos)
   if (!folhaState.regrasByCompany[companyKey]) {
     folhaState.regrasByCompany[companyKey] = getInitialRegrasConversor(companyKey);
   }
@@ -12418,6 +12290,9 @@ function renderConversorFolhaTab(companies) {
 
   // Plano de contas carregado para esta empresa
   const planoContas = folhaState.planoContasByCompany[companyKey] || [];
+
+  // Competências processadas desta empresa
+  const processedCompetencias = folhaState.processedCompetenciasByCompany[companyKey] || [];
 
   // Índice seguro do lançamento selecionado no navegador
   if (folhaState.currentLancamentoIdx >= currentTabRegras.length) {
@@ -12445,20 +12320,44 @@ function renderConversorFolhaTab(companies) {
   const rubricasDisponiveis = pdfRubricas.filter(r => !vinculadasCodigos.includes(r.codigo));
 
   // Filtragem por busca textual nos boxes de transferência
-  const filterEsquerda = folhaState.searchRubricaDisponivel.toLowerCase();
+  const filterEsquerda = (folhaState.searchRubricaDisponivel || '').toLowerCase();
   const filteredDisponiveis = rubricasDisponiveis.filter(r => 
     r.codigo.toLowerCase().includes(filterEsquerda) || r.nome.toLowerCase().includes(filterEsquerda)
   );
 
-  const filterDireita = folhaState.searchRubricaSelecionada.toLowerCase();
+  const filterDireita = (folhaState.searchRubricaSelecionada || '').toLowerCase();
   const filteredSelecionadas = rubricasSelecionadas.filter(r => 
     r.codigo.toLowerCase().includes(filterDireita) || r.nome.toLowerCase().includes(filterDireita)
   );
 
+  // Filtragem dinâmica do Combobox de Empresas
+  const companyQuery = (folhaState.companySearchQuery || '').toLowerCase().trim();
+  const filteredCompanies = companies.filter(c => {
+    if (!companyQuery) return true;
+    const cod = String(c.codigo || '').toLowerCase();
+    const nome = String(c.nome || '').toLowerCase();
+    const cnpj = String(c.cnpj || '').toLowerCase();
+    return cod.includes(companyQuery) || nome.includes(companyQuery) || cnpj.includes(companyQuery);
+  });
+
+  // Filtragem de Contas do Plano de Contas (Autocomplete para Débito e Crédito)
+  const debitoQuery = (folhaState.debitoSearchQuery || '').toLowerCase().trim();
+  const filteredDebitoContas = planoContas.filter(c => {
+    if (!debitoQuery) return true;
+    return String(c.codigo || '').toLowerCase().includes(debitoQuery) || String(c.nome || '').toLowerCase().includes(debitoQuery);
+  }).slice(0, 15);
+
+  const creditoQuery = (folhaState.creditoSearchQuery || '').toLowerCase().trim();
+  const filteredCreditoContas = planoContas.filter(c => {
+    if (!creditoQuery) return true;
+    return String(c.codigo || '').toLowerCase().includes(creditoQuery) || String(c.nome || '').toLowerCase().includes(creditoQuery);
+  }).slice(0, 15);
+
   const dataFinalMes = getUltimoDiaDoMesCompetencia(folhaState.competencia);
+  const isCompDone = processedCompetencias.includes(folhaState.competencia);
 
   return `
-    <div class="space-y-6 animate-fadeIn select-none">
+    <div class="space-y-6 animate-fadeIn select-none" onclick="window.closeAllConversorDropdowns(event)">
       
       <!-- ======================================================== -->
       <!-- 1. HEADER DO MÓDULO & CONTEXTO DA EMPRESA E ARQUIVOS     -->
@@ -12496,44 +12395,95 @@ function renderConversorFolhaTab(companies) {
           </div>
         </div>
 
-        <!-- Barra de Contexto: Seleção de Empresa, Competência e Uploads -->
+        <!-- Barra de Contexto: Seleção de Empresa com Combobox, Competência com Modal e Uploads -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
           
-          <!-- Dropdown Empresa -->
-          <div>
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-              1. Empresa
+          <!-- 1. SELEÇÃO DE EMPRESA (Combobox / Autocomplete Inteligente) -->
+          <div class="relative" onclick="event.stopPropagation()">
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
+              <span>1. Empresa</span>
+              ${selectedCompany ? `<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Cód. ${selectedCompany.codigo || selectedCompany.id}</span>` : ''}
             </label>
-            <select
-              onchange="window.setConversorFolhaCompany(this.value)"
-              class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            
+            <div
+              onclick="window.toggleCompanyDropdown(event)"
+              class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-white flex items-center justify-between cursor-pointer hover:border-emerald-500 transition shadow-2xs"
             >
-              ${companies.map(c => `
-                <option value="${c.id}" ${String(c.id) === String(selectedCompany?.id) ? 'selected' : ''}>
-                  ${c.codigo ? c.codigo + ' - ' : ''}${escapeHtml(c.nome)} (${c.regime})
-                </option>
-              `).join('')}
-            </select>
+              <span class="truncate">
+                ${selectedCompany ? `${selectedCompany.codigo ? selectedCompany.codigo + ' - ' : ''}${escapeHtml(selectedCompany.nome)}` : '<span class="text-slate-400 font-normal">Selecione uma empresa...</span>'}
+              </span>
+              <svg class="w-4 h-4 text-slate-400 shrink-0 ml-1.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+
+            <!-- Dropdown Popover com campo de busca instantânea -->
+            ${folhaState.isCompanyDropdownOpen ? `
+              <div class="absolute left-0 top-full mt-1.5 w-full md:w-80 z-50 bg-white dark:bg-[#161722] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-2 space-y-2 animate-fadeIn">
+                <div class="relative">
+                  <input
+                    type="text"
+                    id="conversor-company-search-input"
+                    placeholder="Digitar código ou nome da empresa..."
+                    value="${escapeHtml(folhaState.companySearchQuery || '')}"
+                    oninput="window.setCompanySearchQuery(this.value)"
+                    onclick="event.stopPropagation()"
+                    class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-[#12131F] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    autofocus
+                  />
+                  <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+                <div class="max-h-56 overflow-y-auto space-y-1 pr-0.5">
+                  ${filteredCompanies.map(c => `
+                    <div
+                      onclick="window.selectConversorCompany('${c.id}')"
+                      class="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${
+                        String(c.id) === String(selectedCompany?.id) ? 'bg-emerald-500 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200'
+                      }"
+                    >
+                      <div class="truncate pr-1">
+                        <span class="font-bold opacity-80 mr-1">${c.codigo || c.id}</span>
+                        <span>${escapeHtml(c.nome)}</span>
+                      </div>
+                      <span class="text-[9.5px] uppercase font-mono opacity-70 shrink-0">${c.regime ? c.regime.split(' ')[0] : ''}</span>
+                    </div>
+                  `).join('')}
+                  ${filteredCompanies.length === 0 ? `
+                    <div class="p-3 text-center text-xs text-slate-400">Nenhuma empresa encontrada</div>
+                  ` : ''}
+                </div>
+              </div>
+            ` : ''}
           </div>
 
-          <!-- Competência MM/AAAA -->
+          <!-- 2. SELEÇÃO E GERENCIAMENTO DE COMPETÊNCIA (Com Seletor / Modal Anos 2025-2028) -->
           <div>
             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
               <span>2. Competência</span>
-              <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold font-mono">Data: ${dataFinalMes}</span>
+              <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold font-mono">Último dia: ${dataFinalMes}</span>
             </label>
-            <input
-              type="text"
-              id="conversor-folha-competencia"
-              value="${folhaState.competencia}"
-              placeholder="09/2026"
-              maxlength="7"
-              onchange="window.setConversorFolhaCompetencia(this.value)"
-              class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center font-mono"
-            />
+            <div
+              onclick="window.openCompetenciaModal()"
+              class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-white flex items-center justify-between cursor-pointer hover:border-emerald-500 transition shadow-2xs group"
+              title="Clique para escolher entre os anos de 2025 a 2028"
+            >
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs font-black text-slate-900 dark:text-white">${folhaState.competencia}</span>
+                ${isCompDone ? `
+                  <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    ✓ Gerada
+                  </span>
+                ` : `
+                  <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    • Pendente
+                  </span>
+                `}
+              </div>
+              <span class="text-[11px] text-slate-400 group-hover:text-emerald-500 transition font-medium">Trocar 📅</span>
+            </div>
           </div>
 
-          <!-- Gerenciador do Plano de Contas Domínio -->
+          <!-- 3. Gerenciador do Plano de Contas Domínio -->
           <div>
             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
               <span>3. Plano de Contas</span>
@@ -12546,7 +12496,7 @@ function renderConversorFolhaTab(companies) {
             </label>
           </div>
 
-          <!-- Upload Relatório Fortes Pessoal PDF -->
+          <!-- 4. Upload Relatório Fortes Pessoal PDF -->
           <div>
             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
               <span>4. Relatório Fortes</span>
@@ -12646,53 +12596,107 @@ function renderConversorFolhaTab(companies) {
                 <div class="md:col-span-10">
                   <input
                     type="text"
-                    value="${escapeHtml(currentLancamento.descricao)}"
+                    value="${escapeHtml(currentLancamento.descricao || '')}"
                     onchange="window.updateCurrentLancamentoField('descricao', this.value)"
-                    placeholder="Ex: IRRF S/ 13º SALÁRIO"
-                    class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white uppercase focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    placeholder="(Ex: Salários e Ordenados a Pagar)"
+                    class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white uppercase placeholder:text-slate-400 placeholder:normal-case placeholder:font-normal focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <!-- Conta Débito -->
+              <!-- Conta Débito com Autocomplete no Plano de Contas -->
               <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                 <label class="md:col-span-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                   Conta Débito:
                 </label>
-                <div class="md:col-span-10 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value="${escapeHtml(currentLancamento.debito)}"
-                    onchange="window.updateCurrentLancamentoField('debito', this.value)"
-                    placeholder="Código analítico (ex: 1929)"
-                    class="w-32 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-center"
-                  />
+                <div class="md:col-span-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 relative" onclick="event.stopPropagation()">
+                  <div class="relative w-full sm:w-80">
+                    <input
+                      type="text"
+                      value="${escapeHtml(currentLancamento.debito || '')}"
+                      onfocus="window.openContaDropdown('debito')"
+                      oninput="window.setContaSearchQuery('debito', this.value)"
+                      onchange="window.updateCurrentLancamentoField('debito', this.value)"
+                      placeholder="(Código ou Nome da Conta Débito)"
+                      class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+
+                    <!-- Dropdown de Autocomplete Débito -->
+                    ${folhaState.isDebitoDropdownOpen && planoContas.length > 0 ? `
+                      <div class="absolute left-0 top-full mt-1.5 w-full sm:w-96 z-50 bg-white dark:bg-[#161722] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-1.5 space-y-1 animate-fadeIn max-h-56 overflow-y-auto">
+                        <div class="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
+                          Selecione no Plano de Contas
+                        </div>
+                        ${filteredDebitoContas.map(c => `
+                          <div
+                            onclick="window.selectContaPlano('debito', '${c.codigo}')"
+                            class="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-emerald-500 hover:text-white transition flex items-center justify-between text-slate-800 dark:text-slate-200 group"
+                          >
+                            <span class="font-mono font-bold group-hover:text-white text-emerald-600 dark:text-emerald-400 mr-2">${c.codigo}</span>
+                            <span class="truncate flex-1 font-medium">${escapeHtml(c.nome)}</span>
+                          </div>
+                        `).join('')}
+                        ${filteredDebitoContas.length === 0 ? `
+                          <div class="p-2 text-center text-xs text-slate-400">Nenhuma conta encontrada com "${escapeHtml(debitoQuery)}"</div>
+                        ` : ''}
+                      </div>
+                    ` : ''}
+                  </div>
+
                   <div class="flex-1 px-3.5 py-2 rounded-xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/80 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 font-medium truncate">
                     ${(() => {
+                      if (!currentLancamento.debito) return '<span class="text-slate-400 font-normal">Nenhuma conta débito vinculada</span>';
                       const c = planoContas.find(x => String(x.codigo) === String(currentLancamento.debito));
-                      return c ? `🟢 ${c.codigo} - ${c.nome}` : '(Conta informada manualmente ou consulte o plano)';
+                      return c ? `🟢 ${c.codigo} - ${c.nome}` : `🟢 Conta ${currentLancamento.debito}`;
                     })()}
                   </div>
                 </div>
               </div>
 
-              <!-- Conta Crédito -->
+              <!-- Conta Crédito com Autocomplete no Plano de Contas -->
               <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                 <label class="md:col-span-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                   Conta Crédito:
                 </label>
-                <div class="md:col-span-10 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value="${escapeHtml(currentLancamento.credito)}"
-                    onchange="window.updateCurrentLancamentoField('credito', this.value)"
-                    placeholder="Código analítico (ex: 178)"
-                    class="w-32 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-center"
-                  />
+                <div class="md:col-span-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 relative" onclick="event.stopPropagation()">
+                  <div class="relative w-full sm:w-80">
+                    <input
+                      type="text"
+                      value="${escapeHtml(currentLancamento.credito || '')}"
+                      onfocus="window.openContaDropdown('credito')"
+                      oninput="window.setContaSearchQuery('credito', this.value)"
+                      onchange="window.updateCurrentLancamentoField('credito', this.value)"
+                      placeholder="(Código ou Nome da Conta Crédito)"
+                      class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+
+                    <!-- Dropdown de Autocomplete Crédito -->
+                    ${folhaState.isCreditoDropdownOpen && planoContas.length > 0 ? `
+                      <div class="absolute left-0 top-full mt-1.5 w-full sm:w-96 z-50 bg-white dark:bg-[#161722] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-1.5 space-y-1 animate-fadeIn max-h-56 overflow-y-auto">
+                        <div class="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
+                          Selecione no Plano de Contas
+                        </div>
+                        ${filteredCreditoContas.map(c => `
+                          <div
+                            onclick="window.selectContaPlano('credito', '${c.codigo}')"
+                            class="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-blue-600 hover:text-white transition flex items-center justify-between text-slate-800 dark:text-slate-200 group"
+                          >
+                            <span class="font-mono font-bold group-hover:text-white text-blue-600 dark:text-blue-400 mr-2">${c.codigo}</span>
+                            <span class="truncate flex-1 font-medium">${escapeHtml(c.nome)}</span>
+                          </div>
+                        `).join('')}
+                        ${filteredCreditoContas.length === 0 ? `
+                          <div class="p-2 text-center text-xs text-slate-400">Nenhuma conta encontrada com "${escapeHtml(creditoQuery)}"</div>
+                        ` : ''}
+                      </div>
+                    ` : ''}
+                  </div>
+
                   <div class="flex-1 px-3.5 py-2 rounded-xl bg-slate-100/70 dark:bg-white/5 border border-slate-200/80 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 font-medium truncate">
                     ${(() => {
+                      if (!currentLancamento.credito) return '<span class="text-slate-400 font-normal">Nenhuma conta crédito vinculada</span>';
                       const c = planoContas.find(x => String(x.codigo) === String(currentLancamento.credito));
-                      return c ? `🔵 ${c.codigo} - ${c.nome}` : '(Conta informada manualmente ou consulte o plano)';
+                      return c ? `🔵 ${c.codigo} - ${c.nome}` : `🔵 Conta ${currentLancamento.credito}`;
                     })()}
                   </div>
                 </div>
@@ -12706,18 +12710,18 @@ function renderConversorFolhaTab(companies) {
                 <div class="md:col-span-10 flex items-center gap-2">
                   <input
                     type="text"
-                    value="${escapeHtml(currentLancamento.historicoCod || '78')}"
+                    value="${escapeHtml(currentLancamento.historicoCod || '')}"
                     onchange="window.updateCurrentLancamentoField('historicoCod', this.value)"
-                    placeholder="Cód."
-                    class="w-20 px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-mono font-bold text-slate-900 dark:text-white text-center focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    placeholder="(Cód)"
+                    class="w-20 px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs font-mono font-bold text-slate-900 dark:text-white text-center placeholder:text-slate-400 placeholder:font-normal focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     title="Código do histórico padrão na Domínio"
                   />
                   <input
                     type="text"
-                    value="${escapeHtml(currentLancamento.historicoTemplate)}"
+                    value="${escapeHtml(currentLancamento.historicoTemplate || '')}"
                     onchange="window.updateCurrentLancamentoField('historicoTemplate', this.value)"
-                    placeholder="REFERENTE A <<Descricao>> - <<Competencia>>"
-                    class="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    placeholder="(Ex: REFERENTE A <<Descricao>> - <<Competencia>>)"
+                    class="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200/90 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-normal focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -12740,7 +12744,7 @@ function renderConversorFolhaTab(companies) {
                     <input
                       type="text"
                       placeholder="Filtrar disponível..."
-                      value="${folhaState.searchRubricaDisponivel}"
+                      value="${folhaState.searchRubricaDisponivel || ''}"
                       oninput="window.setSearchRubrica('searchRubricaDisponivel', this.value)"
                       class="px-2.5 py-1 text-[11px] rounded-lg bg-slate-50 dark:bg-[#12131F] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white w-36"
                     />
@@ -12776,8 +12780,8 @@ function renderConversorFolhaTab(companies) {
 
                     ${filteredDisponiveis.length === 0 ? `
                       <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-8">
-                        <span>Nenhuma rubrica pendente nesta seção</span>
-                        <span class="text-[10px] mt-1 text-slate-500">Suba um PDF ou adicione regras</span>
+                        <span>Nenhuma rubrica disponível nesta seção</span>
+                        <span class="text-[10px] mt-1 text-slate-500">Faça o upload do PDF do Fortes para carregar</span>
                       </div>
                     ` : ''}
                   </div>
@@ -12810,7 +12814,7 @@ function renderConversorFolhaTab(companies) {
                     <input
                       type="text"
                       placeholder="Filtrar vinculada..."
-                      value="${folhaState.searchRubricaSelecionada}"
+                      value="${folhaState.searchRubricaSelecionada || ''}"
                       oninput="window.setSearchRubrica('searchRubricaSelecionada', this.value)"
                       class="px-2.5 py-1 text-[11px] rounded-lg bg-slate-50 dark:bg-[#12131F] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white w-36"
                     />
@@ -12881,6 +12885,114 @@ function renderConversorFolhaTab(companies) {
         </div>
       `}
 
+      <!-- ======================================================== -->
+      <!-- 4. MODAL DE NAVEGAÇÃO DE COMPETÊNCIAS (ANOS 2025 A 2028) -->
+      <!-- ======================================================== -->
+      ${folhaState.isCompetenciaModalOpen ? renderCompetenciaModal(folhaState, processedCompetencias) : ''}
+
+    </div>
+  `;
+}
+
+// Modal de Navegação por Anos (2025-2028) e 12 Meses com status de Lançamentos
+function renderCompetenciaModal(folhaState, processedCompetencias) {
+  const anos = [2025, 2026, 2027, 2028];
+  const activeYear = Number(folhaState.competenciaModalYear) || 2026;
+  const meses = [
+    { num: '01', nome: 'Janeiro' },
+    { num: '02', nome: 'Fevereiro' },
+    { num: '03', nome: 'Março' },
+    { num: '04', nome: 'Abril' },
+    { num: '05', nome: 'Maio' },
+    { num: '06', nome: 'Junho' },
+    { num: '07', nome: 'Julho' },
+    { num: '08', nome: 'Agosto' },
+    { num: '09', nome: 'Setembro' },
+    { num: '10', nome: 'Outubro' },
+    { num: '11', nome: 'Novembro' },
+    { num: '12', nome: 'Dezembro' }
+  ];
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn" onclick="window.closeCompetenciaModal()">
+      <div class="w-full max-w-2xl rounded-2xl bg-white dark:bg-[#1C2434] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 relative space-y-5" onclick="event.stopPropagation()">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h3 class="text-base font-extrabold text-slate-800 dark:text-white">Gerenciador de Competências</h3>
+            <p class="text-xs text-slate-400">Selecione o ano e mês de apuração da folha de pagamento</p>
+          </div>
+          <button onclick="window.closeCompetenciaModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center transition">✕</button>
+        </div>
+
+        <!-- Seletor de Anos (Abas 2025 a 2028) -->
+        <div class="flex items-center gap-2 p-1 rounded-xl bg-slate-100 dark:bg-[#12131F] border border-slate-200/80 dark:border-slate-800">
+          ${anos.map(yr => `
+            <button
+              onclick="window.setCompetenciaModalYear(${yr})"
+              class="flex-1 py-2 text-xs font-black rounded-lg transition ${
+                activeYear === yr ? 'bg-white dark:bg-[#1C2434] text-emerald-600 dark:text-emerald-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }"
+            >
+              Ano ${yr}
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- Grade de 12 Meses (Cards Interativos) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
+          ${meses.map(m => {
+            const compKey = `${m.num}/${activeYear}`;
+            const isCurrent = folhaState.competencia === compKey;
+            const isProcessed = (processedCompetencias || []).includes(compKey);
+            const lastDay = getUltimoDiaDoMesCompetencia(compKey);
+
+            return `
+              <div
+                onclick="window.selectCompetenciaDirect('${compKey}')"
+                class="p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between h-24 select-none ${
+                  isCurrent 
+                    ? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/30'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#12131F] hover:border-slate-400 dark:hover:border-slate-600'
+                }"
+              >
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-mono font-bold text-slate-400">${m.num}</span>
+                  ${isProcessed ? `
+                    <span class="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                      ✓ Fechado
+                    </span>
+                  ` : `
+                    <span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold uppercase bg-slate-200/70 dark:bg-white/10 text-slate-500">
+                      Pendente
+                    </span>
+                  `}
+                </div>
+                
+                <div>
+                  <h4 class="text-sm font-extrabold text-slate-800 dark:text-white">${m.nome}</h4>
+                  <p class="text-[10px] text-slate-400 font-mono mt-0.5">${lastDay}</p>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Legenda e Rodapé -->
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <div class="flex items-center gap-4 text-[11px]">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Folha Gerada / Fechada</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span> Pendente de Envio</span>
+          </div>
+          <button
+            onclick="window.closeCompetenciaModal()"
+            class="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 transition"
+          >
+            Fechar
+          </button>
+        </div>
+
+      </div>
     </div>
   `;
 }
@@ -13005,6 +13117,133 @@ window.gerarArquivoTxtDominio = function() {
   URL.revokeObjectURL(url);
 
   alert(`✅ Arquivo "${filename}" gerado com sucesso!\n\nPronto para importação no Domínio Contabilidade:\nMenu: Utilitários > Importar > Lançamentos.`);
+  
+  // Registra a competência atual como processada/fechada para a empresa
+  const compKey = folhaState.selectedCompanyId ? String(folhaState.selectedCompanyId) : 'default';
+  folhaState.processedCompetenciasByCompany[compKey] = folhaState.processedCompetenciasByCompany[compKey] || [];
+  if (!folhaState.processedCompetenciasByCompany[compKey].includes(folhaState.competencia)) {
+    folhaState.processedCompetenciasByCompany[compKey].push(folhaState.competencia);
+    saveStorage();
+    render();
+  }
+};
+
+// Fechar todos os dropdowns interativos do Conversor Folha ao clicar fora
+window.closeAllConversorDropdowns = function(event) {
+  const folhaState = state.conversorFolha;
+  if (!folhaState) return;
+  let changed = false;
+  if (folhaState.isCompanyDropdownOpen) {
+    folhaState.isCompanyDropdownOpen = false;
+    changed = true;
+  }
+  if (folhaState.isDebitoDropdownOpen) {
+    folhaState.isDebitoDropdownOpen = false;
+    changed = true;
+  }
+  if (folhaState.isCreditoDropdownOpen) {
+    folhaState.isCreditoDropdownOpen = false;
+    changed = true;
+  }
+  if (changed) render();
+};
+
+// Handlers de Combobox e Autocomplete de Empresa
+window.toggleCompanyDropdown = function(event) {
+  if (event) event.stopPropagation();
+  state.conversorFolha.isCompanyDropdownOpen = !state.conversorFolha.isCompanyDropdownOpen;
+  state.conversorFolha.companySearchQuery = '';
+  render();
+  setTimeout(() => {
+    const input = document.getElementById('conversor-company-search-input');
+    if (input) input.focus();
+  }, 50);
+};
+
+window.setCompanySearchQuery = function(val) {
+  state.conversorFolha.companySearchQuery = val;
+  render();
+  setTimeout(() => {
+    const input = document.getElementById('conversor-company-search-input');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+  }, 20);
+};
+
+window.selectConversorCompany = function(compId) {
+  state.conversorFolha.selectedCompanyId = compId;
+  state.conversorFolha.isCompanyDropdownOpen = false;
+  state.conversorFolha.companySearchQuery = '';
+  state.conversorFolha.currentLancamentoIdx = 0;
+  state.conversorFolha.selectedRubricasEsquerda = [];
+  state.conversorFolha.selectedRubricasDireita = [];
+  render();
+};
+
+// Handlers de Autocomplete de Contas (Débito e Crédito)
+window.openContaDropdown = function(tipo) {
+  if (tipo === 'debito') {
+    state.conversorFolha.isDebitoDropdownOpen = true;
+    state.conversorFolha.isCreditoDropdownOpen = false;
+    state.conversorFolha.debitoSearchQuery = '';
+  } else {
+    state.conversorFolha.isCreditoDropdownOpen = true;
+    state.conversorFolha.isDebitoDropdownOpen = false;
+    state.conversorFolha.creditoSearchQuery = '';
+  }
+  render();
+};
+
+window.setContaSearchQuery = function(tipo, val) {
+  if (tipo === 'debito') {
+    state.conversorFolha.debitoSearchQuery = val;
+    state.conversorFolha.isDebitoDropdownOpen = true;
+  } else {
+    state.conversorFolha.creditoSearchQuery = val;
+    state.conversorFolha.isCreditoDropdownOpen = true;
+  }
+  window.updateCurrentLancamentoField(tipo, val);
+  render();
+};
+
+window.selectContaPlano = function(tipo, codigo) {
+  window.updateCurrentLancamentoField(tipo, codigo);
+  if (tipo === 'debito') {
+    state.conversorFolha.isDebitoDropdownOpen = false;
+    state.conversorFolha.debitoSearchQuery = '';
+  } else {
+    state.conversorFolha.isCreditoDropdownOpen = false;
+    state.conversorFolha.creditoSearchQuery = '';
+  }
+  render();
+};
+
+// Handlers de Modal de Competências (Anos 2025 a 2028)
+window.openCompetenciaModal = function() {
+  state.conversorFolha.isCompetenciaModalOpen = true;
+  const parts = (state.conversorFolha.competencia || '').split('/');
+  if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+    state.conversorFolha.competenciaModalYear = Number(parts[1]);
+  }
+  render();
+};
+
+window.closeCompetenciaModal = function() {
+  state.conversorFolha.isCompetenciaModalOpen = false;
+  render();
+};
+
+window.setCompetenciaModalYear = function(year) {
+  state.conversorFolha.competenciaModalYear = year;
+  render();
+};
+
+window.selectCompetenciaDirect = function(compKey) {
+  state.conversorFolha.competencia = compKey;
+  state.conversorFolha.isCompetenciaModalOpen = false;
+  render();
 };
 
 // Copiar prévia para a área de transferência
