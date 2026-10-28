@@ -12089,11 +12089,7 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
   // Grava referência do card para animação de atração magnética e snap
   window._lastDroppedTaskId = taskId;
 
-  const userId = dataService.getActiveUserKey();
-  if (userId) {
-    await dataService.upsertTarefa(task, userId);
-  }
-  await saveStorage();
+  // Renderiza imediatamente sem atraso para que a movimentação inicie sem delay
   render();
 
   // Executa voo em arco do spring estilo Framer Motion (stiffness: 300, damping: 25)
@@ -12103,6 +12099,13 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
       const lastRect = destCard.getBoundingClientRect();
       window.playFramerSpringFlight(destCard, firstRect, lastRect);
     }
+  });
+
+  const userId = dataService.getActiveUserKey();
+  if (userId) {
+    await dataService.upsertTarefa(task, userId);
+  }
+  await saveStorage();
   });
 };
 
@@ -12189,7 +12192,7 @@ window.playFramerSpringFlight = function(destCard, firstRect, lastRect) {
   requestAnimationFrame(step);
 };
 
-// Transição de Status via Menu do Card com o mesmo Efeito Magnético de Arrastar e Soltar
+// Transição de Status via Menu do Card com o mesmo Efeito Magnético de Arrastar e Soltar (Disparo Imediato)
 window.moveTaskWithMagneticEffect = async (taskId, targetStatus) => {
   const sourceCard = document.getElementById(`kanban-task-card-${taskId}`);
   const firstRect = sourceCard ? sourceCard.getBoundingClientRect() : null;
@@ -12205,6 +12208,7 @@ window.moveTaskWithMagneticEffect = async (taskId, targetStatus) => {
   const task = (state.tasks || []).find(t => t && String(t.id) === String(taskId));
   if (!task) return;
 
+  // Atualiza estado em memória imediatamente
   task.kanbanStatus = targetStatus;
   if (targetStatus === 'concluidas') {
     task.concluida = true;
@@ -12214,14 +12218,10 @@ window.moveTaskWithMagneticEffect = async (taskId, targetStatus) => {
 
   window._lastDroppedTaskId = taskId;
 
-  const userId = dataService.getActiveUserKey();
-  if (userId) {
-    await dataService.upsertTarefa(task, userId);
-  }
-  await saveStorage();
+  // Renderiza imediatamente sem esperar I/O do banco/storage para eliminar qualquer delay perceptível
   render();
 
-  // Executa voo em arco do spring estilo Framer Motion (stiffness: 300, damping: 25)
+  // Executa voo em arco do spring estilo Framer Motion instantaneamente no próximo quadro
   requestAnimationFrame(() => {
     const destCard = document.getElementById(`kanban-task-card-${taskId}`);
     if (destCard && firstRect) {
@@ -12229,6 +12229,13 @@ window.moveTaskWithMagneticEffect = async (taskId, targetStatus) => {
       window.playFramerSpringFlight(destCard, firstRect, lastRect);
     }
   });
+
+  // Salva no banco de dados e localStorage de forma assíncrona em segundo plano
+  const userId = dataService.getActiveUserKey();
+  if (userId) {
+    await dataService.upsertTarefa(task, userId);
+  }
+  await saveStorage();
 };
 
 // Helper para obter iniciais limpas do solicitante
@@ -13362,16 +13369,29 @@ function renderCalendarWeekView(selectedDateStr, todayStr, tasksByDate) {
                     class="p-3 rounded-xl border ${cardStyle.cardBg} transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-md hover:scale-[1.01] flex flex-col justify-between gap-2 relative group select-none"
                     title="${escapeHtml(t.titulo)} ${comp ? ' - ' + escapeHtml(comp.nome) : ''}"
                   >
-                    <!-- Topo do Card: Horário & Badge de Categoria/Urgência -->
+                    <!-- Topo do Card: Horário & Badge de Categoria/Urgência & Menu de Ações -->
                     <div class="flex items-center justify-between gap-1 text-[11px]">
                       <span class="${cardStyle.timeColor} flex items-center gap-1 text-[10.5px]">
                         <svg class="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                         <span>${t.horaInicio || '09:00'} - ${t.horaFim || '10:00'}</span>
                       </span>
 
-                      <span class="px-2 py-0.5 rounded-md text-[9.5px] font-extrabold uppercase tracking-wider ${cardStyle.tagBg}">
-                        ${t.concluida ? 'Feito' : (t.urgencia || 'Baixa')}
-                      </span>
+                      <div class="flex items-center gap-1">
+                        <span class="px-2 py-0.5 rounded-md text-[9.5px] font-extrabold uppercase tracking-wider ${cardStyle.tagBg}">
+                          ${t.concluida ? 'Feito' : (t.urgencia || 'Baixa')}
+                        </span>
+                        <button
+                          onclick="openCalendarTaskActions('${t.id}', event)"
+                          class="p-1 rounded-md text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition"
+                          title="Opções da tarefa (Editar, Concluir, Mudar data, Excluir)"
+                        >
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.75"></circle>
+                            <circle cx="12" cy="12" r="1.75"></circle>
+                            <circle cx="12" cy="19" r="1.75"></circle>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     <!-- Título do Evento em Negrito -->
@@ -13489,14 +13509,23 @@ function renderCalendarMonthView(year, month, todayStr, tasksByDate) {
                     return `
                       <div
                         onclick="event.stopPropagation(); openTaskDrawer('${t.id}', event)"
-                        class="px-2 py-0.5 rounded-md text-[10.5px] leading-tight font-medium transition flex items-center justify-between gap-1 border ${cardStyle.cardBg} shadow-2xs hover:shadow-xs truncate"
+                        class="px-2 py-0.5 rounded-md text-[10.5px] leading-tight font-medium transition flex items-center justify-between gap-1 border ${cardStyle.cardBg} shadow-2xs hover:shadow-xs group/item relative"
                         title="${escapeHtml(t.titulo)}"
                       >
-                        <div class="flex items-center gap-1 min-w-0">
+                        <div class="flex items-center gap-1 min-w-0 flex-1 truncate">
                           <span class="w-1.5 h-1.5 rounded-full shrink-0 ${cardStyle.dotColor}"></span>
                           <span class="truncate">${escapeHtml(t.titulo)}</span>
                         </div>
-                        <span class="text-[9px] shrink-0 font-bold opacity-75">${t.concluida ? '✓' : (t.horaInicio || '•')}</span>
+                        <div class="flex items-center gap-0.5 shrink-0">
+                          <span class="text-[9px] font-bold opacity-75">${t.concluida ? '✓' : (t.horaInicio || '•')}</span>
+                          <button
+                            onclick="openCalendarTaskActions('${t.id}', event)"
+                            class="opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-black dark:hover:text-white rounded transition text-[10px] leading-none"
+                            title="Opções"
+                          >
+                            ⋮
+                          </button>
+                        </div>
                       </div>
                     `;
                   }).join('')}
@@ -13578,7 +13607,7 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
                   return `
                     <div
                       onclick="event.stopPropagation(); openTaskDrawer('${t.id}', event)"
-                      class="px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition ${cardStyle.cardBg} shadow-2xs hover:shadow-xs"
+                      class="px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition ${cardStyle.cardBg} shadow-2xs hover:shadow-xs group/dayitem"
                     >
                       <span class="w-2 h-2 rounded-full ${cardStyle.dotColor}"></span>
                       <span class="font-bold">${t.horaInicio || hour} - ${t.horaFim || ''}</span>
@@ -13587,6 +13616,17 @@ function renderCalendarDayView(selectedDateStr, todayStr, tasksByDate) {
                       <span class="w-5 h-5 rounded-full ${colab.bg} ${colab.text} flex items-center justify-center text-[9px] font-extrabold shrink-0 shadow-2xs">
                         ${colab.code}
                       </span>
+                      <button
+                        onclick="openCalendarTaskActions('${t.id}', event)"
+                        class="p-1 rounded-md text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition ml-1"
+                        title="Opções da tarefa"
+                      >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="1.75"></circle>
+                          <circle cx="12" cy="12" r="1.75"></circle>
+                          <circle cx="12" cy="19" r="1.75"></circle>
+                        </svg>
+                      </button>
                     </div>
                   `;
                 }).join('')}
@@ -13687,6 +13727,122 @@ window.openCalendarNewEventModal = (defaultDate) => {
       concluida: false
     }
   };
+  render();
+};
+
+// ----------------------------------------------------
+// MENU DE AÇÕES RÁPIDAS DE TAREFAS NO CALENDÁRIO
+// (Editar, Marcar Concluído/Reabrir, Mudar Data, Excluir)
+// ----------------------------------------------------
+window.openCalendarTaskActions = (taskId, event) => {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const oldMenu = document.getElementById('calendar-task-action-popup');
+  if (oldMenu) oldMenu.remove();
+
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
+  if (!t) return;
+
+  const btn = event?.currentTarget || event?.target;
+  const rect = btn ? btn.getBoundingClientRect() : { top: 150, left: 150, bottom: 180, right: 180 };
+
+  const menu = document.createElement('div');
+  menu.id = 'calendar-task-action-popup';
+  menu.className = 'fixed z-[999999] bg-white dark:bg-[#161722] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-2 w-56 text-xs text-gray-800 dark:text-gray-100 animate-fadeIn space-y-1 backdrop-blur-md';
+  
+  // Posicionamento inteligente para não sair da tela
+  let topPos = rect.bottom + 6;
+  let leftPos = rect.left;
+  if (leftPos + 230 > window.innerWidth) {
+    leftPos = Math.max(10, window.innerWidth - 240);
+  }
+  if (topPos + 220 > window.innerHeight) {
+    topPos = Math.max(10, rect.top - 215);
+  }
+  menu.style.top = `${topPos}px`;
+  menu.style.left = `${leftPos}px`;
+
+  menu.innerHTML = `
+    <div class="px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-800/80 mb-1">
+      <p class="font-extrabold text-[11px] truncate text-gray-900 dark:text-white" title="${escapeHtml(t.titulo)}">${escapeHtml(t.titulo)}</p>
+      <p class="text-[10px] text-gray-400">📅 ${formatBrazilianDate(t.data || '')}</p>
+    </div>
+
+    <!-- 1. Editar Tarefa -->
+    <button
+      onclick="document.getElementById('calendar-task-action-popup')?.remove(); openEditTaskModal('${t.id}')"
+      class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left font-bold text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition"
+    >
+      <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
+      <span>Editar Tarefa</span>
+    </button>
+
+    <!-- 2. Marcar como Concluído / Reabrir -->
+    <button
+      onclick="document.getElementById('calendar-task-action-popup')?.remove(); toggleTaskComplete('${t.id}')"
+      class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left font-bold ${
+        t.concluida 
+          ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30' 
+          : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
+      } transition"
+    >
+      <span class="w-4 text-center font-black">${t.concluida ? '↺' : '✓'}</span>
+      <span>${t.concluida ? 'Reabrir Tarefa' : 'Marcar como Concluída'}</span>
+    </button>
+
+    <!-- 3. Mudar Data / Reagendar -->
+    <button
+      onclick="document.getElementById('calendar-task-action-popup')?.remove(); window.quickRescheduleCalendarTask('${t.id}')"
+      class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left font-bold text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-600 dark:hover:text-purple-400 transition"
+    >
+      <svg class="w-4 h-4 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      <span>Mudar Data</span>
+    </button>
+
+    <!-- 4. Excluir Tarefa -->
+    <button
+      onclick="document.getElementById('calendar-task-action-popup')?.remove(); deleteTask('${t.id}')"
+      class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition border-t border-gray-100 dark:border-gray-800/80 pt-1.5"
+    >
+      <svg class="w-4 h-4 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+      <span>Excluir Tarefa</span>
+    </button>
+  `;
+
+  document.body.appendChild(menu);
+
+  const closeHandler = (e) => {
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.remove();
+      document.removeEventListener('click', closeHandler);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closeHandler);
+  }, 10);
+};
+
+window.quickRescheduleCalendarTask = async (taskId) => {
+  const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
+  if (!t) return;
+  const curDate = t.data || new Date().toISOString().split('T')[0];
+  const newDate = prompt(`📅 Informe a nova data para a tarefa "${t.titulo}" (AAAA-MM-DD):`, curDate);
+  if (!newDate || newDate.trim() === '' || newDate === curDate) return;
+  
+  t.data = newDate.trim();
+  t.historico = t.historico || [];
+  t.historico.push({
+    data: new Date().toLocaleString('pt-BR'),
+    acao: `Data alterada no calendário para ${formatBrazilianDate(newDate.trim())}`
+  });
+
+  const userId = dataService.getActiveUserKey();
+  if (userId) {
+    await dataService.upsertTarefa(t, userId);
+  }
+  await saveStorage();
   render();
 };
 
