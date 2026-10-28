@@ -12106,7 +12106,6 @@ window.handleKanbanDrop = async (e, targetPhaseId) => {
     await dataService.upsertTarefa(task, userId);
   }
   await saveStorage();
-  });
 };
 
 // Física de Mola Estilo Framer Motion (stiffness: 300, damping: 25) com trajetória em arco parabólico e snap magnético
