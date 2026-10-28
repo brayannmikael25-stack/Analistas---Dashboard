@@ -165,6 +165,142 @@ function getAutoCompetencies(refDate = new Date()) {
 
 const autoComp = getAutoCompetencies();
 
+// ---------------- GERAÇÃO AUTOMÁTICA DE LEMBRETES/TAREFAS DE QUOTAS DE IRPJ/CSLL TRIMESTRAL ----------------
+// Quando uma empresa do Lucro Real Trimestral opta pelo parcelamento em quotas (3 quotas) no trimestre anterior,
+// o sistema gera e acompanha automaticamente as tarefas/lembretes de conferência e envio das quotas mensais
+// subsequentes (ex: 1ª Quota no mês seguinte ao trimestre, 2ª Quota no 2º mês, 3ª Quota no 3º mês)
+function syncQuarterlyQuotaReminders() {
+  if (!state.companies || !state.irpjTrimData) return false;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1 a 12
+  let createdAny = false;
+
+  // Mapeamento dos 4 trimestres do ano e os respectivos meses de vencimento das 3 quotas
+  // 1º Trimestre (Jan-Mar): 1ª Quota em Abril (Mês 4), 2ª Quota em Maio (Mês 5), 3ª Quota em Junho (Mês 6)
+  // 2º Trimestre (Abr-Jun): 1ª Quota em Julho (Mês 7), 2ª Quota em Agosto (Mês 8), 3ª Quota em Setembro (Mês 9)
+  // 3º Trimestre (Jul-Set): 1ª Quota em Outubro (Mês 10), 2ª Quota em Novembro (Mês 11), 3ª Quota em Dezembro (Mês 12)
+  // 4º Trimestre (Out-Dez): 1ª Quota em Janeiro (Mês 1 do ano seguinte), 2ª Quota em Fevereiro (Mês 2), 3ª Quota em Março (Mês 3)
+  const quarterSchedule = [
+    {
+      quarterNum: 1,
+      trimLabel: (y) => `1º Trim ${y}`,
+      quotas: [
+        { num: 1, month: 4, yearOffset: 0, day: 30, compLabel: (y) => `04/${y}` },
+        { num: 2, month: 5, yearOffset: 0, day: 31, compLabel: (y) => `05/${y}` },
+        { num: 3, month: 6, yearOffset: 0, day: 30, compLabel: (y) => `06/${y}` }
+      ]
+    },
+    {
+      quarterNum: 2,
+      trimLabel: (y) => `2º Trim ${y}`,
+      quotas: [
+        { num: 1, month: 7, yearOffset: 0, day: 31, compLabel: (y) => `07/${y}` },
+        { num: 2, month: 8, yearOffset: 0, day: 31, compLabel: (y) => `08/${y}` },
+        { num: 3, month: 9, yearOffset: 0, day: 30, compLabel: (y) => `09/${y}` }
+      ]
+    },
+    {
+      quarterNum: 3,
+      trimLabel: (y) => `3º Trim ${y}`,
+      quotas: [
+        { num: 1, month: 10, yearOffset: 0, day: 31, compLabel: (y) => `10/${y}` },
+        { num: 2, month: 11, yearOffset: 0, day: 30, compLabel: (y) => `11/${y}` },
+        { num: 3, month: 12, yearOffset: 0, day: 31, compLabel: (y) => `12/${y}` }
+      ]
+    },
+    {
+      quarterNum: 4,
+      trimLabel: (y) => `4º Trim ${y}`,
+      quotas: [
+        { num: 1, month: 1, yearOffset: 1, day: 31, compLabel: (y) => `01/${y + 1}` },
+        { num: 2, month: 2, yearOffset: 1, day: 28, compLabel: (y) => `02/${y + 1}` },
+        { num: 3, month: 3, yearOffset: 1, day: 31, compLabel: (y) => `03/${y + 1}` }
+      ]
+    }
+  ];
+
+  const trimCompanies = (state.companies || []).filter(c => normalizeRegime(c.regime) === 'Lucro Real Trimestral');
+  const yearsToCheck = [currentYear - 1, currentYear];
+
+  yearsToCheck.forEach(yr => {
+    quarterSchedule.forEach(qSched => {
+      const trimStr = qSched.trimLabel(yr);
+
+      trimCompanies.forEach(comp => {
+        const key = `${comp.id}_${trimStr}`;
+        const trimRec = state.irpjTrimData[key];
+
+        // Se o registro trimestral existe e foi optado por 3 Parcelas (quotaUnica == false) e não é prejuízo
+        if (trimRec && trimRec.quotaUnica === false && !trimRec.prejuizo) {
+          qSched.quotas.forEach(quota => {
+            const dueYear = yr + quota.yearOffset;
+            const dueMonth = quota.month;
+            const compLabel = quota.compLabel(yr);
+
+            // Verifica se este mês de quota já chegou ou é vigente no calendário
+            const isDueOrPast = (currentYear > dueYear) || (currentYear === dueYear && currentMonth >= dueMonth);
+            if (!isDueOrPast) return;
+
+            const isQuotaPaid = Boolean(trimRec[`p${quota.num}`]);
+            const taskTag = `[QUOTA_IRPJ_${comp.id}_${trimStr}_Q${quota.num}]`;
+
+            // Procura se já existe tarefa correspondente no sistema
+            const existingTask = (state.tasks || []).find(t => t && t.descricao && t.descricao.includes(taskTag));
+
+            const dueDateStr = `${dueYear}-${String(dueMonth).padStart(2, '0')}-${String(quota.day).padStart(2, '0')}`;
+            const taskTitle = `DARF enviado: ${quota.num}ª Quota IRPJ/CSLL (${trimStr}) - ${comp.nome}`;
+            const taskDesc = `Lembrete de conferência e envio da ${quota.num}ª Quota mensal de IRPJ e CSLL referente ao parcelamento do ${trimStr} (Competência ${compLabel}). ${taskTag}`;
+
+            if (existingTask) {
+              // Se a quota foi marcada como enviada na aba IRPJ Trimestral, sincroniza a tarefa para concluída
+              if (isQuotaPaid && !existingTask.concluida) {
+                existingTask.concluida = true;
+                existingTask.kanbanStatus = 'concluidas';
+                createdAny = true;
+              } else if (!isQuotaPaid && existingTask.concluida) {
+                // Se foi desmarcada, reabre
+                existingTask.concluida = false;
+                existingTask.kanbanStatus = 'pendentes';
+                createdAny = true;
+              }
+            } else {
+              // Tarefa ainda não existe: cria no estado apropriado (pendente se não enviada, concluída se já paga)
+              const newTask = {
+                id: generateSafeId(Math.floor(Math.random() * 9000)),
+                titulo: taskTitle,
+                descricao: taskDesc,
+                empresaId: comp.id,
+                data: dueDateStr,
+                horaInicio: '09:00',
+                horaFim: '10:00',
+                urgencia: 'Alta',
+                concluida: isQuotaPaid,
+                kanbanStatus: isQuotaPaid ? 'concluidas' : 'pendentes',
+                createdAt: new Date().toISOString().split('T')[0],
+                isAutoQuotaReminder: true,
+                quotaMeta: {
+                  companyId: comp.id,
+                  trimStr: trimStr,
+                  quotaNum: quota.num
+                }
+              };
+
+              state.tasks = state.tasks || [];
+              state.tasks.unshift(newTask);
+              createdAny = true;
+            }
+          });
+        }
+      });
+    });
+  });
+
+  return createdAny;
+}
+window.syncQuarterlyQuotaReminders = syncQuarterlyQuotaReminders;
+
 // ---------------- SANITIZAÇÃO E ESCAPING HTML SEGURO ----------------
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -1614,6 +1750,12 @@ function applyPackageToState(pkg) {
   }
   if (pkg.updatedAt) {
     state.lastUpdatedAt = pkg.updatedAt;
+  }
+  // Sincroniza automaticamente lembretes e tarefas de quotas de trimestres anteriores
+  try {
+    syncQuarterlyQuotaReminders();
+  } catch (e) {
+    console.warn('Erro ao sincronizar lembretes de quotas:', e);
   }
 }
 
@@ -15304,17 +15446,20 @@ window.toggleTrimPrejuizoAsync = async (id, checked) => {
 window.setTrimQuotaMode = (id, isUnica) => {
   const k = `${id}_${state.selTrim}`;
   state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), quotaUnica: isUnica, updatedAt: formatNowTimestamp() };
+  try { syncQuarterlyQuotaReminders(); } catch (e) {}
   saveStorage(); render();
 };
 window.toggleTrimDarfUnica = (id, checked) => {
   const k = `${id}_${state.selTrim}`;
   state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), darfUnica: checked, updatedAt: formatNowTimestamp() };
+  try { syncQuarterlyQuotaReminders(); } catch (e) {}
   saveStorage(); render();
 };
 
 window.toggleTrimDarfUnicaAsync = async (id, checked) => {
   const k = `${id}_${state.selTrim}`;
   state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), darfUnica: checked, updatedAt: formatNowTimestamp() };
+  try { syncQuarterlyQuotaReminders(); } catch (e) {}
   await new Promise(r => setTimeout(r, 450));
   await saveStorage();
 };
@@ -15322,12 +15467,14 @@ window.toggleTrimDarfUnicaAsync = async (id, checked) => {
 window.toggleTrimParcela = (id, pNum, checked) => {
   const k = `${id}_${state.selTrim}`;
   state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), [`p${pNum}`]: checked, updatedAt: formatNowTimestamp() };
+  try { syncQuarterlyQuotaReminders(); } catch (e) {}
   saveStorage(); render();
 };
 
 window.toggleTrimParcelaAsync = async (id, pNum, checked) => {
   const k = `${id}_${state.selTrim}`;
   state.irpjTrimData[k] = { ...(state.irpjTrimData[k] || {}), [`p${pNum}`]: checked, updatedAt: formatNowTimestamp() };
+  try { syncQuarterlyQuotaReminders(); } catch (e) {}
   await new Promise(r => setTimeout(r, 400));
   await saveStorage();
 };
@@ -15687,16 +15834,23 @@ window.setTaskKanbanStatus = async (taskId, newStatus) => {
   const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
   if (!t) return;
   t.kanbanStatus = newStatus;
-  if (['concluidas', 'concluida', 'feito'].includes(newStatus)) {
-    t.concluida = true;
-  } else {
-    t.concluida = false;
-  }
+  const isDone = ['concluidas', 'concluida', 'feito'].includes(newStatus);
+  t.concluida = isDone;
   t.historico = t.historico || [];
   t.historico.push({
     data: new Date().toLocaleString('pt-BR'),
     acao: `Movida para coluna: ${newStatus}`
   });
+
+  // Se for uma tarefa de lembrete de quota trimestral, reflete a marcação na aba IRPJ Trimestral
+  if (t.quotaMeta && t.quotaMeta.companyId && t.quotaMeta.trimStr && t.quotaMeta.quotaNum) {
+    const key = `${t.quotaMeta.companyId}_${t.quotaMeta.trimStr}`;
+    if (state.irpjTrimData && state.irpjTrimData[key]) {
+      state.irpjTrimData[key][`p${t.quotaMeta.quotaNum}`] = isDone;
+      state.irpjTrimData[key].updatedAt = formatNowTimestamp();
+    }
+  }
+
   const userId = dataService.getActiveUserKey();
   if (userId) await dataService.upsertTarefa(t, userId);
   saveStorage();
@@ -15713,6 +15867,16 @@ window.toggleTaskComplete = async (id) => {
       data: new Date().toLocaleString('pt-BR'),
       acao: t.concluida ? 'Marcada como Concluída' : 'Reaberta como Pendente'
     });
+
+    // Se for uma tarefa de lembrete de quota trimestral, reflete a marcação na aba IRPJ Trimestral
+    if (t.quotaMeta && t.quotaMeta.companyId && t.quotaMeta.trimStr && t.quotaMeta.quotaNum) {
+      const key = `${t.quotaMeta.companyId}_${t.quotaMeta.trimStr}`;
+      if (state.irpjTrimData && state.irpjTrimData[key]) {
+        state.irpjTrimData[key][`p${t.quotaMeta.quotaNum}`] = t.concluida;
+        state.irpjTrimData[key].updatedAt = formatNowTimestamp();
+      }
+    }
+
     const userId = dataService.getActiveUserKey();
     if (userId) {
       await dataService.upsertTarefa(t, userId);
@@ -16003,6 +16167,11 @@ window.handleUniversalImport = (event) => {
 
 // Inicialização imediata com verificação de sessão Supabase
 document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    syncQuarterlyQuotaReminders();
+  } catch (e) {
+    console.warn('Erro ao verificar quotas trimestrais na inicialização:', e);
+  }
   render();
 
   // Verifica se há sessão ativa no Supabase Auth ou autentica silenciosamente a sessão local (ex: PC 1 já logado)
