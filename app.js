@@ -12295,38 +12295,42 @@ function renderConversorFolhaTab(companies) {
   const processedCompetencias = folhaState.processedCompetenciasByCompany[companyKey] || [];
 
   // Índice seguro do lançamento selecionado no navegador
-  if (folhaState.currentLancamentoIdx >= currentTabRegras.length) {
+  if (currentTabRegras.length > 0 && folhaState.currentLancamentoIdx >= currentTabRegras.length) {
     folhaState.currentLancamentoIdx = Math.max(0, currentTabRegras.length - 1);
   }
-  const currentLancamento = currentTabRegras[folhaState.currentLancamentoIdx] || null;
+  const currentLancamento = currentTabRegras.length > 0 ? (currentTabRegras[folhaState.currentLancamentoIdx] || null) : null;
 
-  // Rubricas disponíveis (extraídas do PDF ou banco de dados)
-  const pdfRubricas = (folhaState.currentPdfData?.todasRubricas || []).filter(r => {
-    if (folhaState.activeSubTab === 'folha') return r.categoria === 'folha';
-    if (folhaState.activeSubTab === 'ferias') return r.categoria === 'ferias';
-    if (folhaState.activeSubTab === 'rescisao') return r.categoria === 'rescisao';
-    if (folhaState.activeSubTab === 'empresa') return r.categoria === 'empresa';
-    return true;
+  // Rubricas extraídas do relatório PDF da folha da competência atual
+  const todasRubricasPdf = folhaState.currentPdfData?.todasRubricas || [];
+
+  // Coleta os códigos de TODAS as rubricas já cadastradas/vinculadas em qualquer regra desta empresa
+  const todasRubricasJaCadastradas = new Set();
+  ['folha', 'ferias', 'rescisao', 'empresa', 'patrimonial'].forEach(abaKey => {
+    (currentRegrasObj[abaKey] || []).forEach(reg => {
+      (reg.rubricas || []).forEach(code => todasRubricasJaCadastradas.add(String(code)));
+    });
   });
 
-  // Lista da Direita (Rubricas vinculadas ao lançamento atual)
+  // LADO ESQUERDO: "Rubricas Pendentes (Extraídas da Folha PDF)"
+  // Contém apenas rubricas do PDF da competência que AINDA NÃO foram cadastradas em NENHUM lançamento
+  const rubricasPendentes = todasRubricasPdf.filter(r => !todasRubricasJaCadastradas.has(String(r.codigo)));
+
+  // LADO DIREITO: "Rubricas Cadastradas / Vinculadas ao Lançamento"
+  // Exibe estritamente as rubricas vinculadas ao Lançamento Contábil atualmente selecionado
   const vinculadasCodigos = currentLancamento?.rubricas || [];
-  const rubricasSelecionadas = vinculadasCodigos.map(code => {
-    const found = pdfRubricas.find(r => r.codigo === code);
+  const rubricasCadastradas = vinculadasCodigos.map(code => {
+    const found = todasRubricasPdf.find(r => String(r.codigo) === String(code));
     return found || { codigo: code, nome: `Rubrica ${code}`, tipo: 'Provento', valor: 0 };
   });
 
-  // Lista da Esquerda (Rubricas disponíveis que ainda não estão vinculadas)
-  const rubricasDisponiveis = pdfRubricas.filter(r => !vinculadasCodigos.includes(r.codigo));
-
   // Filtragem por busca textual nos boxes de transferência
   const filterEsquerda = (folhaState.searchRubricaDisponivel || '').toLowerCase();
-  const filteredDisponiveis = rubricasDisponiveis.filter(r => 
+  const filteredPendentes = rubricasPendentes.filter(r => 
     r.codigo.toLowerCase().includes(filterEsquerda) || r.nome.toLowerCase().includes(filterEsquerda)
   );
 
   const filterDireita = (folhaState.searchRubricaSelecionada || '').toLowerCase();
-  const filteredSelecionadas = rubricasSelecionadas.filter(r => 
+  const filteredCadastradas = rubricasCadastradas.filter(r => 
     r.codigo.toLowerCase().includes(filterDireita) || r.nome.toLowerCase().includes(filterDireita)
   );
 
@@ -12362,7 +12366,7 @@ function renderConversorFolhaTab(companies) {
       <!-- ======================================================== -->
       <!-- 1. HEADER DO MÓDULO & CONTEXTO DA EMPRESA E ARQUIVOS     -->
       <!-- ======================================================== -->
-      <div class="panze-card p-5 bg-white dark:bg-[#1C2434] border border-[#E2E8F0] dark:border-strokedark rounded-2xl shadow-xs space-y-4">
+      <div class="panze-card p-5 bg-white dark:bg-[#1C2434] border border-[#E2E8F0] dark:border-strokedark rounded-2xl shadow-xs space-y-4 relative z-30">
         
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
           <div class="flex items-center gap-3">
@@ -12396,10 +12400,10 @@ function renderConversorFolhaTab(companies) {
         </div>
 
         <!-- Barra de Contexto: Seleção de Empresa com Combobox, Competência com Modal e Uploads -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1 relative z-30">
           
           <!-- 1. SELEÇÃO DE EMPRESA (Combobox / Autocomplete Inteligente) -->
-          <div class="relative" onclick="event.stopPropagation()">
+          <div class="relative z-50" onclick="event.stopPropagation()">
             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
               <span>1. Empresa</span>
               ${selectedCompany ? `<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Cód. ${selectedCompany.codigo || selectedCompany.id}</span>` : ''}
@@ -12417,9 +12421,9 @@ function renderConversorFolhaTab(companies) {
               </svg>
             </div>
 
-            <!-- Dropdown Popover com campo de busca instantânea -->
+            <!-- Dropdown Popover com campo de busca instantânea (z-[9999] garantido para flutuar sobre abas e inputs) -->
             ${folhaState.isCompanyDropdownOpen ? `
-              <div class="absolute left-0 top-full mt-1.5 w-full md:w-80 z-50 bg-white dark:bg-[#161722] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-2 space-y-2 animate-fadeIn">
+              <div class="absolute left-0 top-full mt-2 w-full md:w-96 z-[9999] bg-white dark:bg-[#161722] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2.5 space-y-2 animate-fadeIn ring-1 ring-black/10 dark:ring-white/10">
                 <div class="relative">
                   <input
                     type="text"
@@ -12428,26 +12432,33 @@ function renderConversorFolhaTab(companies) {
                     value="${escapeHtml(folhaState.companySearchQuery || '')}"
                     oninput="window.setCompanySearchQuery(this.value)"
                     onclick="event.stopPropagation()"
-                    class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-[#12131F] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    class="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-[#12131F] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     autofocus
                   />
-                  <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 </div>
-                <div class="max-h-56 overflow-y-auto space-y-1 pr-0.5">
+                <div class="max-h-64 overflow-y-auto space-y-1 pr-0.5">
                   ${filteredCompanies.map(c => `
                     <div
                       onclick="window.selectConversorCompany('${c.id}')"
-                      class="px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition flex items-center justify-between ${
+                      class="px-3 py-2 rounded-xl text-xs cursor-pointer transition flex items-center justify-between ${
                         String(c.id) === String(selectedCompany?.id) ? 'bg-emerald-500 text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200'
                       }"
                     >
                       <div class="truncate pr-1">
-                        <span class="font-bold opacity-80 mr-1">${c.codigo || c.id}</span>
+                        <span class="font-bold opacity-80 mr-1.5">${c.codigo || c.id}</span>
                         <span>${escapeHtml(c.nome)}</span>
                       </div>
-                      <span class="text-[9.5px] uppercase font-mono opacity-70 shrink-0">${c.regime ? c.regime.split(' ')[0] : ''}</span>
+                      <span class="text-[9.5px] uppercase font-mono opacity-70 shrink-0 ml-1">${c.regime ? c.regime.split(' ')[0] : ''}</span>
                     </div>
                   `).join('')}
+                  ${filteredCompanies.length === 0 ? `
+                    <div class="p-3 text-center text-xs text-slate-400">Nenhuma empresa encontrada com "${escapeHtml(companyQuery)}"</div>
+                  ` : ''}
+                </div>
+              </div>
+            ` : ''}
+          </div>
                   ${filteredCompanies.length === 0 ? `
                     <div class="p-3 text-center text-xs text-slate-400">Nenhuma empresa encontrada</div>
                   ` : ''}
@@ -12491,8 +12502,8 @@ function renderConversorFolhaTab(companies) {
             </label>
             <label class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 bg-slate-50/50 dark:bg-white/5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 cursor-pointer transition">
               <svg class="w-4 h-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <span class="truncate">${planoContas.length > 0 ? 'Substituir Plano (.csv/.txt)' : 'Subir Plano Domínio'}</span>
-              <input type="file" accept=".txt,.csv,.xlsx,.xls" class="hidden" onchange="window.handleUploadPlanoContas(this.files[0])" />
+              <span class="truncate">${planoContas.length > 0 ? 'Substituir Plano (.pdf/.xlsx/.csv)' : 'Subir Plano Domínio (.pdf/.xlsx/.csv)'}</span>
+              <input type="file" accept=".pdf,.xlsx,.xls,.txt,.csv" class="hidden" onchange="window.handleUploadPlanoContas(this.files[0])" />
             </label>
           </div>
 
@@ -12735,15 +12746,18 @@ function renderConversorFolhaTab(companies) {
               
               <div class="grid grid-cols-1 md:grid-cols-11 gap-3 items-center">
                 
-                <!-- Box Esquerdo: Rubricas Disponíveis -->
+                <!-- Box Esquerdo: Rubricas Pendentes (Extraídas da Folha PDF) -->
                 <div class="md:col-span-5 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-extrabold uppercase text-slate-700 dark:text-slate-300">
-                      Rubricas Disponíveis (${filteredDisponiveis.length})
+                    <span class="text-xs font-extrabold uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <span>Rubricas Pendentes (Extraídas da Folha PDF)</span>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                        ${filteredPendentes.length}
+                      </span>
                     </span>
                     <input
                       type="text"
-                      placeholder="Filtrar disponível..."
+                      placeholder="Filtrar pendente..."
                       value="${folhaState.searchRubricaDisponivel || ''}"
                       oninput="window.setSearchRubrica('searchRubricaDisponivel', this.value)"
                       class="px-2.5 py-1 text-[11px] rounded-lg bg-slate-50 dark:bg-[#12131F] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white w-36"
@@ -12751,7 +12765,7 @@ function renderConversorFolhaTab(companies) {
                   </div>
 
                   <div class="h-64 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#12131F] overflow-y-auto p-1.5 space-y-1">
-                    ${filteredDisponiveis.map(r => {
+                    ${filteredPendentes.map(r => {
                       const isChecked = folhaState.selectedRubricasEsquerda.includes(r.codigo);
                       return `
                         <div
@@ -12778,10 +12792,10 @@ function renderConversorFolhaTab(companies) {
                       `;
                     }).join('')}
 
-                    ${filteredDisponiveis.length === 0 ? `
+                    ${filteredPendentes.length === 0 ? `
                       <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-8">
-                        <span>Nenhuma rubrica disponível nesta seção</span>
-                        <span class="text-[10px] mt-1 text-slate-500">Faça o upload do PDF do Fortes para carregar</span>
+                        <span>Nenhuma rubrica pendente</span>
+                        <span class="text-[10px] mt-1 text-slate-500">${todasRubricasPdf.length === 0 ? 'Envie o PDF do Fortes Pessoal para extrair' : 'Todas as rubricas deste PDF já foram parametrizadas!'}</span>
                       </div>
                     ` : ''}
                   </div>
@@ -12792,24 +12806,27 @@ function renderConversorFolhaTab(companies) {
                   <button
                     onclick="window.transferirRubricas('direita')"
                     class="w-10 h-10 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-950 dark:hover:bg-emerald-500 dark:hover:text-white flex items-center justify-center font-bold text-base transition shadow-sm cursor-pointer"
-                    title="Adicionar rubricas selecionadas a este lançamento"
+                    title="Vincular rubricas pendentes selecionadas a este lançamento"
                   >
                     ➔
                   </button>
                   <button
                     onclick="window.transferirRubricas('esquerda')"
                     class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-rose-600 hover:text-white text-slate-700 dark:text-slate-300 flex items-center justify-center font-bold text-base transition shadow-sm cursor-pointer"
-                    title="Remover rubricas selecionadas deste lançamento"
+                    title="Desvincular rubricas deste lançamento (retornar para pendentes)"
                   >
                     ←
                   </button>
                 </div>
 
-                <!-- Box Direito: Rubricas Selecionadas no Lançamento -->
+                <!-- Box Direito: Rubricas Cadastradas / Vinculadas ao Lançamento -->
                 <div class="md:col-span-5 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-extrabold uppercase text-slate-700 dark:text-slate-300">
-                      Rubricas Selecionadas (${filteredSelecionadas.length})
+                    <span class="text-xs font-extrabold uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <span>Rubricas Cadastradas / Vinculadas ao Lançamento</span>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        ${filteredCadastradas.length}
+                      </span>
                     </span>
                     <input
                       type="text"
@@ -12821,7 +12838,7 @@ function renderConversorFolhaTab(companies) {
                   </div>
 
                   <div class="h-64 rounded-xl border border-emerald-300/60 dark:border-emerald-800/60 bg-emerald-50/20 dark:bg-[#12131F] overflow-y-auto p-1.5 space-y-1">
-                    ${filteredSelecionadas.map(r => {
+                    ${filteredCadastradas.map(r => {
                       const isChecked = folhaState.selectedRubricasDireita.includes(r.codigo);
                       return `
                         <div
@@ -13072,9 +13089,9 @@ window.gerarConteudoTxtDominioPreview = function() {
         }
       });
 
-      // Se não há PDF carregado, simula valores representativos com base no relatório para prévia
+      // Se não há PDF carregado ou não há rubricas associadas com valor, não gera lançamento hipotético
       if (!pdfData && valorAcumulado === 0) {
-        valorAcumulado = regra.codigo === 1 ? 417999.26 : (regra.codigo === 3 ? 35769.80 : (regra.codigo === 4 ? 9463.85 : 0));
+        valorAcumulado = 0;
       }
 
       if (valorAcumulado > 0) {
@@ -13322,11 +13339,11 @@ window.novoLancamentoRegra = function() {
   const newRegra = {
     id: Date.now(),
     codigo: nextCod,
-    descricao: 'NOVO LANÇAMENTO',
+    descricao: '',
     debito: '',
     credito: '',
-    historicoCod: '1',
-    historicoTemplate: 'REFERENTE A <<Descricao>> - <<Competencia>>',
+    historicoCod: '',
+    historicoTemplate: '',
     rubricas: []
   };
   currentTabRegras.push(newRegra);
@@ -13424,36 +13441,216 @@ window.handleUploadFortesPdf = async function(file) {
   }
 };
 
-// Handler de Upload do Plano de Contas da Domínio (.csv ou .txt)
-window.handleUploadPlanoContas = async function(file) {
-  if (!file) return;
-  const text = await file.text();
-  const lines = text.split('\n');
+// Parser específico para PDF do Plano de Contas da Domínio Contabilidade
+// Formato da Domínio: Classificação | Código | T (A/S) | Descrição | CNPJ | Grau
+async function parseDominioPlanoContasPdf(file) {
+  if (!window.pdfjsLib) {
+    throw new Error('Biblioteca PDF.js não carregada.');
+  }
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const contas = [];
+  const contasVistas = new Set();
 
-  lines.forEach(line => {
-    const clean = line.trim();
-    if (!clean) return;
-    // Suporte a formatos comuns da Domínio (delimitados por vírgula, ponto-e-vírgula ou tab)
-    const parts = clean.split(/[;,\t|]/);
-    if (parts.length >= 2) {
-      const codigo = parts[0].trim();
-      const nome = parts[1].trim();
-      if (codigo && nome && !isNaN(parseInt(codigo, 10))) {
-        contas.push({ codigo, nome });
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    
+    // Agrupa os itens de texto pela coordenada Y (linha a linha) para preservar colunas
+    const linesMap = new Map();
+    content.items.forEach(item => {
+      // arredonda Y para agrupar tokens da mesma linha
+      const y = Math.round(item.transform[5]);
+      if (!linesMap.has(y)) {
+        linesMap.set(y, []);
+      }
+      linesMap.get(y).push({ x: item.transform[4], str: item.str });
+    });
+
+    // Ordena do topo para a base da página
+    const sortedYs = Array.from(linesMap.keys()).sort((a, b) => b - a);
+
+    for (const y of sortedYs) {
+      const items = linesMap.get(y).sort((a, b) => a.x - b.x);
+      const lineText = items.map(it => it.str).join(' ').trim();
+      if (!lineText) continue;
+
+      // Ignora linhas de cabeçalho e rodapé
+      if (lineText.includes('PLANO DE CONTAS') || lineText.includes('Classificação') || lineText.includes('Empresa:') || lineText.includes('CNPJ:') || lineText.includes('Sistema')) {
+        continue;
+      }
+
+      // Padrão Domínio: Classificação (ex: 3.3.2.01.00019) + Código Reduzido (ex: 2544) + Tipo (A ou S) + Descrição + [CNPJ opcional] + Grau (ex: 5)
+      // Exemplo: 3.3.2.01.00019 2544 A DESPESA COM ASO 5
+      const match = lineText.match(/^([\d\.]+)\s+(\d+)\s+([AS])\s+(.+)$/i);
+      if (match) {
+        const classificacao = match[1].trim();
+        const codigo = match[2].trim();
+        const tipo = match[3].toUpperCase();
+        let resto = match[4].trim();
+
+        // Só extrai e armazena contas ANALÍTICAS (Tipo 'A')
+        if (tipo === 'A') {
+          // Remove grau numérico final e CNPJ se houver
+          resto = resto.replace(/\s+\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\s+\d+$/i, '');
+          resto = resto.replace(/\s+\d{14}\s+\d+$/i, '');
+          resto = resto.replace(/\s+\d+$/i, '').trim();
+
+          const nome = resto.trim();
+          if (codigo && nome && !contasVistas.has(codigo)) {
+            contasVistas.add(codigo);
+            contas.push({ codigo, nome, classificacao });
+          }
+        }
       }
     }
-  });
+  }
 
-  if (contas.length > 0) {
-    const folhaState = state.conversorFolha;
-    const companyKey = folhaState.selectedCompanyId ? String(folhaState.selectedCompanyId) : 'default';
-    folhaState.planoContasByCompany[companyKey] = contas;
-    await saveStorage();
-    render();
-    alert(`✅ Plano de Contas importado com sucesso!\n${contas.length} contas analíticas vinculadas à empresa.`);
-  } else {
-    alert('Não foi possível identificar as contas no arquivo. Envie um arquivo .CSV ou .TXT com Código e Nome da Conta.');
+  return contas;
+}
+
+// Parser para Planilhas Excel (.xlsx ou .xls) do Plano de Contas Domínio
+async function parseDominioPlanoContasExcel(file) {
+  if (!window.XLSX) {
+    throw new Error('Biblioteca SheetJS (XLSX) não carregada.');
+  }
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  const rows = window.XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+  const contas = [];
+  const contasVistas = new Set();
+
+  // Detecta os índices das colunas ou analisa linhas estruturadas
+  let colIdxCod = -1;
+  let colIdxNome = -1;
+  let colIdxTipo = -1;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+
+    // Procura linha de cabeçalho
+    const rowStr = row.map(c => String(c || '').toLowerCase().trim()).join(' ');
+    if (rowStr.includes('código') || rowStr.includes('codigo') || rowStr.includes('descrição') || rowStr.includes('classificação')) {
+      row.forEach((cell, idx) => {
+        const c = String(cell || '').toLowerCase().trim();
+        if (c === 'código' || c === 'codigo' || c === 'cód' || c === 'cód.') colIdxCod = idx;
+        if (c === 'descrição' || c === 'descricao' || c === 'nome da conta' || c === 'conta') colIdxNome = idx;
+        if (c === 't' || c === 'tipo') colIdxTipo = idx;
+      });
+      continue;
+    }
+
+    // Se encontrou cabeçalho estruturado
+    if (colIdxCod !== -1 && colIdxNome !== -1) {
+      const codigo = String(row[colIdxCod] || '').trim();
+      const nome = String(row[colIdxNome] || '').trim();
+      const tipo = colIdxTipo !== -1 ? String(row[colIdxTipo] || '').toUpperCase().trim() : 'A';
+
+      if (codigo && nome && !isNaN(parseInt(codigo, 10)) && (tipo === 'A' || tipo === 'ANALÍTICA' || tipo === 'ANALITICA')) {
+        if (!contasVistas.has(codigo)) {
+          contasVistas.add(codigo);
+          contas.push({ codigo, nome });
+        }
+      }
+    } else {
+      // Heurística de leitura por células: procura coluna com código numérico e coluna com texto
+      const cleanCells = row.map(c => String(c || '').trim()).filter(Boolean);
+      if (cleanCells.length >= 2) {
+        // Verifica se há indicador de tipo 'A' ou 'S'
+        const hasA = cleanCells.some(c => c.toUpperCase() === 'A');
+        const hasS = cleanCells.some(c => c.toUpperCase() === 'S');
+        
+        // Se houver indicação de tipo e for S, pula
+        if (hasS && !hasA) continue;
+
+        const numCell = cleanCells.find(c => /^\d{1,6}$/.test(c));
+        const textCell = cleanCells.find(c => c.length > 3 && isNaN(c) && !c.includes('/') && !c.includes('.'));
+        if (numCell && textCell && !contasVistas.has(numCell)) {
+          contasVistas.add(numCell);
+          contas.push({ codigo: numCell, nome: textCell });
+        }
+      }
+    }
+  }
+
+  return contas;
+}
+
+// Handler de Upload Expandido do Plano de Contas da Domínio (.pdf, .xlsx, .xls, .csv, .txt)
+window.handleUploadPlanoContas = async function(file) {
+  if (!file) return;
+  const fileName = file.name.toLowerCase();
+  let contas = [];
+
+  try {
+    if (fileName.endsWith('.pdf')) {
+      contas = await parseDominioPlanoContasPdf(file);
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      contas = await parseDominioPlanoContasExcel(file);
+    } else {
+      // CSV ou TXT delimitado
+      const text = await file.text();
+      const lines = text.split('\n');
+
+      lines.forEach(line => {
+        const clean = line.trim();
+        if (!clean) return;
+
+        // Se for linha de texto com padrão Domínio (Classificação Código T Descrição)
+        const matchDominioText = clean.match(/^([\d\.]+)\s+(\d+)\s+([AS])\s+(.+)$/i);
+        if (matchDominioText) {
+          if (matchDominioText[3].toUpperCase() === 'A') {
+            let nomeLimpo = matchDominioText[4].replace(/\s+\d+$/i, '').trim();
+            contas.push({ codigo: matchDominioText[2].trim(), nome: nomeLimpo });
+          }
+          return;
+        }
+
+        // Suporte a formatos comuns delimitados por vírgula, ponto-e-vírgula ou tab
+        const parts = clean.split(/[;,\t|]/);
+        if (parts.length >= 2) {
+          // Se tiver coluna de tipo (ex: Classificação, Código, Tipo, Descrição)
+          if (parts.length >= 4) {
+            const pTipo = parts[2].trim().toUpperCase();
+            if (pTipo === 'S') return; // ignora sintética
+            if (pTipo === 'A') {
+              contas.push({ codigo: parts[1].trim(), nome: parts[3].trim() });
+              return;
+            }
+          }
+          const codigo = parts[0].trim();
+          const nome = parts[1].trim();
+          if (codigo && nome && !isNaN(parseInt(codigo, 10))) {
+            contas.push({ codigo, nome });
+          }
+        }
+      });
+    }
+
+    if (contas.length > 0) {
+      // Remove possíveis duplicatas de código
+      const mapUnico = new Map();
+      contas.forEach(c => {
+        if (!mapUnico.has(c.codigo)) mapUnico.set(c.codigo, c);
+      });
+      const contasUnicas = Array.from(mapUnico.values());
+
+      const folhaState = state.conversorFolha;
+      const companyKey = folhaState.selectedCompanyId ? String(folhaState.selectedCompanyId) : 'default';
+      folhaState.planoContasByCompany[companyKey] = contasUnicas;
+      await saveStorage();
+      render();
+      alert(`✅ Plano de Contas da Domínio importado com sucesso!\n\nArquivo: ${file.name}\n${contasUnicas.length} contas Analíticas (Tipo A) registradas e prontas para vínculo contábil.`);
+    } else {
+      alert('⚠️ Não foi possível identificar as contas analíticas no arquivo enviado.\n\nVerifique se o arquivo corresponde ao Plano de Contas emitido pelo Domínio Contabilidade (.PDF, .XLSX ou .CSV).');
+    }
+  } catch (err) {
+    console.error('Erro ao ler Plano de Contas:', err);
+    alert(`Erro ao processar o arquivo de Plano de Contas: ${err.message}`);
   }
 };
 
