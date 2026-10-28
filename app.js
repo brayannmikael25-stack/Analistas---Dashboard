@@ -12459,13 +12459,6 @@ function renderConversorFolhaTab(companies) {
               </div>
             ` : ''}
           </div>
-                  ${filteredCompanies.length === 0 ? `
-                    <div class="p-3 text-center text-xs text-slate-400">Nenhuma empresa encontrada</div>
-                  ` : ''}
-                </div>
-              </div>
-            ` : ''}
-          </div>
 
           <!-- 2. SELEÇÃO E GERENCIAMENTO DE COMPETÊNCIA (Com Seletor / Modal Anos 2025-2028) -->
           <div>
