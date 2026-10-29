@@ -15462,26 +15462,91 @@ window.openCalendarTaskActions = (taskId, event) => {
   }, 10);
 };
 
-window.quickRescheduleCalendarTask = async (taskId) => {
+window.quickRescheduleCalendarTask = (taskId) => {
   const t = (state.tasks || []).find(x => x && String(x.id) === String(taskId));
   if (!t) return;
   const curDate = t.data || new Date().toISOString().split('T')[0];
-  const newDate = prompt(`📅 Informe a nova data para a tarefa "${t.titulo}" (AAAA-MM-DD):`, curDate);
-  if (!newDate || newDate.trim() === '' || newDate === curDate) return;
-  
-  t.data = newDate.trim();
-  t.historico = t.historico || [];
-  t.historico.push({
-    data: new Date().toLocaleString('pt-BR'),
-    acao: `Data alterada no calendário para ${formatBrazilianDate(newDate.trim())}`
-  });
 
-  const userId = dataService.getActiveUserKey();
-  if (userId) {
-    await dataService.upsertTarefa(t, userId);
+  const existingModal = document.getElementById('calendar-reschedule-modal');
+  if (existingModal) existingModal.remove();
+
+  const modalOverlay = document.createElement('div');
+  modalOverlay.id = 'calendar-reschedule-modal';
+  modalOverlay.className = 'fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn';
+  
+  modalOverlay.innerHTML = `
+    <div class="w-full max-w-sm rounded-2xl bg-white dark:bg-[#161724] border border-gray-200 dark:border-gray-800 shadow-2xl p-5 space-y-4" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
+        <div class="flex items-center gap-2">
+          <span class="text-base text-purple-500">📅</span>
+          <h3 class="font-extrabold text-sm text-gray-900 dark:text-white">Mudar Data do Evento</h3>
+        </div>
+        <button onclick="document.getElementById('calendar-reschedule-modal')?.remove()" class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-xs transition">✕</button>
+      </div>
+
+      <div>
+        <p class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate mb-1" title="${escapeHtml(t.titulo)}">
+          ${escapeHtml(t.titulo)}
+        </p>
+        <p class="text-[11px] text-gray-400 mb-3">Selecione no calendário digital a nova data de vencimento:</p>
+        
+        <input
+          type="date"
+          id="calendar-reschedule-input"
+          value="${curDate}"
+          class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition cursor-pointer"
+        />
+      </div>
+
+      <div class="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onclick="document.getElementById('calendar-reschedule-modal')?.remove()"
+          class="px-3.5 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 transition"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="calendar-reschedule-confirm-btn"
+          class="px-4 py-2 rounded-xl text-xs font-extrabold text-white bg-purple-600 hover:bg-purple-700 transition shadow-sm"
+        >
+          Confirmar Nova Data
+        </button>
+      </div>
+    </div>
+  `;
+
+  modalOverlay.onclick = () => modalOverlay.remove();
+  document.body.appendChild(modalOverlay);
+
+  const confirmBtn = document.getElementById('calendar-reschedule-confirm-btn');
+  const dateInput = document.getElementById('calendar-reschedule-input');
+
+  if (confirmBtn && dateInput) {
+    confirmBtn.onclick = () => {
+      const newDate = dateInput.value;
+      modalOverlay.remove();
+      if (!newDate || newDate === curDate) return;
+
+      t.data = newDate;
+      t.historico = t.historico || [];
+      t.historico.push({
+        data: new Date().toLocaleString('pt-BR'),
+        acao: `Data alterada no calendário para ${formatBrazilianDate(newDate)}`
+      });
+
+      // Atualização imediata sem travar a interface
+      render();
+
+      // Persistência em segundo plano com debounce
+      const userId = dataService.getActiveUserKey();
+      if (userId) {
+        dataService.upsertTarefa(t, userId).catch(() => {});
+      }
+      debouncedSaveStorage({ isSilent: true }, 150);
+    };
   }
-  await saveStorage();
-  render();
 };
 
 // ----------------------------------------------------
@@ -16520,19 +16585,47 @@ function renderCompanyModal() {
   `;
 }
 
+// Helper para atualizar dinamicamente o horário final mínimo de acordo com o início
+window.handleHoraInicioChange = (val) => {
+  const horaFimEl = document.getElementById('edit-task-hora-fim');
+  if (!horaFimEl) return;
+  horaFimEl.min = val;
+  if (horaFimEl.value && horaFimEl.value < val) {
+    // Ajusta automaticamente para 1 hora após o início ou o mesmo horário
+    const [h, m] = val.split(':').map(Number);
+    if (!isNaN(h)) {
+      const nextH = Math.min(23, h + 1);
+      horaFimEl.value = `${String(nextH).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+    } else {
+      horaFimEl.value = val;
+    }
+  }
+};
+
+window.handleHoraFimChange = (val) => {
+  const horaInicioEl = document.getElementById('edit-task-hora-inicio');
+  if (!horaInicioEl || !horaInicioEl.value) return;
+  if (val && val < horaInicioEl.value) {
+    alert(`⚠️ O horário final (${val}) não pode ser menor que o horário inicial (${horaInicioEl.value}).`);
+    horaInicioEl.value = val;
+  }
+};
+
 // ---------------- MODAL DE EDIÇÃO DE TAREFA ----------------
 function renderEditTaskModal() {
   const t = state.taskModal.task;
   if (!t) return '';
 
+  const isCalendarContext = state.activeTab === 'calendario' || Boolean(t.isCalendarEvent) || Boolean(t.horaInicio);
+
   return `
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div class="w-full max-w-lg rounded-3xl bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 shadow-2xl p-6 relative">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onclick="closeEditTaskModal()">
+      <div class="w-full max-w-lg rounded-3xl bg-white dark:bg-[#15151A] border border-gray-200 dark:border-gray-800 shadow-2xl p-6 relative" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
           <div class="flex items-center gap-2">
             <span class="text-[#ECBD56] text-base">${t.id ? '✏️' : '➕'}</span>
             <h3 class="font-extrabold text-base md:text-lg text-gray-900 dark:text-white">
-              ${t.id ? 'Editar Tarefa' : 'Criar Nova Tarefa / Evento'}
+              ${t.id ? (isCalendarContext ? 'Editar Evento / Reunião' : 'Editar Tarefa') : (isCalendarContext ? 'Adicionar Evento no Calendário' : 'Criar Nova Tarefa')}
             </h3>
           </div>
           <button onclick="closeEditTaskModal()" class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-sm transition">
@@ -16541,15 +16634,17 @@ function renderEditTaskModal() {
         </div>
 
         <form id="edit-task-modal-form" class="mt-5 space-y-4">
-          <!-- Título da Tarefa -->
+          <!-- Título da Tarefa / Evento -->
           <div>
-            <label class="block text-xs font-semibold text-gray-400 mb-1">Título da Tarefa *</label>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">
+              ${isCalendarContext ? 'Título do Evento / Reunião *' : 'Título da Tarefa *'}
+            </label>
             <input
               type="text"
               id="edit-task-title"
               required
               value="${escapeHtml(t.titulo || '')}"
-              placeholder="Título da tarefa..."
+              placeholder="${isCalendarContext ? 'Ex: Reunião com diretoria, Alinhamento contábil...' : 'Ex: Conciliação bancária, Fechamento de balanço...'}"
               class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#ECBD56]/40 transition"
             />
           </div>
@@ -16575,51 +16670,77 @@ function renderEditTaskModal() {
             })}
           </div>
 
-          <!-- Metadados de Data, Horários e Urgência -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- Metadados: Data e Urgência (Horários exclusivos para Eventos do Calendário) -->
+          <div class="grid grid-cols-1 ${isCalendarContext ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3 items-end">
             <div>
-              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Data *</label>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                ${isCalendarContext ? 'Data do Evento *' : 'Data Limite / Prazo *'}
+              </label>
               <input
                 type="date"
                 id="edit-task-date"
                 required
                 value="${t.data || new Date().toISOString().split('T')[0]}"
-                class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0]"
+                class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0] cursor-pointer"
               />
             </div>
 
-            <div>
-              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Hora Início</label>
-              <input
-                type="time"
-                id="edit-task-hora-inicio"
-                value="${t.horaInicio || '09:00'}"
-                class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0]"
-              />
-            </div>
+            ${isCalendarContext ? `
+              <!-- Bloco de Horários Otimizado com Validação Dinâmica de Início e Fim -->
+              <div class="sm:col-span-2 grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Hora Início</label>
+                  <input
+                    type="time"
+                    id="edit-task-hora-inicio"
+                    value="${t.horaInicio || '09:00'}"
+                    onchange="window.handleHoraInicioChange(this.value)"
+                    class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0] cursor-pointer"
+                  />
+                </div>
 
-            <div>
-              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Hora Fim</label>
-              <input
-                type="time"
-                id="edit-task-hora-fim"
-                value="${t.horaFim || '10:00'}"
-                class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0]"
-              />
-            </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Hora Fim</label>
+                  <input
+                    type="time"
+                    id="edit-task-hora-fim"
+                    value="${t.horaFim || '10:00'}"
+                    min="${t.horaInicio || '09:00'}"
+                    onchange="window.handleHoraFimChange(this.value)"
+                    class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0] cursor-pointer"
+                  />
+                </div>
+              </div>
+            ` : ''}
+
+            ${!isCalendarContext ? `
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Nível de Urgência</label>
+                <select
+                  id="edit-task-urgency"
+                  class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0]"
+                >
+                  <option value="Alta" ${t.urgencia === 'Alta' ? 'selected' : ''}>Alta</option>
+                  <option value="Media" ${t.urgencia === 'Media' ? 'selected' : ''}>Média</option>
+                  <option value="Baixa" ${t.urgencia === 'Baixa' ? 'selected' : ''}>Baixa</option>
+                </select>
+              </div>
+            ` : ''}
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Nível de Urgência</label>
-            <select
-              id="edit-task-urgency"
-              class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0]"
-            >
-              <option value="Alta" ${t.urgencia === 'Alta' ? 'selected' : ''}>Alta</option>
-              <option value="Media" ${t.urgencia === 'Media' ? 'selected' : ''}>Média</option>
-              <option value="Baixa" ${t.urgencia === 'Baixa' ? 'selected' : ''}>Baixa</option>
-            </select>
-          </div>
+          ${isCalendarContext ? `
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Nível de Urgência / Prioridade</label>
+              <select
+                id="edit-task-urgency"
+                class="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3C50E0]"
+              >
+                <option value="Alta" ${t.urgencia === 'Alta' ? 'selected' : ''}>Alta</option>
+                <option value="Media" ${t.urgencia === 'Media' ? 'selected' : ''}>Média</option>
+                <option value="Baixa" ${t.urgencia === 'Baixa' ? 'selected' : ''}>Baixa</option>
+              </select>
+            </div>
+          ` : ''}
 
           <!-- Observação de Criação (Informativo fixo) -->
           <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/60 dark:border-gray-800/80 flex items-center justify-between text-xs text-gray-400">
@@ -16640,9 +16761,10 @@ function renderEditTaskModal() {
             </button>
             <button
               type="submit"
-              class="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-[#12131F] dark:bg-[#ECBD56] dark:text-gray-950 hover:opacity-90 transition shadow-sm"
+              id="save-task-btn"
+              class="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-[#12131F] dark:bg-[#ECBD56] dark:text-gray-950 hover:opacity-90 active:scale-95 transition shadow-sm flex items-center gap-2 cursor-pointer"
             >
-              Salvar Alterações
+              <span>Salvar Alterações</span>
             </button>
           </div>
         </form>
@@ -16842,7 +16964,7 @@ function attachEventHandlers() {
   // Form de Tarefa
   const taskForm = document.getElementById('new-task-form');
   if (taskForm) {
-    taskForm.addEventListener('submit', async (e) => {
+    taskForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const title = document.getElementById('task-title-input').value.trim();
       const desc = document.getElementById('task-desc-input').value.trim();
@@ -16863,19 +16985,25 @@ function attachEventHandlers() {
         createdAt: today
       };
       state.tasks.unshift(newTask);
+      
+      // Limpa os campos e renderiza imediatamente sem travar a interface
+      document.getElementById('task-title-input').value = '';
+      document.getElementById('task-desc-input').value = '';
+      render();
+
+      // Sincronização em segundo plano (background assíncrono)
       const userId = dataService.getActiveUserKey();
       if (userId) {
-        await dataService.upsertTarefa(newTask, userId);
+        dataService.upsertTarefa(newTask, userId).catch(() => {});
       }
-      await saveStorage();
-      render();
+      debouncedSaveStorage({ isSilent: true }, 200);
     });
   }
 
   // Form de Edição / Criação de Tarefa via Modal
   const editTaskForm = document.getElementById('edit-task-modal-form');
   if (editTaskForm) {
-    editTaskForm.addEventListener('submit', async (e) => {
+    editTaskForm.addEventListener('submit', (e) => {
       e.preventDefault();
       if (!state.taskModal.task) return;
       const id = state.taskModal.task.id;
@@ -16883,11 +17011,18 @@ function attachEventHandlers() {
       const desc = document.getElementById('edit-task-desc').value.trim();
       const companyVal = document.getElementById('edit-task-company')?.value;
       const date = document.getElementById('edit-task-date').value;
-      const horaInicio = document.getElementById('edit-task-hora-inicio')?.value || '09:00';
-      const horaFim = document.getElementById('edit-task-hora-fim')?.value || '10:00';
-      const urg = document.getElementById('edit-task-urgency').value;
+      const horaInicio = document.getElementById('edit-task-hora-inicio')?.value || null;
+      let horaFim = document.getElementById('edit-task-hora-fim')?.value || null;
+      const urg = document.getElementById('edit-task-urgency')?.value || 'Media';
 
       if (!title) return;
+
+      // Validação estrita: se houver hora início e hora fim, hora fim não pode ser menor
+      if (horaInicio && horaFim && horaFim < horaInicio) {
+        alert(`⚠️ O horário final (${horaFim}) não pode ser anterior ao horário inicial (${horaInicio}). Ajustando automaticamente.`);
+        horaFim = horaInicio;
+      }
+
       let targetTask = null;
       if (id) {
         // Edit existing task
@@ -16897,8 +17032,8 @@ function attachEventHandlers() {
           t.descricao = desc;
           t.empresaId = companyVal ? Number(companyVal) : null;
           t.data = date;
-          t.horaInicio = horaInicio;
-          t.horaFim = horaFim;
+          if (horaInicio) t.horaInicio = horaInicio;
+          if (horaFim) t.horaFim = horaFim;
           t.urgencia = urg;
           targetTask = t;
         }
@@ -16911,21 +17046,25 @@ function attachEventHandlers() {
           descricao: desc,
           empresaId: companyVal ? Number(companyVal) : null,
           data: date,
-          horaInicio: horaInicio,
-          horaFim: horaFim,
           urgencia: urg,
           concluida: false,
           kanbanStatus: 'pendentes',
           createdAt: today
         };
+        if (horaInicio) targetTask.horaInicio = horaInicio;
+        if (horaFim) targetTask.horaFim = horaFim;
         state.tasks.unshift(targetTask);
       }
+
+      // 1. Resposta instantânea e fechamento do modal (sem lentidão para o usuário)
+      closeEditTaskModal();
+
+      // 2. Persistência em nuvem e armazenamento local em background desacoplado
       const userId = dataService.getActiveUserKey();
       if (userId && targetTask) {
-        await dataService.upsertTarefa(targetTask, userId);
+        dataService.upsertTarefa(targetTask, userId).catch(() => {});
       }
-      await saveStorage();
-      closeEditTaskModal();
+      debouncedSaveStorage({ isSilent: true }, 200);
     });
   }
 
