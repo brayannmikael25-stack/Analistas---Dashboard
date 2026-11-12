@@ -4715,7 +4715,7 @@ function render() {
   }
 
   // Lista de abas da Sidebar com filtro RBAC
-  const allNavTabs = [
+  const menuNavTabs = [
     { 
       id: 'dashboard', 
       label: 'Dashboard', 
@@ -4726,13 +4726,6 @@ function render() {
       id: 'fechamentos', 
       label: 'Fechamentos', 
       icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="m9 16 2 2 4-4"></path></svg>`,
-      fiscal: true
-    },
-    { 
-      id: 'fechamento_ia', 
-      label: 'Fechamento IA', 
-      icon: `<svg class="w-5 h-5 text-[#3C50E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path><path d="M19 3v4"></path><path d="M21 5h-4"></path></svg>`, 
-      badge: `<span class="bg-[#10B981]/10 text-[#10B981] text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">NEW</span>`,
       fiscal: true
     },
     { 
@@ -4760,13 +4753,6 @@ function render() {
       fiscal: true
     },
     { 
-      id: 'conversor_folha', 
-      label: 'Conversor Folha', 
-      icon: `<svg class="w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path><path d="m17 11 2 2 4-4"></path></svg>`,
-      badge: `<span class="bg-emerald-500/10 text-emerald-500 text-[9px] font-extrabold px-1.5 py-0.5 rounded font-mono border border-emerald-500/20">TXT</span>`,
-      fiscal: true
-    },
-    { 
       id: 'tarefas', 
       label: 'Tarefas', 
       icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`, 
@@ -4788,7 +4774,27 @@ function render() {
     }
   ];
 
-  const visibleNavTabs = isOperacional ? allNavTabs.filter(t => !t.fiscal) : allNavTabs;
+  // Abas Experimentais / Em Testes (Separadas por divisória de atenção)
+  const testesNavTabs = [
+    { 
+      id: 'fechamento_ia', 
+      label: 'Fechamento IA', 
+      icon: `<svg class="w-5 h-5 text-[#3C50E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path><path d="M19 3v4"></path><path d="M21 5h-4"></path></svg>`, 
+      badge: `<span class="bg-[#10B981]/10 text-[#10B981] text-[10px] font-bold px-1.5 py-0.5 rounded font-mono">NEW</span>`,
+      fiscal: true
+    },
+    { 
+      id: 'conversor_folha', 
+      label: 'Conversor Folha', 
+      icon: `<svg class="w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path><path d="m17 11 2 2 4-4"></path></svg>`,
+      badge: `<span class="bg-amber-500/10 text-amber-500 text-[9px] font-extrabold px-1.5 py-0.5 rounded font-mono border border-amber-500/20">TESTE</span>`,
+      fiscal: true
+    }
+  ];
+
+  const visibleMainNavTabs = isOperacional ? menuNavTabs.filter(t => !t.fiscal) : menuNavTabs;
+  const visibleTestesNavTabs = isOperacional ? [] : testesNavTabs;
+  const visibleNavTabs = [...visibleMainNavTabs, ...visibleTestesNavTabs];
 
   root.innerHTML = `
     <div class="min-h-screen flex flex-col text-gray-800 dark:text-gray-100" style="background-color: var(--bg-main);">
@@ -5057,14 +5063,14 @@ function render() {
           <div class="space-y-6">
             <!-- Menu de Navegação Vertical Dividido por Categorias Estilo TailAdmin -->
             <nav class="space-y-4" id="sidebar-nav-container">
-              <!-- Categoria 1: MENU -->
+              <!-- Categoria 1: MENU PRINCIPAL -->
               <div>
                 <div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD] flex items-center justify-between">
                   <span>MENU</span>
                   ${isOperacional ? `<span class="bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold px-1.5 py-0.2 rounded-full">Operacional</span>` : ''}
                 </div>
                 <div class="space-y-1">
-                  ${visibleNavTabs.map(tab => {
+                  ${visibleMainNavTabs.map(tab => {
                     const isActive = state.activeTab === tab.id;
                     return `
                       <div
@@ -5085,6 +5091,36 @@ function render() {
                   }).join('')}
                 </div>
               </div>
+
+              <!-- Categoria 2: DIVISÓRIA AVISO TESTES / EXPERIMENTAL -->
+              ${visibleTestesNavTabs.length > 0 ? `
+                <div class="pt-3 border-t border-dashed border-amber-500/30 dark:border-amber-500/20">
+                  <div class="px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <span class="text-xs">⚠️</span>
+                    <span>Aviso Testes</span>
+                  </div>
+                  <div class="space-y-1">
+                    ${visibleTestesNavTabs.map(tab => {
+                      const isActive = state.activeTab === tab.id;
+                      return `
+                        <div
+                          data-tab="${tab.id}"
+                          onclick="switchTab('${tab.id}')"
+                          class="panze-nav-item tab-btn ${isActive ? 'active' : ''} cursor-pointer"
+                        >
+                          <div class="flex items-center gap-3 min-w-0">
+                            <span class="nav-icon shrink-0">${tab.icon}</span>
+                            <span class="truncate font-medium text-sm">${tab.label}</span>
+                          </div>
+                          <div class="flex items-center gap-1.5 shrink-0">
+                            ${tab.badge || ''}
+                          </div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : ''}
             </nav>
           </div>
 
@@ -14059,6 +14095,11 @@ function renderTarefasTab() {
                     (t.descricao && t.descricao.toLowerCase().includes(q));
       if (!match) return false;
     }
+    // Filtro interativo de apenas tarefas atrasadas
+    if (state.taskOnlyAtrasadas) {
+      const isOverdue = !t.concluida && getTaskOverdueInfo(t.data).isOverdue;
+      if (!isOverdue) return false;
+    }
     if (state.taskCompanyFilter && state.taskCompanyFilter !== 'todos') {
       if (Number(t.empresaId) !== Number(state.taskCompanyFilter)) return false;
     }
@@ -14290,9 +14331,19 @@ function renderTarefasTab() {
             <span class="text-slate-300 dark:text-slate-700">/</span>
             <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Gestão de Tarefas</h1>
             ${totalAtrasadas > 0 ? `
-              <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500/15 text-rose-500 border border-rose-500/30 animate-pulse">
-                ${totalAtrasadas} atrasada(s)
-              </span>
+              <button
+                type="button"
+                onclick="state.taskOnlyAtrasadas = !state.taskOnlyAtrasadas; render();"
+                class="px-2.5 py-0.5 rounded-full text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  state.taskOnlyAtrasadas
+                    ? 'bg-rose-500 text-white shadow-md ring-2 ring-rose-500/50'
+                    : 'bg-rose-500/15 text-rose-500 border border-rose-500/30 hover:bg-rose-500/25 animate-pulse'
+                }"
+                title="${state.taskOnlyAtrasadas ? 'Clique para ver todas as tarefas' : 'Clique para filtrar apenas as atrasadas'}"
+              >
+                <span>${totalAtrasadas} atrasada(s)</span>
+                ${state.taskOnlyAtrasadas ? '<span class="text-[10px] bg-white text-rose-600 px-1 rounded font-bold">FILTRADO ✕</span>' : ''}
+              </button>
             ` : ''}
           </div>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Fluxo de atividades estruturado em fases com suporte a arrastar e soltar (Pipefy).</p>
@@ -14388,10 +14439,10 @@ function renderTarefasTab() {
             <option value="minhas" ${state.taskResponsavelFilter === 'minhas' ? 'selected' : ''}>👤 Apenas Minhas Tarefas</option>
           </select>
 
-          ${(state.taskSearch || state.taskCompanyFilter !== 'todos' || state.taskUrgencyFilter !== 'todas' || state.taskResponsavelFilter !== 'todos') ? `
+          ${(state.taskSearch || state.taskCompanyFilter !== 'todos' || state.taskUrgencyFilter !== 'todas' || state.taskResponsavelFilter !== 'todos' || state.taskOnlyAtrasadas) ? `
             <button
-              onclick="state.taskSearch = ''; state.taskCompanyFilter = 'todos'; state.taskUrgencyFilter = 'todas'; state.taskResponsavelFilter = 'todos'; render();"
-              class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold ml-1"
+              onclick="state.taskSearch = ''; state.taskOnlyAtrasadas = false; state.taskCompanyFilter = 'todos'; state.taskUrgencyFilter = 'todas'; state.taskResponsavelFilter = 'todos'; render();"
+              class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold ml-1 cursor-pointer"
             >
               Limpar Filtros
             </button>
@@ -14402,6 +14453,22 @@ function renderTarefasTab() {
           Total de cards: <strong class="text-slate-700 dark:text-slate-200">${filteredTasks.length}</strong>
         </div>
       </div>
+
+      <!-- Banner de Aviso quando o filtro de atrasadas estiver ativo -->
+      ${state.taskOnlyAtrasadas ? `
+        <div class="flex items-center justify-between px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-bold animate-fadeIn">
+          <div class="flex items-center gap-2">
+            <span class="text-sm">⚠️</span>
+            <span>Exibindo exclusivamente as tarefas com prazo vencido / atrasadas (${filteredTasks.length} encontrada(s)).</span>
+          </div>
+          <button
+            onclick="state.taskOnlyAtrasadas = false; render();"
+            class="px-3 py-1 rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition text-[11px] font-bold cursor-pointer"
+          >
+            ✕ Voltar à visualização padrão (Ver todas)
+          </button>
+        </div>
+      ` : ''}
 
       <!-- ================= VISUALIZAÇÃO: KANBAN PIPEFY VS LISTA ================= -->
       ${state.taskViewMode === 'lista' ? `
@@ -16742,15 +16809,6 @@ function renderEditTaskModal() {
               </select>
             </div>
           ` : ''}
-
-          <!-- Observação de Criação (Informativo fixo) -->
-          <div class="p-3 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/60 dark:border-gray-800/80 flex items-center justify-between text-xs text-gray-400">
-            <span class="flex items-center gap-1.5">
-              <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-              <span>Data de Criação do Registro:</span>
-            </span>
-            <span class="font-bold text-gray-700 dark:text-gray-200">${formatBrazilianDate(t.createdAt || t.data)}</span>
-          </div>
 
           <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
             <button
