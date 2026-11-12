@@ -1645,6 +1645,7 @@ const state = {
   dashboardTaskPeriod: 'mes', // 'dia' | 'semana' | 'mes' (Filtro do gráfico TailAdmin)
   isTaskFormOpen: false, // formulário retrátil fechado por padrão
   taskSearch: '',
+  taskOnlyAtrasadas: false, // Filtro rápido interativo para exibir apenas tarefas atrasadas/vencidas
   taskCompanyFilter: 'todos',
   taskUrgencyFilter: 'todas',
   taskResponsavelFilter: 'todos', // 'todos' | 'minhas' | ou nome do colaborador
