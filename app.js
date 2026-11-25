@@ -542,6 +542,13 @@ window.selectCompanyComboboxItem = (id, compId, compLabel, compRegime) => {
   }
   if (dropdown) dropdown.classList.add('hidden');
   if (chevron) chevron.classList.remove('rotate-180');
+
+  // Se a seleção for da nova tela de Auditoria de Balancete (Fechamento IA)
+  if (id === 'auditoria-balancete-company-select' || id === 'modal-auditoria-company-select') {
+    if (!state.auditoriaBalancete) state.auditoriaBalancete = {};
+    state.auditoriaBalancete.selectedCompanyId = compId ? Number(compId) : null;
+    render();
+  }
 };
 
 function initCompanyAutocomplete(id) {
@@ -9071,18 +9078,1085 @@ function auditarDREComparativoReal(linhasRaw, companyId, comp, manualPrevLinhas 
 
 
 function renderFechamentoIATab(companies) {
-  const currentComp = state.fechamentoIA.selectedCompetencia || '08/2026';
-  const selectedCompId = state.fechamentoIA.selectedCompanyId;
-  const selectedCompany = companies.find(c => c.id === selectedCompId);
+  return renderNovaAuditoriaBalanceteTab(companies);
+}
 
-  // Se estiver no modo de seleção de empresas ou não tiver empresa escolhida:
-  if (state.fechamentoIA.viewMode === 'selection' || !selectedCompany) {
-    return renderFechamentoIACompanySelection(companies);
+// -------------------------------------------------------------------------
+// NOVO MÓDULO: AUDITORIA DE BALANCETE & CONTAS INVERTIDAS COM IA
+// -------------------------------------------------------------------------
+if (!state.auditoriaBalancete) {
+  state.auditoriaBalancete = {
+    selectedCompanyId: null,
+    competencia: '09/2026',
+    balanceteAtual: null,
+    balanceteAnterior: null,
+    inconsistencias: [],
+    resumoContas: [],
+    kpis: { criticos: 0, atencoes: 0, conformes: 0, totalContas: 0 },
+    filtroRisco: 'TODOS',
+    searchConta: '',
+    isProcessing: false,
+    isImportModalOpen: false, // Controla abertura do modal "Importar pré-fechamento"
+    historicoFechamentos: JSON.parse(localStorage.getItem('control_historico_fechamentos_ia') || '{}')
+  };
+}
+
+async function extrairLinhasTextoPDF(file) {
+  if (!window.pdfjsLib) {
+    throw new Error('Biblioteca PDF.js não carregada');
+  }
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdfDoc = await loadingTask.promise;
+  const lines = [];
+
+  for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+    const page = await pdfDoc.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const items = textContent.items || [];
+    let currentLineY = null;
+    let currentLineText = '';
+
+    for (const item of items) {
+      const y = Math.round(item.transform[5]);
+      if (currentLineY === null || Math.abs(y - currentLineY) > 3) {
+        if (currentLineText.trim()) lines.push(currentLineText.trim());
+        currentLineY = y;
+        currentLineText = item.str + ' ';
+      } else {
+        currentLineText += item.str + ' ';
+      }
+    }
+    if (currentLineText.trim()) lines.push(currentLineText.trim());
+  }
+  return lines;
+}
+
+function processarAuditoriaBalancete(linhasRaw, companyId, comp, linhasAnterior = []) {
+  const contas = [];
+  const inconsistencias = [];
+
+  linhasRaw.forEach((line, idx) => {
+    if (!line) return;
+    const lStr = typeof line === 'string' ? line : (line.descricao || line.conta || '');
+    const lLower = lStr.toLowerCase();
+
+    if (lLower.includes('total geral') || lLower.includes('página') || lLower.includes('emissão:') || lLower.includes('cnpj:') || lLower.length < 4) {
+      return;
+    }
+
+    let saldo = 0, debito = 0, credito = 0, desc = lStr, codigo = '';
+
+    if (typeof line === 'string') {
+      const matches = line.match(/(?:-|\()?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g);
+      if (!matches || matches.length === 0) return;
+
+      saldo = parseContabilNumero(matches[matches.length - 1]);
+      if (matches.length >= 3) debito = parseContabilNumero(matches[matches.length - 3]);
+      if (matches.length >= 2) credito = parseContabilNumero(matches[matches.length - 2]);
+
+      desc = line.replace(/(?:-|\()?\d{1,3}(?:\.\d{3})*,\d{2}\)?/g, '').trim();
+      const codeMatch = desc.match(/^\d+(?:\.\d+)+/);
+      if (codeMatch) {
+        codigo = codeMatch[0];
+        desc = desc.replace(/^\d+(?:\.\d+)+/, '').trim();
+      }
+    } else {
+      saldo = typeof line.saldo === 'number' ? line.saldo : parseContabilNumero(line.saldo);
+      debito = typeof line.debito === 'number' ? line.debito : parseContabilNumero(line.debito);
+      credito = typeof line.credito === 'number' ? line.credito : parseContabilNumero(line.credito);
+      codigo = line.codigo || '';
+      desc = line.descricao || '';
+    }
+
+    if (!desc || desc.length < 2) return;
+
+    // Detecta se a conta é DEDUTORA (-) => sinal virado é normal
+    const isDedutora = desc.includes('(-)') || 
+                       desc.includes('(- )') ||
+                       lLower.includes('depreciação acumulada') || 
+                       lLower.includes('depreciacao acumulada') ||
+                       lLower.includes('amortização acumulada') ||
+                       lLower.includes('duplicatas descontadas') || 
+                       lLower.includes('perdas estimadas') ||
+                       lLower.includes('pcld') ||
+                       lLower.includes('ações em tesouraria') ||
+                       lLower.includes('abatimentos') ||
+                       lLower.includes('devoluções');
+
+    let tipo = 'OUTROS';
+    if (codigo.startsWith('1') || lLower.includes('ativo') || lLower.includes('caixa') || lLower.includes('banco') || lLower.includes('clientes') || lLower.includes('estoque')) {
+      tipo = 'ATIVO';
+    } else if (codigo.startsWith('2') || lLower.includes('passivo') || lLower.includes('fornecedor') || lLower.includes('impostos a recolher') || lLower.includes('parcelamento') || lLower.includes('salarios a pagar')) {
+      tipo = 'PASSIVO';
+    } else if (codigo.startsWith('3') || lLower.includes('receita') || lLower.includes('faturamento') || lLower.includes('vendas')) {
+      tipo = 'RECEITA';
+    } else if (codigo.startsWith('4') || lLower.includes('despesa') || lLower.includes('custo')) {
+      tipo = 'DESPESA';
+    }
+
+    contas.push({
+      id: idx + 1,
+      codigo: codigo || String(idx + 1),
+      descricao: desc,
+      tipo,
+      saldo,
+      debito,
+      credito,
+      isDedutora
+    });
+
+    // REGRA 1 (VERMELHO): Estouro de Caixa ou Bancos com saldo credor
+    const isCaixaOuBanco = lLower.includes('caixa') || lLower.includes('banco') || codigo.startsWith('1.1.1');
+    if (isCaixaOuBanco && saldo < -0.01 && !isDedutora) {
+      inconsistencias.push({
+        id: Date.now() + inconsistencias.length,
+        conta: desc,
+        codigo: codigo || '1.1.1',
+        tipo,
+        saldo,
+        risco: 'VERMELHO',
+        categoria: 'Estouro de Caixa / Banco',
+        titulo: `Estouro de Disponibilidade (Saldo Credor): ${desc}`,
+        descricao: `A conta "${desc}" encerrou com saldo credor de R$ ${Math.abs(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Caixa e Bancos não podem encerrar negativos sem limite de conta garantida.`,
+        impacto: 'Grave risco fiscal (presunção de omissão de receita pelo Fisco).',
+        resolvido: false
+      });
+      return;
+    }
+
+    // REGRA 2 (VERMELHO): Impostos a Recolher Negativos
+    if ((lLower.includes('pis a recolher') || lLower.includes('cofins a recolher') || lLower.includes('irpj a recolher') || lLower.includes('csll a recolher') || lLower.includes('icms a recolher') || lLower.includes('iss a recolher') || lLower.includes('inss a recolher')) && saldo < -0.01 && !isDedutora) {
+      inconsistencias.push({
+        id: Date.now() + inconsistencias.length,
+        conta: desc,
+        codigo: codigo || '2.1.2',
+        tipo,
+        saldo,
+        risco: 'VERMELHO',
+        categoria: 'Imposto a Recolher Negativo',
+        titulo: `Tributo a Recolher com Saldo Invertido: ${desc}`,
+        descricao: `A conta de provisão tributária "${desc}" encerrou negativa (R$ ${saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}). Ocorre geralmente quando há pagamento/baixa sem a provisão da apuração contábil.`,
+        impacto: 'Distorção do passivo fiscal.',
+        resolvido: false
+      });
+      return;
+    }
+
+    // REGRA 3 (VERMELHO): Contas Invertidas Gerais (Ativo Credor ou Passivo Devedor)
+    if (!isDedutora) {
+      if (tipo === 'ATIVO' && saldo < -1.0) {
+        inconsistencias.push({
+          id: Date.now() + inconsistencias.length,
+          conta: desc,
+          codigo: codigo || '1',
+          tipo,
+          saldo,
+          risco: 'VERMELHO',
+          categoria: 'Conta Ativa Invertida',
+          titulo: `Saldo Credor em Conta Ativa: ${desc}`,
+          descricao: `A conta "${desc}" (${codigo}) é do Ativo (natureza devedora), mas encerrou com saldo Credor de R$ ${Math.abs(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+          impacto: 'Distorção patrimonial de fechamento.',
+          resolvido: false
+        });
+      } else if (tipo === 'PASSIVO' && saldo > 1.0 && !lLower.includes('adiantamento')) {
+        inconsistencias.push({
+          id: Date.now() + inconsistencias.length,
+          conta: desc,
+          codigo: codigo || '2',
+          tipo,
+          saldo,
+          risco: 'VERMELHO',
+          categoria: 'Conta Passiva Invertida',
+          titulo: `Saldo Devedor em Conta Passiva: ${desc}`,
+          descricao: `A conta "${desc}" (${codigo}) é do Passivo (natureza credora), mas encerrou com saldo Devedor de R$ ${saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+          impacto: 'Pagamento sem respectiva provisão ou duplicidade.',
+          resolvido: false
+        });
+      }
+    }
+
+    // REGRA 4 (AMARELO): Fornecedor em Aberto sem Pagamento no Mês
+    const isFornecedor = lLower.includes('fornecedor') || lLower.includes('fornecedores') || codigo.startsWith('2.1.1');
+    if (isFornecedor && Math.abs(saldo) > 500 && Math.abs(debito) === 0 && !isDedutora) {
+      inconsistencias.push({
+        id: Date.now() + inconsistencias.length,
+        conta: desc,
+        codigo: codigo || '2.1.1',
+        tipo,
+        saldo,
+        risco: 'AMARELO',
+        categoria: 'Fornecedor sem Baixa',
+        titulo: `Fornecedor em Aberto sem Pagamento no Mês: ${desc}`,
+        descricao: `A conta "${desc}" mantém saldo de R$ ${Math.abs(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}, mas não teve nenhum pagamento (débito) registrado no mês ${comp}.`,
+        impacto: 'Verificar se o cliente não enviou os comprovantes bancários ou se a duplicata está atrasada.',
+        resolvido: false
+      });
+    }
+
+    // REGRA 5 (AMARELO): Parcelamento sem Amortização no Mês
+    const isParcelamento = lLower.includes('parcelamento') || lLower.includes('refis') || lLower.includes('pert');
+    if (isParcelamento && Math.abs(saldo) > 500 && Math.abs(debito) === 0) {
+      inconsistencias.push({
+        id: Date.now() + inconsistencias.length,
+        conta: desc,
+        codigo: codigo || '2.1.2',
+        tipo,
+        saldo,
+        risco: 'AMARELO',
+        categoria: 'Parcelamento sem Amortização',
+        titulo: `Parcelamento Tributário sem Baixa no Mês: ${desc}`,
+        descricao: `A conta de parcelamento "${desc}" (saldo R$ ${Math.abs(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) não teve amortização no mês.`,
+        impacto: 'Risco de exclusão do parcelamento fiscal por inadimplência.',
+        resolvido: false
+      });
+    }
+  });
+
+  // REGRA 6 (AMARELO): Variação Brusca (> 50%) entre Meses Subsequentes
+  if (linhasAnterior && linhasAnterior.length > 0) {
+    const mapaAnterior = {};
+    linhasAnterior.forEach(la => {
+      const nomeLimpo = (la.descricao || la.conta || '').toLowerCase().trim();
+      const sVal = typeof la.saldo === 'number' ? la.saldo : parseContabilNumero(la.saldo);
+      if (nomeLimpo) mapaAnterior[nomeLimpo] = sVal;
+    });
+
+    contas.forEach(cta => {
+      const nKey = cta.descricao.toLowerCase().trim();
+      if (mapaAnterior[nKey] !== undefined) {
+        const saldoAnt = mapaAnterior[nKey];
+        if (Math.abs(saldoAnt) > 1000 && Math.abs(cta.saldo) > 1000) {
+          const varNom = cta.saldo - saldoAnt;
+          const pct = Math.abs((varNom / Math.abs(saldoAnt)) * 100);
+          if (pct >= 50.0 && !cta.isDedutora) {
+            inconsistencias.push({
+              id: Date.now() + inconsistencias.length,
+              conta: cta.descricao,
+              codigo: cta.codigo,
+              tipo: cta.tipo,
+              saldo: cta.saldo,
+              risco: 'AMARELO',
+              categoria: 'Oscilação > 50% MoM',
+              titulo: `Variação Brusca MoM (+${pct.toFixed(1)}%): ${cta.descricao}`,
+              descricao: `A conta oscilou de R$ ${saldoAnt.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para R$ ${cta.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (+${pct.toFixed(1)}%).`,
+              impacto: 'Variação patrimonial atípica.',
+              resolvido: false
+            });
+          }
+        }
+      }
+    });
   }
 
-  // Modo Workspace de Fechamento IA para a empresa selecionada:
-  return renderFechamentoIAWorkspace(selectedCompany, currentComp);
+  const criticos = inconsistencias.filter(i => i.risco === 'VERMELHO').length;
+  const atencoes = inconsistencias.filter(i => i.risco === 'AMARELO').length;
+  const conformes = Math.max(0, contas.length - criticos - atencoes);
+
+  return {
+    contas,
+    inconsistencias,
+    kpis: { criticos, atencoes, conformes, totalContas: contas.length }
+  };
 }
+
+function renderNovaAuditoriaBalanceteTab(companies) {
+  const fState = state.auditoriaBalancete || {};
+  const historico = fState.historicoFechamentos || {};
+  const selectedCompId = fState.selectedCompanyId;
+  const selectedCompany = companies.find(c => Number(c.id) === Number(selectedCompId));
+  const comp = fState.competencia || '09/2026';
+  const kpis = fState.kpis || { criticos: 0, atencoes: 0, conformes: 0, totalContas: 0 };
+  const inconsistencias = fState.inconsistencias || [];
+  const filtroRisco = fState.filtroRisco || 'TODOS';
+  const searchConta = (fState.searchConta || '').toLowerCase().trim();
+
+  // Histórico específico da empresa selecionada (ou geral)
+  const companyKey = selectedCompId ? String(selectedCompId) : 'geral';
+  const historicoEmpresa = historico[companyKey] || [];
+
+  const inconsistenciasFiltradas = inconsistencias.filter(item => {
+    if (filtroRisco !== 'TODOS' && item.risco !== filtroRisco) return false;
+    if (searchConta) {
+      const match = (item.conta && item.conta.toLowerCase().includes(searchConta)) ||
+                    (item.codigo && item.codigo.includes(searchConta)) ||
+                    (item.titulo && item.titulo.toLowerCase().includes(searchConta));
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  return `
+    <div class="space-y-6 animate-fadeIn">
+      
+      <!-- CABEÇALHO DO MÓDULO FECHAMENTO IA COM BOTÃO "IMPORTAR PRÉ-FECHAMENTO" -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-gray-200/80 dark:border-gray-800">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-2xl bg-[#F58220]/15 text-[#F58220] flex items-center justify-center text-lg font-black shadow-xs">
+              ⚡
+            </span>
+            <h1 class="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span>Auditoria de Balancete & Contas Invertidas</span>
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-[#F58220] text-white">
+                FECHAMENTO IA
+              </span>
+            </h1>
+          </div>
+          <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Varredura automática: alerta de saldo devedor em passivos, ativo credor, estouro de caixa/bancos, tributos negativos e contas sem pagamento.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2.5 flex-wrap self-start lg:self-auto">
+          <!-- BOTÃO PRINCIPAL DE IMPORTAR PRÉ-FECHAMENTO -->
+          <button
+            onclick="state.auditoriaBalancete.isImportModalOpen = true; render();"
+            class="px-4 py-2.5 rounded-xl font-bold text-xs bg-[#F58220] hover:bg-[#ea580c] text-white shadow-md shadow-[#F58220]/25 transition flex items-center gap-2 cursor-pointer"
+          >
+            <span class="text-sm font-black">+</span>
+            <span>Importar Pré-Fechamento</span>
+          </button>
+
+          ${selectedCompany && inconsistencias.length > 0 ? `
+            <button
+              onclick="window.print()"
+              class="px-4 py-2.5 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition flex items-center gap-2 cursor-pointer"
+            >
+              <span>📄</span>
+              <span>Imprimir Relatório</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+
+      <!-- SELETOR RÁPIDO DE EMPRESA & RESUMO DO HISTÓRICO ATIVO -->
+      <div class="bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex-1 max-w-lg">
+          <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+            Filtrar por Empresa Vinculada:
+          </label>
+          ${renderCompanyAutocomplete({
+            id: 'auditoria-balancete-company-select',
+            selectedId: selectedCompId,
+            placeholder: 'Todas as empresas ou buscar por nome/CNPJ...'
+          })}
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="text-xs text-gray-500 dark:text-gray-400">
+            Fechamentos Salvos no Histórico: <strong class="text-gray-800 dark:text-gray-100">${historicoEmpresa.length}</strong>
+          </div>
+          ${fState.balanceteAtual ? `
+            <div class="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 text-xs font-bold border border-emerald-500/25 flex items-center gap-1.5">
+              <span>●</span>
+              <span>Balancete Vigente: ${fState.competencia}</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      ${fState.isProcessing ? `
+        <div class="p-12 text-center bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 rounded-2xl shadow-xs">
+          <div class="inline-block animate-spin text-3xl mb-3">🔄</div>
+          <h3 class="text-sm font-extrabold text-gray-900 dark:text-white">Motor de IA Auditando o Balancete...</h3>
+          <p class="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+            Identificando contas analíticas, checando dedutoras (-), conferindo saldos devedores em passivos e varrendo disponibilidades.
+          </p>
+        </div>
+      ` : ''}
+
+      <!-- APRESENTAÇÃO DE CONFERÊNCIA (QUANDO HÁ BALANCETE PROCESSADO OU SELECIONADO NO HISTÓRICO) -->
+      ${fState.balanceteAtual && !fState.isProcessing ? `
+        <div class="space-y-4">
+          
+          <!-- Mini-Cards de Resumo e Semáforo de Risco -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- 1. SINAL VERMELHO (CRÍTICO) -->
+            <div
+              onclick="state.auditoriaBalancete.filtroRisco = (state.auditoriaBalancete.filtroRisco === 'VERMELHO' ? 'TODOS' : 'VERMELHO'); render();"
+              class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border ${filtroRisco === 'VERMELHO' ? 'ring-2 ring-rose-500 border-rose-500' : 'border-rose-500/30'} shadow-xs cursor-pointer hover:border-rose-500 transition"
+            >
+              <div class="flex items-center justify-between text-xs font-bold text-rose-500 uppercase tracking-wider mb-1">
+                <span>🔴 SINAL VERMELHO</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 ${kpis.criticos > 0 ? 'animate-pulse' : ''}"></span>
+              </div>
+              <div class="text-2xl font-black text-rose-600 dark:text-rose-400">${kpis.criticos}</div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                Contas viradas, ativo credor, passivo devedor e estouro de caixa.
+              </p>
+            </div>
+
+            <!-- 2. SINAL AMARELO (ATENÇÃO) -->
+            <div
+              onclick="state.auditoriaBalancete.filtroRisco = (state.auditoriaBalancete.filtroRisco === 'AMARELO' ? 'TODOS' : 'AMARELO'); render();"
+              class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border ${filtroRisco === 'AMARELO' ? 'ring-2 ring-amber-500 border-amber-500' : 'border-amber-500/30'} shadow-xs cursor-pointer hover:border-amber-500 transition"
+            >
+              <div class="flex items-center justify-between text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">
+                <span>🟡 SINAL AMARELO</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              </div>
+              <div class="text-2xl font-black text-amber-500">${kpis.atencoes}</div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                Fornecedores/parcelamentos sem baixa no mês ou variação > 50%.
+              </p>
+            </div>
+
+            <!-- 3. TUDO CERTO / CONFORME -->
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border border-emerald-500/30 shadow-xs">
+              <div class="flex items-center justify-between text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">
+                <span>🟢 REGULARES</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <div class="text-2xl font-black text-emerald-500">${kpis.conformes}</div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                Contas quadradas e dedutoras (-) em perfeita conformidade.
+              </p>
+            </div>
+
+            <!-- 4. TOTAL DE CONTAS AUDITADAS -->
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 shadow-xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  <span>TOTAL DE CONTAS</span>
+                  <span class="text-xs font-mono font-bold text-gray-500">${kpis.totalContas}</span>
+                </div>
+                <div class="text-2xl font-black text-gray-900 dark:text-white">${kpis.totalContas}</div>
+              </div>
+              <div class="text-[10.5px] text-gray-400 truncate">
+                Arquivo: <strong class="text-gray-700 dark:text-gray-200">${fState.balanceteAtual.nome}</strong>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TABELA DE AUDITORIA E PENDÊNCIAS IDENTIFICADAS -->
+          <div class="bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 rounded-2xl overflow-hidden shadow-xs">
+            
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-extrabold text-gray-900 dark:text-white">
+                  Lista de Inconsistências & Apontamentos da IA (${inconsistenciasFiltradas.length})
+                </span>
+                ${filtroRisco !== 'TODOS' ? `
+                  <button
+                    onclick="state.auditoriaBalancete.filtroRisco = 'TODOS'; render();"
+                    class="text-[11px] text-[#F58220] font-bold hover:underline"
+                  >
+                    (Limpar Filtro: ${filtroRisco})
+                  </button>
+                ` : ''}
+              </div>
+
+              <!-- Busca de Conta -->
+              <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">🔍</span>
+                <input
+                  type="text"
+                  value="${fState.searchConta || ''}"
+                  oninput="state.auditoriaBalancete.searchConta = this.value; render();"
+                  placeholder="Filtrar por conta ou pendência..."
+                  class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/90 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#F58220]"
+                />
+              </div>
+            </div>
+
+            ${inconsistenciasFiltradas.length > 0 ? `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                      <th class="py-3 px-4 w-28 text-center">Nível de Alerta</th>
+                      <th class="py-3 px-4">Classificação & Conta</th>
+                      <th class="py-3 px-4 text-right">Saldo Apurado</th>
+                      <th class="py-3 px-6">Detalhamento da Inconsistência & Impacto</th>
+                      <th class="py-3 px-4 text-center w-28">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60 font-sans">
+                    ${inconsistenciasFiltradas.map((item, idx) => {
+                      const isVermelho = item.risco === 'VERMELHO';
+                      return `
+                        <tr class="hover:bg-gray-50/80 dark:hover:bg-white/[0.02] transition ${isVermelho ? 'bg-rose-500/[0.03]' : 'bg-amber-500/[0.02]'}">
+                          
+                          <!-- Alerta / Semáforo -->
+                          <td class="py-3.5 px-4 text-center align-top">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isVermelho 
+                                ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 animate-pulse' 
+                                : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                            }">
+                              ${isVermelho ? '🔴 Crítico' : '🟡 Atenção'}
+                            </span>
+                          </td>
+
+                          <!-- Classificação & Conta -->
+                          <td class="py-3.5 px-4 align-top">
+                            <div class="font-extrabold text-gray-900 dark:text-white">${item.conta}</div>
+                            <div class="text-[10.5px] font-mono text-gray-400 mt-0.5">
+                              Cód: ${item.codigo || '-'} &bull; Tipo: ${item.tipo}
+                            </div>
+                          </td>
+
+                          <!-- Saldo Apurado -->
+                          <td class="py-3.5 px-4 text-right align-top font-mono font-bold ${item.saldo < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-900 dark:text-gray-100'}">
+                            R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+
+                          <!-- Detalhamento e Diagnóstico -->
+                          <td class="py-3.5 px-6 align-top max-w-md">
+                            <div class="font-bold text-gray-800 dark:text-gray-200">${item.titulo}</div>
+                            <p class="text-gray-500 dark:text-gray-400 text-[11px] mt-0.5 leading-relaxed">
+                              ${item.descricao}
+                            </p>
+                            ${item.impacto ? `
+                              <div class="text-[10px] text-gray-400 mt-1 italic">
+                                ↳ Impacto: ${item.impacto}
+                              </div>
+                            ` : ''}
+                          </td>
+
+                          <!-- Visto / Ação -->
+                          <td class="py-3.5 px-4 text-center align-top">
+                            <label class="inline-flex flex-col items-center gap-1 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                ${item.resolvido ? 'checked' : ''}
+                                onchange="state.auditoriaBalancete.inconsistencias[${idx}].resolvido = this.checked; render();"
+                                class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                              />
+                              <span class="text-[9.5px] font-bold ${item.resolvido ? 'text-emerald-500' : 'text-gray-400'}">
+                                ${item.resolvido ? 'Visto ✓' : 'Marcar visto'}
+                              </span>
+                            </label>
+                          </td>
+
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : `
+              <div class="p-8 text-center text-gray-400 text-xs">
+                ${filtroRisco !== 'TODOS' ? `Nenhuma inconsistência encontrada no filtro <strong>${filtroRisco}</strong>.` : '🎉 Nenhuma inconsistência encontrada! Todas as contas do balancete estão regulares.'}
+              </div>
+            `}
+
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- SEÇÃO 3: HISTÓRICO DE PRÉ-FECHAMENTOS SALVOS SEPARADOS POR EMPRESA -->
+      <div class="bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 rounded-2xl p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800/80">
+          <div class="flex items-center gap-2">
+            <span class="text-[#F58220]">📂</span>
+            <h3 class="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
+              Histórico de Pré-Fechamentos Realizados ${selectedCompany ? `• ${selectedCompany.nome}` : ''}
+            </h3>
+          </div>
+          <span class="text-xs font-bold text-gray-400">
+            ${historicoEmpresa.length} registro(s) salvo(s)
+          </span>
+        </div>
+
+        ${historicoEmpresa.length > 0 ? `
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${historicoEmpresa.map((hist, hIdx) => {
+              const compObj = companies.find(c => Number(c.id) === Number(hist.empresaId));
+              return `
+                <div class="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#101016]/40 hover:border-[#F58220]/60 transition flex flex-col justify-between gap-3 group">
+                  <div>
+                    <div class="flex items-start justify-between gap-2">
+                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#F58220]/10 text-[#F58220] border border-[#F58220]/25">
+                        Comp. ${hist.competencia}
+                      </span>
+                      <span class="text-[10.5px] text-gray-400 font-mono">${hist.dataHora}</span>
+                    </div>
+
+                    <h4 class="font-extrabold text-xs text-gray-900 dark:text-white mt-2 truncate" title="${compObj ? compObj.nome : 'Empresa Geral'}">
+                      ${compObj ? compObj.nome : 'Empresa Geral'}
+                    </h4>
+                    <div class="text-[11px] text-gray-400 mt-0.5 truncate">
+                      Arquivo: <span class="font-mono text-gray-300">${hist.arquivoNome}</span>
+                    </div>
+
+                    <!-- Indicadores de Risco Salvos -->
+                    <div class="flex items-center gap-2 mt-3 text-[10.5px] font-bold">
+                      <span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                        🔴 ${hist.kpis.criticos} Críticos
+                      </span>
+                      <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                        🟡 ${hist.kpis.atencoes} Atenção
+                      </span>
+                      <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        🟢 ${hist.kpis.conformes}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="pt-2.5 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between">
+                    <button
+                      onclick="carregarFechamentoDoHistorico('${companyKey}', ${hIdx})"
+                      class="text-xs font-bold text-[#F58220] hover:text-[#ea580c] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Abrir Auditoria</span>
+                      <span>→</span>
+                    </button>
+                    <button
+                      onclick="excluirFechamentoDoHistorico('${companyKey}', ${hIdx})"
+                      class="text-gray-400 hover:text-rose-500 text-xs p-1 transition"
+                      title="Excluir este histórico"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : `
+          <div class="p-8 text-center text-gray-400 text-xs bg-gray-50/40 dark:bg-white/[0.01] rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
+            Nenhum pré-fechamento salvo para esta seleção ainda. Clique no botão <strong>"+ Importar Pré-Fechamento"</strong> no topo para iniciar.
+          </div>
+        `}
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- MODAL RETRÁTIL FLUTUANTE: "IMPORTAR PRÉ-FECHAMENTO"                       -->
+      <!-- ========================================================================= -->
+      ${fState.isImportModalOpen ? `
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div class="w-full max-w-xl bg-white dark:bg-[#151D2A] border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl p-6 relative text-gray-900 dark:text-white" onclick="event.stopPropagation()">
+            
+            <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+              <div class="flex items-center gap-2.5">
+                <span class="w-9 h-9 rounded-xl bg-[#F58220]/15 text-[#F58220] flex items-center justify-center text-base">📄</span>
+                <div>
+                  <h3 class="font-extrabold text-base leading-tight">Importar Pré-Fechamento</h3>
+                  <p class="text-xs text-gray-400 font-medium">Vincule a empresa e anexe o balancete para auditar inconsistências</p>
+                </div>
+              </div>
+              <button
+                onclick="state.auditoriaBalancete.isImportModalOpen = false; render();"
+                class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-sm transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div class="mt-5 space-y-4">
+              
+              <!-- 1. Vincular Empresa -->
+              <div>
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  1. Vincular a Empresa <span class="text-rose-500">*</span>
+                </label>
+                ${renderCompanyAutocomplete({
+                  id: 'modal-auditoria-company-select',
+                  selectedId: selectedCompId,
+                  placeholder: 'Selecione ou busque a empresa por Razão Social ou CNPJ...'
+                })}
+              </div>
+
+              <!-- 2. Escolher Competência -->
+              <div>
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  2. Escolher Competência do Fechamento <span class="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="modal-auditoria-comp-input"
+                  value="${comp}"
+                  onchange="state.auditoriaBalancete.competencia = this.value;"
+                  placeholder="Ex: 09/2026 ou 3º Trim 2026"
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/90 dark:border-gray-800 text-gray-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#F58220]/30 transition"
+                />
+              </div>
+
+              <!-- 3. Anexar Balancetes -->
+              <div class="space-y-3 pt-2">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                  3. Anexar Arquivo do Balancete (PDF ou Planilha) <span class="text-rose-500">*</span>
+                </label>
+                
+                <label class="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed ${fState.balanceteAtual ? 'border-emerald-500 bg-emerald-500/5' : 'border-gray-300 dark:border-gray-700 hover:border-[#F58220] bg-gray-50/50 dark:bg-[#101016]/40'} cursor-pointer transition group">
+                  <input
+                    type="file"
+                    accept=".pdf,.xlsx,.xls,.csv"
+                    onchange="handleExecutarAuditoriaBalancete(event, 'atual')"
+                    class="hidden"
+                  />
+                  <span class="text-2xl mb-1">${fState.balanceteAtual ? '✅' : '📄'}</span>
+                  <span class="text-xs font-extrabold text-gray-800 dark:text-gray-200 group-hover:text-[#F58220] transition text-center">
+                    ${fState.balanceteAtual ? fState.balanceteAtual.nome : 'Clique ou arraste o Balancete em PDF'}
+                  </span>
+                  <span class="text-[11px] text-gray-400 mt-0.5">
+                    ${fState.balanceteAtual ? 'Arquivo pronto para auditoria' : 'Leitura óptica automática de contas, saldos e deduções'}
+                  </span>
+                </label>
+
+                <div class="pt-1">
+                  <label class="flex items-center justify-between text-[11px] font-bold text-gray-500 mb-1">
+                    <span>Balancete Anterior (Opcional p/ variação > 50%)</span>
+                  </label>
+                  <label class="flex items-center gap-2 p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#101016]/30 cursor-pointer hover:border-blue-500 transition">
+                    <input
+                      type="file"
+                      accept=".pdf,.xlsx,.xls,.csv"
+                      onchange="handleExecutarAuditoriaBalancete(event, 'anterior')"
+                      class="hidden"
+                    />
+                    <span class="text-base">📁</span>
+                    <span class="text-xs font-semibold text-gray-400 group-hover:text-white truncate flex-1">
+                      ${fState.balanceteAnterior ? fState.balanceteAnterior.nome : 'Anexar Balancete Anterior (Opcional)'}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Rodapé do Modal -->
+            <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onclick="state.auditoriaBalancete.isImportModalOpen = false; render();"
+                class="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onclick="concluirImportacaoModal()"
+                class="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-[#F58220] hover:bg-[#ea580c] transition shadow-md shadow-[#F58220]/25"
+              >
+                Concluir & Auditar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      ` : ''}
+
+      ${fState.isProcessing ? `
+        <div class="p-12 text-center bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 rounded-2xl shadow-xs">
+          <div class="inline-block animate-spin text-3xl mb-3">🔄</div>
+          <h3 class="text-sm font-extrabold text-gray-900 dark:text-white">Motor de IA Auditando o Balancete...</h3>
+          <p class="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+            Identificando contas analíticas, checando dedutoras (-), conferindo saldos devedores em passivos e varrendo disponibilidades.
+          </p>
+        </div>
+      ` : ''}
+
+      <!-- SEÇÃO 2: APRESENTAÇÃO RÁPIDA E SIMPLES DE CONFERÊNCIA (KPIS DE RISCO) -->
+      ${fState.balanceteAtual && !fState.isProcessing ? `
+        <div class="space-y-4">
+          
+          <!-- Mini-Cards de Resumo e Semáforo de Risco -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- 1. SINAL VERMELHO (CRÍTICO) -->
+            <div
+              onclick="state.auditoriaBalancete.filtroRisco = (state.auditoriaBalancete.filtroRisco === 'VERMELHO' ? 'TODOS' : 'VERMELHO'); render();"
+              class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border ${filtroRisco === 'VERMELHO' ? 'ring-2 ring-rose-500 border-rose-500' : 'border-rose-500/30'} shadow-xs cursor-pointer hover:border-rose-500 transition"
+            >
+              <div class="flex items-center justify-between text-xs font-bold text-rose-500 uppercase tracking-wider mb-1">
+                <span>🔴 SINAL VERMELHO</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 ${kpis.criticos > 0 ? 'animate-pulse' : ''}"></span>
+              </div>
+              <div class="text-2xl font-black text-rose-600 dark:text-rose-400">${kpis.criticos}</div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                Contas viradas, ativo credor, passivo devedor e estouro de caixa.
+              </p>
+            </div>
+
+            <!-- 2. SINAL AMARELO (ATENÇÃO) -->
+            <div
+              onclick="state.auditoriaBalancete.filtroRisco = (state.auditoriaBalancete.filtroRisco === 'AMARELO' ? 'TODOS' : 'AMARELO'); render();"
+              class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border ${filtroRisco === 'AMARELO' ? 'ring-2 ring-amber-500 border-amber-500' : 'border-amber-500/30'} shadow-xs cursor-pointer hover:border-amber-500 transition"
+            >
+              <div class="flex items-center justify-between text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">
+                <span>🟡 SINAL AMARELO</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              </div>
+              <div class="text-2xl font-black text-amber-500">${kpis.atencoes}</div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                Fornecedores/parcelamentos sem baixa no mês ou variação > 50%.
+              </p>
+            </div>
+
+            <!-- 3. TUDO CERTO / CONFORME -->
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border border-emerald-500/30 shadow-xs">
+              <div class="flex items-center justify-between text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">
+                <span>🟢 REGULARES</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <div class="text-2xl font-black text-emerald-500">${kpis.conformes}</div>
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                Contas quadradas e dedutoras (-) em perfeita conformidade.
+              </p>
+            </div>
+
+            <!-- 4. TOTAL DE CONTAS AUDITADAS -->
+            <div class="p-4 rounded-2xl bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 shadow-xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  <span>TOTAL DE CONTAS</span>
+                  <span class="text-xs font-mono font-bold text-gray-500">${kpis.totalContas}</span>
+                </div>
+                <div class="text-2xl font-black text-gray-900 dark:text-white">${kpis.totalContas}</div>
+              </div>
+              <div class="text-[10.5px] text-gray-400">
+                Empresa: <strong class="text-gray-700 dark:text-gray-200">${selectedCompany ? selectedCompany.nome.split(' ')[0] : 'Geral'}</strong>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TABELA DE AUDITORIA E PENDÊNCIAS IDENTIFICADAS -->
+          <div class="bg-white dark:bg-[#151D2A] border border-gray-200/90 dark:border-gray-800 rounded-2xl overflow-hidden shadow-xs">
+            
+            <div class="p-4 border-b border-gray-100 dark:border-gray-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-extrabold text-gray-900 dark:text-white">
+                  Lista de Inconsistências & Apontamentos da IA (${inconsistenciasFiltradas.length})
+                </span>
+                ${filtroRisco !== 'TODOS' ? `
+                  <button
+                    onclick="state.auditoriaBalancete.filtroRisco = 'TODOS'; render();"
+                    class="text-[11px] text-[#F58220] font-bold hover:underline"
+                  >
+                    (Limpar Filtro: ${filtroRisco})
+                  </button>
+                ` : ''}
+              </div>
+
+              <!-- Busca de Conta -->
+              <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">🔍</span>
+                <input
+                  type="text"
+                  value="${fState.searchConta || ''}"
+                  oninput="state.auditoriaBalancete.searchConta = this.value; render();"
+                  placeholder="Filtrar por conta ou pendência..."
+                  class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-gray-50 dark:bg-[#11121C] border border-gray-200/90 dark:border-gray-800 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#F58220]"
+                />
+              </div>
+            </div>
+
+            ${inconsistenciasFiltradas.length > 0 ? `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                      <th class="py-3 px-4 w-28 text-center">Nível de Alerta</th>
+                      <th class="py-3 px-4">Classificação & Conta</th>
+                      <th class="py-3 px-4 text-right">Saldo Apurado</th>
+                      <th class="py-3 px-6">Detalhamento da Inconsistência & Impacto</th>
+                      <th class="py-3 px-4 text-center w-28">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60 font-sans">
+                    ${inconsistenciasFiltradas.map((item, idx) => {
+                      const isVermelho = item.risco === 'VERMELHO';
+                      return `
+                        <tr class="hover:bg-gray-50/80 dark:hover:bg-white/[0.02] transition ${isVermelho ? 'bg-rose-500/[0.03]' : 'bg-amber-500/[0.02]'}">
+                          
+                          <!-- Alerta / Semáforo -->
+                          <td class="py-3.5 px-4 text-center align-top">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isVermelho 
+                                ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 animate-pulse' 
+                                : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                            }">
+                              ${isVermelho ? '🔴 Crítico' : '🟡 Atenção'}
+                            </span>
+                          </td>
+
+                          <!-- Classificação & Conta -->
+                          <td class="py-3.5 px-4 align-top">
+                            <div class="font-extrabold text-gray-900 dark:text-white">${item.conta}</div>
+                            <div class="text-[10.5px] font-mono text-gray-400 mt-0.5">
+                              Cód: ${item.codigo || '-'} &bull; Tipo: ${item.tipo}
+                            </div>
+                          </td>
+
+                          <!-- Saldo Apurado -->
+                          <td class="py-3.5 px-4 text-right align-top font-mono font-bold ${item.saldo < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-900 dark:text-gray-100'}">
+                            R$ ${item.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+
+                          <!-- Detalhamento e Diagnóstico -->
+                          <td class="py-3.5 px-6 align-top max-w-md">
+                            <div class="font-bold text-gray-800 dark:text-gray-200">${item.titulo}</div>
+                            <p class="text-gray-500 dark:text-gray-400 text-[11px] mt-0.5 leading-relaxed">
+                              ${item.descricao}
+                            </p>
+                            ${item.impacto ? `
+                              <div class="text-[10px] text-gray-400 mt-1 italic">
+                                ↳ Impacto: ${item.impacto}
+                              </div>
+                            ` : ''}
+                          </td>
+
+                          <!-- Visto / Ação -->
+                          <td class="py-3.5 px-4 text-center align-top">
+                            <label class="inline-flex flex-col items-center gap-1 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                ${item.resolvido ? 'checked' : ''}
+                                onchange="state.auditoriaBalancete.inconsistencias[${idx}].resolvido = this.checked; render();"
+                                class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                              />
+                              <span class="text-[9.5px] font-bold ${item.resolvido ? 'text-emerald-500' : 'text-gray-400'}">
+                                ${item.resolvido ? 'Visto ✓' : 'Marcar visto'}
+                              </span>
+                            </label>
+                          </td>
+
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : `
+              <div class="p-8 text-center text-gray-400 text-xs">
+                ${filtroRisco !== 'TODOS' ? `Nenhuma inconsistência encontrada no filtro <strong>${filtroRisco}</strong>.` : '🎉 Nenhuma inconsistência encontrada! Todas as contas do balancete estão regulares.'}
+              </div>
+            `}
+
+          </div>
+        </div>
+      ` : !fState.balanceteAtual && !fState.isProcessing ? `
+        <div class="p-10 text-center bg-white dark:bg-[#151D2A] border border-dashed border-gray-300 dark:border-gray-800 rounded-2xl">
+          <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center text-xl mx-auto mb-3">
+            📑
+          </div>
+          <h3 class="text-sm font-bold text-gray-900 dark:text-white">Aguardando Importação do Balancete</h3>
+          <p class="text-xs text-gray-400 max-w-md mx-auto mt-1">
+            Selecione a empresa acima e anexe o arquivo em PDF ou Planilha do Balancete para executar a auditoria instantânea de contas invertidas, estouro de caixa e fornecedores sem movimentação.
+          </p>
+        </div>
+      ` : ''}
+
+    </div>
+  `;
+}
+
+window.handleExecutarAuditoriaBalancete = async (event, tipo = 'atual') => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  state.auditoriaBalancete.isProcessing = true;
+  render();
+
+  try {
+    const fn = file.name.toLowerCase();
+    let linhas = [];
+
+    if (fn.endsWith('.pdf')) {
+      linhas = await extrairLinhasTextoPDF(file);
+    } else if (fn.endsWith('.xlsx') || fn.endsWith('.xls') || fn.endsWith('.csv')) {
+      const data = new Uint8Array(await file.arrayBuffer());
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      linhas = rows.map(r => r.join(' '));
+    }
+
+    if (tipo === 'atual') {
+      const auditResult = processarAuditoriaBalancete(linhas, state.auditoriaBalancete.selectedCompanyId, state.auditoriaBalancete.competencia, state.auditoriaBalancete.linhasAnteriorRaw || []);
+      state.auditoriaBalancete.balanceteAtual = {
+        nome: file.name,
+        contasLidas: auditResult.contas.length
+      };
+      state.auditoriaBalancete.resumoContas = auditResult.contas;
+      state.auditoriaBalancete.inconsistencias = auditResult.inconsistencias;
+      state.auditoriaBalancete.kpis = auditResult.kpis;
+
+      // Salva no Histórico persistente separado por empresa
+      salvarNoHistoricoFechamentoIA({
+        empresaId: state.auditoriaBalancete.selectedCompanyId,
+        competencia: state.auditoriaBalancete.competencia,
+        arquivoNome: file.name,
+        contasLidas: auditResult.contas.length,
+        kpis: auditResult.kpis,
+        inconsistencias: auditResult.inconsistencias,
+        resumoContas: auditResult.contas,
+        dataHora: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      });
+    } else {
+      state.auditoriaBalancete.linhasAnteriorRaw = linhas;
+      state.auditoriaBalancete.balanceteAnterior = { nome: file.name };
+      if (state.auditoriaBalancete.balanceteAtual && state.auditoriaBalancete.resumoContas) {
+        const auditResult = processarAuditoriaBalancete(state.auditoriaBalancete.resumoContas, state.auditoriaBalancete.selectedCompanyId, state.auditoriaBalancete.competencia, linhas);
+        state.auditoriaBalancete.inconsistencias = auditResult.inconsistencias;
+        state.auditoriaBalancete.kpis = auditResult.kpis;
+      }
+    }
+
+    state.auditoriaBalancete.isProcessing = false;
+    saveStorage();
+    render();
+  } catch (err) {
+    console.error('Erro na auditoria do balancete:', err);
+    state.auditoriaBalancete.isProcessing = false;
+    render();
+    alert(`Erro ao processar o arquivo: ${err.message}`);
+  }
+};
+
+// Funções de Gestão do Histórico Persistente de Fechamentos IA por Empresa
+function salvarNoHistoricoFechamentoIA(registro) {
+  if (!state.auditoriaBalancete.historicoFechamentos) {
+    state.auditoriaBalancete.historicoFechamentos = {};
+  }
+  const key = registro.empresaId ? String(registro.empresaId) : 'geral';
+  if (!state.auditoriaBalancete.historicoFechamentos[key]) {
+    state.auditoriaBalancete.historicoFechamentos[key] = [];
+  }
+  // Insere no início da lista do histórico da empresa
+  state.auditoriaBalancete.historicoFechamentos[key].unshift(registro);
+  localStorage.setItem('control_historico_fechamentos_ia', JSON.stringify(state.auditoriaBalancete.historicoFechamentos));
+}
+
+window.carregarFechamentoDoHistorico = (companyKey, index) => {
+  const fState = state.auditoriaBalancete;
+  if (!fState || !fState.historicoFechamentos || !fState.historicoFechamentos[companyKey]) return;
+  const item = fState.historicoFechamentos[companyKey][index];
+  if (!item) return;
+
+  fState.selectedCompanyId = item.empresaId ? Number(item.empresaId) : null;
+  fState.competencia = item.competencia;
+  fState.balanceteAtual = { nome: item.arquivoNome, contasLidas: item.contasLidas };
+  fState.inconsistencias = item.inconsistencias || [];
+  fState.resumoContas = item.resumoContas || [];
+  fState.kpis = item.kpis || { criticos: 0, atencoes: 0, conformes: 0, totalContas: 0 };
+  render();
+};
+
+window.excluirFechamentoDoHistorico = (companyKey, index) => {
+  const fState = state.auditoriaBalancete;
+  if (!fState || !fState.historicoFechamentos || !fState.historicoFechamentos[companyKey]) return;
+  if (confirm('Deseja excluir este registro de fechamento do histórico?')) {
+    fState.historicoFechamentos[companyKey].splice(index, 1);
+    localStorage.setItem('control_historico_fechamentos_ia', JSON.stringify(fState.historicoFechamentos));
+    render();
+  }
+};
+
+window.concluirImportacaoModal = () => {
+  if (!state.auditoriaBalancete.balanceteAtual) {
+    alert('Por favor, anexe o Balancete da Competência (PDF ou Planilha) antes de concluir.');
+    return;
+  }
+  state.auditoriaBalancete.isImportModalOpen = false;
+  render();
+};
 
 // ---------------- 1. TELA DE LISTAGEM DE EMPRESAS (CARDS COM ESTADO INICIAL 100% ZERADO) ----------------
 function renderFechamentoIACompanySelection(companies) {
