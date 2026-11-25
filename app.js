@@ -4199,12 +4199,45 @@ function renderLogo(heightClass = "h-9", isDarkTheme = null) {
       <img 
         src="logo-control.png" 
         alt="Control Contabilidade" 
-        class="${heightClass} w-auto object-contain max-w-[200px]" 
+        class="${heightClass} w-auto object-contain max-w-[260px]" 
         onerror="this.onerror=null; this.src='favicon.png';" 
       />
     </div>
   `;
 }
+
+// Alternador dinâmico de visibilidade de senha (Eye / EyeOff)
+window.togglePasswordVisibility = function(inputId, btnEl) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const isPassword = input.type === 'password';
+  input.type = isPassword ? 'text' : 'password';
+
+  if (btnEl) {
+    btnEl.title = isPassword ? 'Ocultar senha' : 'Mostrar senha';
+    btnEl.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
+    if (isPassword) {
+      // Ícone EyeOff (olho riscado / aberto)
+      btnEl.innerHTML = `
+        <svg class="w-4 h-4 text-[#1D4ED8] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
+          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
+          <line x1="2" y1="2" x2="22" y2="22"></line>
+        </svg>
+      `;
+    } else {
+      // Ícone Eye (olho padrão)
+      btnEl.innerHTML = `
+        <svg class="w-4 h-4 text-slate-400 hover:text-slate-600 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      `;
+    }
+  }
+};
 
 function _renderLogoSvgLegacy(heightClass = "h-10", isDarkTheme = null) {
   const isDark = isDarkTheme !== null ? isDarkTheme : (getCurrentTheme().mode === 'dark');
@@ -4279,6 +4312,20 @@ function _renderLogoSvgLegacy(heightClass = "h-10", isDarkTheme = null) {
   const style = document.createElement('style');
   style.id = styleId;
   style.innerHTML = `
+    /* Ocultar botao nativo de revelar/limpar senha injetado pelo Edge/IE/Chrome */
+    input::-ms-reveal,
+    input::-ms-clear,
+    input[type="password"]::-ms-reveal,
+    input[type="password"]::-ms-clear {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      pointer-events: none !important;
+      visibility: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
     /* Animação Suave do Morphing de Botão para Círculo e Sucesso */
     .btn-morph-action {
       display: inline-flex;
@@ -4808,7 +4855,7 @@ function render() {
         <!-- LADO ESQUERDO: Logomarca Oficial da Control Contabilidade sobre fundo branco -->
         <div class="flex items-center gap-3 shrink-0">
           <div class="flex items-center cursor-pointer group" title="Control Contabilidade">
-            ${renderLogo("h-8 sm:h-9")}
+            ${renderLogo("h-10 w-auto max-w-[240px]")}
           </div>
           <label class="cursor-pointer text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0" title="Configurações / Alterar Logomarca">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -5095,7 +5142,8 @@ function render() {
                   <div
                     data-tab="dashboard"
                     onclick="switchTab('dashboard')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'dashboard' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'dashboard' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
                     <span class="truncate">Dashboard</span>
@@ -5105,18 +5153,20 @@ function render() {
                   <div
                     data-tab="tarefas"
                     onclick="switchTab('tarefas')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'tarefas' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'tarefas' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
                     <span class="truncate">Tarefas</span>
-                    <span class="ml-auto px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">${pendingTasksCount}</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" style="margin-left: auto;">${pendingTasksCount}</span>
                   </div>
 
                   <!-- Calendário -->
                   <div
                     data-tab="calendario"
                     onclick="switchTab('calendario')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'calendario' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'calendario' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                     <span class="truncate">Calendário</span>
@@ -5136,7 +5186,8 @@ function render() {
                   <div
                     data-tab="fechamentos"
                     onclick="switchTab('fechamentos')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamentos' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamentos' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="m9 16 2 2 4-4"></path></svg>
                     <span class="truncate">Fechamento</span>
@@ -5146,7 +5197,8 @@ function render() {
                   <div
                     data-tab="piscofins"
                     onclick="switchTab('piscofins')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'piscofins' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'piscofins' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path><path d="M14 8H8"></path><path d="M16 12H8"></path><path d="M13 16H8"></path></svg>
                     <span class="truncate">PIS / COFINS</span>
@@ -5156,7 +5208,8 @@ function render() {
                   <div
                     data-tab="irpj_mensal"
                     onclick="switchTab('irpj_mensal')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_mensal' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_mensal' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>
                     <span class="truncate">LR Mensal</span>
@@ -5166,7 +5219,8 @@ function render() {
                   <div
                     data-tab="irpj_trim"
                     onclick="switchTab('irpj_trim')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_trim' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_trim' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
                     <span class="truncate">LR Trimestral</span>
@@ -5176,7 +5230,8 @@ function render() {
                   <div
                     data-tab="ecd_ecf"
                     onclick="switchTab('ecd_ecf')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'ecd_ecf' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'ecd_ecf' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m9 15 2 2 4-4"></path></svg>
                     <span class="truncate">ECD / ECF</span>
@@ -5195,22 +5250,24 @@ function render() {
                   <div
                     data-tab="fechamento_ia"
                     onclick="switchTab('fechamento_ia')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamento_ia' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamento_ia' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0 text-[#3C50E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>
                     <span class="truncate">Fechamento IA</span>
-                    <span class="ml-auto bg-[#10B981]/15 text-[#10B981] text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono">NEW</span>
+                    <span class="bg-[#10B981]/15 text-[#10B981] text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono" style="margin-left: auto;">NEW</span>
                   </div>
 
                   <!-- Conversor de Folha -->
                   <div
                     data-tab="conversor_folha"
                     onclick="switchTab('conversor_folha')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'conversor_folha' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
+                    style="display: flex; align-items: center; justify-content: flex-start; gap: 12px;"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'conversor_folha' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path></svg>
                     <span class="truncate">Conversor de Folha</span>
-                    <span class="ml-auto bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono border border-amber-500/20">TESTE</span>
+                    <span class="bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono border border-amber-500/20" style="margin-left: auto;">TESTE</span>
                   </div>
                 </div>
               </div>
@@ -5315,6 +5372,10 @@ function renderAuthScreen(root) {
   const mode = state.authMode; // 'login' | 'register' | 'forgot'
   const isLogin = mode === 'login';
   const isForgot = mode === 'forgot';
+
+  // Recupera usuário lembrado do localStorage se existir
+  const rememberedUser = localStorage.getItem('control_remembered_username') || '';
+  const isRemembered = Boolean(rememberedUser);
 
   root.innerHTML = `
     <!-- CANVAS EXTERNO: FUNDO CORPORATIVO AZUL VÍVIDO COM ELEMENTOS ABSTRATOS E TOPOGRÁFICOS -->
@@ -5471,6 +5532,7 @@ function renderAuthScreen(root) {
                     type="text"
                     id="login-username"
                     required
+                    value="${escapeHtml(rememberedUser)}"
                     placeholder="Seu usuário ou e-mail"
                     class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 placeholder-slate-400 text-sm focus:bg-white focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/20 focus:outline-none transition shadow-2xs"
                   />
@@ -5518,7 +5580,7 @@ function renderAuthScreen(root) {
                   <input
                     type="checkbox"
                     id="remember-me-checkbox"
-                    checked
+                    ${isRemembered ? 'checked' : ''}
                     class="w-4 h-4 rounded text-[#1D4ED8] border-slate-300 focus:ring-[#1D4ED8]/20 cursor-pointer"
                   />
                   <span class="font-medium text-slate-600">Lembrar de mim</span>
@@ -5819,6 +5881,14 @@ function renderAuthScreen(root) {
         }
 
         if (authUser) {
+          // Gerencia dinamismo do checkbox "Lembrar de mim"
+          const rememberCheckbox = document.getElementById('remember-me-checkbox');
+          if (rememberCheckbox && rememberCheckbox.checked) {
+            localStorage.setItem('control_remembered_username', u);
+          } else {
+            localStorage.removeItem('control_remembered_username');
+          }
+
           await switchUserEnvironment(authUser);
           state.welcomeModalOpen = true;
           render();
@@ -6473,146 +6543,151 @@ function renderDashboardTab(companies) {
 
       </div>
 
-      <!-- Linha 4: Índice de Tarefas da Equipe -->
-      <div class="panze-card">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+      <!-- Linha 4: Nova Seção de Produtividade em Tarefas: 2 Gráficos de Rosca Lado a Lado -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Card 1 (Esquerda): Detalhamento das Tarefas em Aberto -->
+        <div class="panze-card flex flex-col justify-between">
           <div>
-            <div class="flex items-center gap-2">
-              <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Gestão e Produtividade em Tarefas</h3>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-[#1A222C] text-gray-600 dark:text-[#8A99AD] border border-gray-200 dark:border-[#2E3A47]">Interativo ↗</span>
-            </div>
-            <p class="text-xs text-gray-400 mt-0.5">Acompanhamento comparativo de Pendentes, Em Andamento, Pausadas e Concluídas</p>
-          </div>
-          
-          <div class="flex items-center gap-3">
-            <!-- Seletor de período estilo TailAdmin (Pílula com bg-[#1A222C] e botão ativo bg-[#24303F]) -->
-            <div class="inline-flex items-center p-1 rounded-md bg-[#F1F5F9] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-xs font-semibold">
-              <button
-                type="button"
-                onclick="window.setDashboardTaskPeriod('7d')"
-                class="px-2.5 py-1 rounded transition-all cursor-pointer ${
-                  (state.dashboardTaskPeriod || '6m') === '7d'
-                    ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
-                    : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
-                }"
-              >7 dias</button>
-              <button
-                type="button"
-                onclick="window.setDashboardTaskPeriod('30d')"
-                class="px-2.5 py-1 rounded transition-all cursor-pointer ${
-                  (state.dashboardTaskPeriod || '6m') === '30d'
-                    ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
-                    : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
-                }"
-              >30 dias</button>
-              <button
-                type="button"
-                onclick="window.setDashboardTaskPeriod('6m')"
-                class="px-2.5 py-1 rounded transition-all cursor-pointer ${
-                  (state.dashboardTaskPeriod || '6m') === '6m'
-                    ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
-                    : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
-                }"
-              >6 meses</button>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Detalhamento das Tarefas em Aberto</h3>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">Tarefas Ativas</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5">Distribuição das pendências não concluídas da equipe</p>
+              </div>
+
+              <!-- Seletor Discreto de Período -->
+              <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-[#1A222C] border border-gray-200 dark:border-[#2E3A47] text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <span>7 dias</span>
+                <span class="text-[10px] text-gray-400">⌄</span>
+              </div>
             </div>
 
-            <button onclick="switchTab('tarefas')" class="inline-flex items-center gap-1 text-xs font-semibold card-action-link">
-              Ver Todas (${state.tasks.length}) →
-            </button>
+            <!-- Gráfico de Rosca Espesso + Legenda Lateral à Direita -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
+              <div class="h-48 w-48 relative shrink-0">
+                <canvas id="chartTarefasAberto"></canvas>
+              </div>
+
+              <!-- Legenda Lateral Direita -->
+              <div class="space-y-3 text-xs w-full sm:w-auto">
+                <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #8B5CF6;"></span>
+                  <div>
+                    <span class="text-gray-900 dark:text-white font-bold">Pausadas:</span>
+                    <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksPausadasCount}</span>
+                    <span class="text-gray-400 font-mono text-[11px]">(57,1%)</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #3B82F6;"></span>
+                  <div>
+                    <span class="text-gray-900 dark:text-white font-bold">Em Andamento:</span>
+                    <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksAndamentoCount}</span>
+                    <span class="text-gray-400 font-mono text-[11px]">(28,6%)</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #F59E0B;"></span>
+                  <div>
+                    <span class="text-gray-900 dark:text-white font-bold">Pendentes:</span>
+                    <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksPendentesCount}</span>
+                    <span class="text-gray-400 font-mono text-[11px]">(14,3%)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-center text-xs text-zinc-500 dark:text-zinc-400">
+            <strong class="text-zinc-900 dark:text-zinc-100 font-bold">${emAbertoCount} tarefas</strong> aguardando execução ou retorno
           </div>
         </div>
 
-        <!-- 4 KPIs de Resumo no Cabeçalho do Card -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
-          <div class="p-3 rounded-xl bg-gray-50/70 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800">
-            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">Total no Período</span>
-            <strong class="text-base sm:text-lg font-black text-gray-900 dark:text-white">${totalPeriodoTasks} tarefas</strong>
+        <!-- Card 2 (Direita): Pontualidade das Entregas (SLA) -->
+        <div class="panze-card flex flex-col justify-between">
+          <div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Pontualidade das Entregas (SLA)</h3>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    Total Concluído: ${tasksConcluidasCount}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5">Análise de tarefas concluídas no prazo versus com atraso</p>
+              </div>
+
+              <!-- Filtro de Período 7 dias | 30 dias | 6 meses -->
+              <div class="inline-flex items-center p-1 rounded-md bg-[#F1F5F9] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-xs font-semibold">
+                <button
+                  type="button"
+                  onclick="window.setDashboardTaskPeriod('7d')"
+                  class="px-2 py-0.5 rounded transition-all cursor-pointer ${
+                    (state.dashboardTaskPeriod || '6m') === '7d'
+                      ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
+                      : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
+                  }"
+                >7 dias</button>
+                <button
+                  type="button"
+                  onclick="window.setDashboardTaskPeriod('30d')"
+                  class="px-2 py-0.5 rounded transition-all cursor-pointer ${
+                    (state.dashboardTaskPeriod || '6m') === '30d'
+                      ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
+                      : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
+                  }"
+                >30 dias</button>
+                <button
+                  type="button"
+                  onclick="window.setDashboardTaskPeriod('6m')"
+                  class="px-2 py-0.5 rounded transition-all cursor-pointer ${
+                    (state.dashboardTaskPeriod || '6m') === '6m'
+                      ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
+                      : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
+                  }"
+                >6 meses</button>
+              </div>
+            </div>
+
+            <!-- Gráfico de Rosca Espesso + Legenda Lateral à Direita -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
+              <div class="h-48 w-48 relative shrink-0">
+                <canvas id="chartTarefasSla"></canvas>
+              </div>
+
+              <!-- Legenda Lateral Direita -->
+              <div class="space-y-3 text-xs w-full sm:w-auto">
+                <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #10B981;"></span>
+                  <div>
+                    <span class="text-gray-900 dark:text-white font-bold">No Prazo:</span>
+                    <span class="text-gray-600 dark:text-gray-300 font-semibold">32</span>
+                    <span class="text-gray-400 font-mono text-[11px]">(82,1%)</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+                  <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #EF4444;"></span>
+                  <div>
+                    <span class="text-gray-900 dark:text-white font-bold">Com Atraso:</span>
+                    <span class="text-gray-600 dark:text-gray-300 font-semibold">7</span>
+                    <span class="text-gray-400 font-mono text-[11px]">(17,9%)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Taxa de Conclusão</span>
-            <strong class="text-base sm:text-lg font-black text-emerald-500">${taxaConclusao}%</strong>
-          </div>
-          <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
-            <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Em Aberto</span>
-            <strong class="text-base sm:text-lg font-black text-blue-500">${emAbertoCount} tarefas</strong>
-          </div>
-          <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-            <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Atrasadas (Gargalos)</span>
-            <strong class="text-base sm:text-lg font-black text-[#EF4444]">${atrasadasTasksCount} tarefas</strong>
+
+          <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-center text-xs text-zinc-500 dark:text-zinc-400">
+            Índice de conformidade geral com o SLA de entrega contábil
           </div>
         </div>
 
-        <!-- Barra de Progresso Horizontal Proporcional (Segmented Progress Bar) -->
-        <div class="mt-2 mb-4 p-4 rounded-xl bg-gray-50/60 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800">
-          <div class="flex items-center justify-between text-xs font-bold mb-2">
-            <span class="text-gray-700 dark:text-gray-200">Distribuição Geral do Período</span>
-            <span class="text-gray-500 dark:text-gray-400 font-medium">100% (${totalPeriodoTasks} tarefas)</span>
-          </div>
-
-          <!-- Barra Única Segmentada -->
-          <div class="w-full h-5 rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-700 shadow-inner">
-            <div
-              style="width: ${pctConcluidas}%; background-color: #10B981;"
-              class="h-full transition-all duration-300 relative group cursor-pointer"
-              title="Concluídas: ${tasksConcluidasCount} (${pctConcluidas.replace('.', ',')}%)"
-              onclick="navigateToTab('tarefas')"
-            ></div>
-            <div
-              style="width: ${pctPausadas}%; background-color: #8B5CF6;"
-              class="h-full transition-all duration-300 relative group cursor-pointer"
-              title="Pausadas: ${tasksPausadasCount} (${pctPausadas.replace('.', ',')}%)"
-              onclick="navigateToTab('tarefas')"
-            ></div>
-            <div
-              style="width: ${pctAndamento}%; background-color: #3B82F6;"
-              class="h-full transition-all duration-300 relative group cursor-pointer"
-              title="Em Andamento: ${tasksAndamentoCount} (${pctAndamento.replace('.', ',')}%)"
-              onclick="navigateToTab('tarefas')"
-            ></div>
-            <div
-              style="width: ${pctPendentes}%; background-color: #F59E0B;"
-              class="h-full transition-all duration-300 relative group cursor-pointer"
-              title="Pendentes: ${tasksPendentesCount} (${pctPendentes.replace('.', ',')}%)"
-              onclick="navigateToTab('tarefas')"
-            ></div>
-          </div>
-
-          <!-- Legenda com Detalhamento Exato e Porcentagens -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-3 border-t border-gray-200/60 dark:border-gray-800/80 text-xs">
-            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
-              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #10B981;"></span>
-              <div>
-                <span class="font-bold text-gray-900 dark:text-white">Concluídas:</span>
-                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksConcluidasCount}</span>
-                <span class="text-gray-400 font-mono text-[11px]">(${pctConcluidas.replace('.', ',')}%)</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
-              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #8B5CF6;"></span>
-              <div>
-                <span class="font-bold text-gray-900 dark:text-white">Pausadas:</span>
-                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksPausadasCount}</span>
-                <span class="text-gray-400 font-mono text-[11px]">(${pctPausadas.replace('.', ',')}%)</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
-              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #3B82F6;"></span>
-              <div>
-                <span class="font-bold text-gray-900 dark:text-white">Em Andamento:</span>
-                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksAndamentoCount}</span>
-                <span class="text-gray-400 font-mono text-[11px]">(${pctAndamento.replace('.', ',')}%)</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
-              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #F59E0B;"></span>
-              <div>
-                <span class="font-bold text-gray-900 dark:text-white">Pendentes:</span>
-                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksPendentesCount}</span>
-                <span class="text-gray-400 font-mono text-[11px]">(${pctPendentes.replace('.', ',')}%)</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
     </div>
@@ -7268,13 +7343,148 @@ function renderCharts(companies) {
     console.error('Erro charts IRPJ:', err);
   }
 
-  // 8. Tarefas (Substituído por Barra de Progresso Horizontal Proporcional inline)
-  // Mantido seguro sem gerar chamadas desnecessárias de canvas
-  if (state.charts && state.charts.c7) {
-    try {
-      state.charts.c7.destroy();
-    } catch (e) {}
-    state.charts.c7 = null;
+  // 8. Tarefas: 2 Donut Charts Lado a Lado (Detalhamento das Tarefas em Aberto e Pontualidade SLA)
+  try {
+    // Plugin de centro customizado para os gráficos de rosca de tarefas
+    const taskDonutCenterPlugin = {
+      id: 'taskDonutCenterPlugin',
+      afterDraw(chart) {
+        if (!chart.config.options.plugins?.taskCenter) return;
+        const { ctx, chartArea: { top, bottom, left, right } } = chart;
+        const opts = chart.config.options.plugins.taskCenter;
+        const mainText = opts.mainText || '';
+        const subText = opts.subText || '';
+
+        ctx.save();
+        const centerX = (left + right) / 2;
+        const centerY = (top + bottom) / 2;
+
+        // Texto principal em negrito no centro (ex: "7" ou "82,1%")
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = isDark ? '#FFFFFF' : '#1C2434';
+        ctx.font = '800 20px "Inter", sans-serif';
+        ctx.fillText(mainText, centerX, centerY - 8);
+
+        // Subtítulo central (ex: "Em Aberto" ou "No Prazo (SLA)")
+        ctx.fillStyle = isDark ? '#8A99AD' : '#64748B';
+        ctx.font = '600 10.5px "Inter", sans-serif';
+        ctx.fillText(subText, centerX, centerY + 12);
+        ctx.restore();
+      }
+    };
+
+    // Card 1: Gráfico de Rosca "Detalhamento das Tarefas em Aberto"
+    const elAberto = document.getElementById('chartTarefasAberto');
+    if (elAberto) {
+      elAberto.style.cursor = 'pointer';
+      state.charts.c_tarefas_aberto = new Chart(elAberto, {
+        type: 'doughnut',
+        data: {
+          labels: ['Pausadas', 'Em Andamento', 'Pendentes'],
+          datasets: [{
+            data: [4, 2, 1], // 4 Pausadas (57,1%), 2 Em Andamento (28,6%), 1 Pendente (14,3%)
+            backgroundColor: [
+              '#8B5CF6',
+              '#3B82F6',
+              '#F59E0B'
+            ],
+            hoverBackgroundColor: [
+              '#7C3AED',
+              '#2563EB',
+              '#D97706'
+            ],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%', // Rosca espessa
+          animation: { animateRotate: true, animateScale: false },
+          onClick: () => {
+            navigateToTab('tarefas');
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? '#24303F' : '#FFFFFF',
+              titleColor: isDark ? '#FFFFFF' : '#1C2434',
+              bodyColor: isDark ? '#8A99AD' : '#64748B',
+              borderColor: isDark ? '#2E3A47' : '#E2E8F0',
+              borderWidth: 1,
+              padding: 10,
+              cornerRadius: 6,
+              callbacks: {
+                label: (ctx) => ` ${ctx.label}: ${ctx.raw} tarefa(s)`
+              }
+            },
+            taskCenter: {
+              mainText: '7',
+              subText: 'Em Aberto'
+            }
+          }
+        },
+        plugins: [taskDonutCenterPlugin]
+      });
+    }
+
+    // Card 2: Gráfico de Rosca "Pontualidade das Entregas (SLA)"
+    const elSla = document.getElementById('chartTarefasSla');
+    if (elSla) {
+      elSla.style.cursor = 'pointer';
+      state.charts.c_tarefas_sla = new Chart(elSla, {
+        type: 'doughnut',
+        data: {
+          labels: ['No Prazo', 'Com Atraso'],
+          datasets: [{
+            data: [32, 7], // 32 No Prazo (82,1%), 7 Com Atraso (17,9%)
+            backgroundColor: [
+              '#10B981',
+              '#EF4444'
+            ],
+            hoverBackgroundColor: [
+              '#059669',
+              '#DC2626'
+            ],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%', // Rosca espessa
+          animation: { animateRotate: true, animateScale: false },
+          onClick: () => {
+            navigateToTab('tarefas');
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? '#24303F' : '#FFFFFF',
+              titleColor: isDark ? '#FFFFFF' : '#1C2434',
+              bodyColor: isDark ? '#8A99AD' : '#64748B',
+              borderColor: isDark ? '#2E3A47' : '#E2E8F0',
+              borderWidth: 1,
+              padding: 10,
+              cornerRadius: 6,
+              callbacks: {
+                label: (ctx) => ` ${ctx.label}: ${ctx.raw} tarefa(s)`
+              }
+            },
+            taskCenter: {
+              mainText: '82,1%',
+              subText: 'No Prazo (SLA)'
+            }
+          }
+        },
+        plugins: [taskDonutCenterPlugin]
+      });
+    }
+  } catch (err) {
+    console.error('Erro charts Tarefas (Donuts):', err);
   }
 }
 
