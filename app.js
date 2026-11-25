@@ -4199,7 +4199,7 @@ function renderLogo(heightClass = "h-9", isDarkTheme = null) {
       <img 
         src="logo-control.png" 
         alt="Control Contabilidade" 
-        class="${heightClass} w-auto object-contain max-w-[260px]" 
+        class="${heightClass} w-auto object-contain transition-transform duration-200" 
         onerror="this.onerror=null; this.src='favicon.png';" 
       />
     </div>
@@ -4853,17 +4853,10 @@ function render() {
       <header class="sticky top-0 z-40 w-full bg-white border-b border-gray-200/90 shadow-xs px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4 select-none">
         
         <!-- LADO ESQUERDO: Logomarca Oficial da Control Contabilidade sobre fundo branco -->
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center shrink-0">
           <div class="flex items-center cursor-pointer group" title="Control Contabilidade">
-            ${renderLogo("h-10 w-auto max-w-[240px]")}
+            ${renderLogo("h-11 sm:h-12 w-auto max-w-[280px]")}
           </div>
-          <label class="cursor-pointer text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0" title="Configurações / Alterar Logomarca">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <input type="file" id="logo-input" accept="image/*" class="hidden" />
-          </label>
         </div>
 
         <!-- CENTRO: Campo de Busca Rápida Estilo TailAdmin -->
@@ -5453,10 +5446,10 @@ function renderAuthScreen(root) {
           <!-- Matriz de pontos lateral superior direita -->
           <div class="absolute top-8 right-6 w-8 h-28 pointer-events-none opacity-40" style="background-image: radial-gradient(circle, #FFFFFF 1.5px, transparent 1.5px); background-size: 10px 10px;"></div>
 
-          <!-- TOPO: Logotipo Oficial da Control Contabilidade em Destaque com Fundo Branco Suave -->
-          <div class="relative z-10 flex items-center justify-start">
-            <div class="inline-flex items-center justify-center p-4 sm:p-5 rounded-2xl bg-white shadow-2xl border border-white/40 transition-transform duration-200 hover:scale-[1.02]">
-              ${renderLogo("h-10 sm:h-12", false)}
+          <!-- TOPO: Logotipo Oficial da Control Contabilidade Centralizado com Fundo Branco Suave -->
+          <div class="relative z-10 flex items-center justify-center w-full">
+            <div class="w-full max-w-[280px] sm:max-w-[300px] flex items-center justify-center py-4 px-6 rounded-2xl bg-white shadow-2xl border border-white/60 transition-transform duration-200 hover:scale-[1.02]">
+              ${renderLogo("h-11 sm:h-12 w-auto", false)}
             </div>
           </div>
 
@@ -5495,8 +5488,8 @@ function renderAuthScreen(root) {
           
           <!-- Logo Oficial para Mobile (quando o banner esquerdo está oculto) -->
           <div class="md:hidden flex justify-center mb-6">
-            <div class="inline-flex items-center justify-center p-3 rounded-xl bg-slate-50 border border-slate-200 shadow-xs">
-              ${renderLogo("h-8 sm:h-9", false)}
+            <div class="inline-flex items-center justify-center p-2 rounded-xl">
+              ${renderLogo("h-8 sm:h-9 w-auto", false)}
             </div>
           </div>
 
