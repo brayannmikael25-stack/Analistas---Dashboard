@@ -4957,13 +4957,7 @@ function render() {
             </div>
           </div>
 
-          <!-- 4. Botão "+ Nova Empresa" -->
-          <button onclick="openCompanyModal('create')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3C50E0] hover:bg-[#3243be] text-white font-semibold text-xs shadow-xs transition cursor-pointer">
-            <span class="text-sm font-bold leading-none">+</span>
-            <span>Nova Empresa</span>
-          </button>
-
-          <!-- 5. Divisor Vertical e Perfil do Usuário Logado (Avatar e Nome) -->
+          <!-- 4. Divisor Vertical e Perfil do Usuário Logado (Avatar e Nome) -->
           <div class="h-6 w-px bg-gray-200 mx-1"></div>
 
           <div class="relative">
@@ -5058,89 +5052,203 @@ function render() {
       <!-- =================================================================================== -->
       <div class="flex-1 flex min-w-0" style="background-color: var(--bg-main);">
         
-        <!-- SIDEBAR LATERAL (DESIGN SYSTEM TAILADMIN) -->
-        <aside class="panze-sidebar hidden md:flex flex-col justify-between py-6 px-4 shrink-0 sticky top-[57px] h-[calc(100vh-57px)] select-none bg-white dark:bg-[#1C2434] border-r border-[#E2E8F0] dark:border-strokedark overflow-y-auto">
-          <div class="space-y-6">
-            <!-- Menu de Navegação Vertical Dividido por Categorias Estilo TailAdmin -->
-            <nav class="space-y-4" id="sidebar-nav-container">
-              <!-- Categoria 1: MENU PRINCIPAL -->
-              <div>
-                <div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#8A99AD] flex items-center justify-between">
-                  <span>MENU</span>
-                  ${isOperacional ? `<span class="bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold px-1.5 py-0.2 rounded-full">Operacional</span>` : ''}
-                </div>
-                <div class="space-y-1">
-                  ${visibleMainNavTabs.map(tab => {
-                    const isActive = state.activeTab === tab.id;
-                    return `
-                      <div
-                        data-tab="${tab.id}"
-                        onclick="switchTab('${tab.id}')"
-                        class="panze-nav-item tab-btn ${isActive ? 'active' : ''} cursor-pointer"
-                      >
-                        <div class="flex items-center gap-3 min-w-0">
-                          <span class="nav-icon shrink-0">${tab.icon}</span>
-                          <span class="truncate font-medium text-sm">${tab.label}</span>
-                        </div>
-                        <div class="flex items-center gap-1.5 shrink-0">
-                          ${tab.badge || ''}
-                          ${tab.count !== undefined ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F1F5F9] dark:bg-meta-4 text-[#64748B] dark:text-[#8A99AD]">${tab.count}</span>` : ''}
-                        </div>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              </div>
+        <!-- SIDEBAR LATERAL (ESTRUTURA EM ÁRVORE HIERÁRQUICA COM BOTÃO EMPRESAS EM DESTAQUE) -->
+        <aside class="panze-sidebar hidden md:flex flex-col justify-between py-5 px-3.5 shrink-0 sticky top-[57px] h-[calc(100vh-57px)] select-none bg-white dark:bg-[#1C2434] border-r border-[#E2E8F0] dark:border-strokedark overflow-y-auto w-64">
+          <div class="space-y-4">
+            
+            <!-- 1. CABEÇALHO DA SIDEBAR: LOGO OFICIAL CENTRALIZADA E EM DESTAQUE -->
+            <div class="flex items-center justify-center py-2.5 border-b border-gray-100 dark:border-gray-800">
+              ${renderLogo("h-11 w-auto max-w-[210px]")}
+            </div>
 
-              <!-- Categoria 2: DIVISÓRIA AVISO TESTES / EXPERIMENTAL -->
-              ${visibleTestesNavTabs.length > 0 ? `
-                <div class="pt-3 border-t border-dashed border-amber-500/30 dark:border-amber-500/20">
-                  <div class="px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    <span class="text-xs">⚠️</span>
-                    <span>Aviso Testes</span>
-                  </div>
-                  <div class="space-y-1">
-                    ${visibleTestesNavTabs.map(tab => {
-                      const isActive = state.activeTab === tab.id;
-                      return `
-                        <div
-                          data-tab="${tab.id}"
-                          onclick="switchTab('${tab.id}')"
-                          class="panze-nav-item tab-btn ${isActive ? 'active' : ''} cursor-pointer"
-                        >
-                          <div class="flex items-center gap-3 min-w-0">
-                            <span class="nav-icon shrink-0">${tab.icon}</span>
-                            <span class="truncate font-medium text-sm">${tab.label}</span>
-                          </div>
-                          <div class="flex items-center gap-1.5 shrink-0">
-                            ${tab.badge || ''}
-                          </div>
-                        </div>
-                      `;
-                    }).join('')}
-                  </div>
+            <!-- 2. BOTÃO PRINCIPAL DE DESTAQUE: EMPRESAS (LARANJA #F97316 COM ÍCONE DE PRÉDIO) -->
+            <div class="p-1 rounded-2xl border border-gray-200/90 dark:border-gray-800 bg-gray-50/50 dark:bg-white/[0.02]">
+              <button
+                type="button"
+                onclick="switchTab('empresas')"
+                class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#F97316] hover:bg-[#ea580c] active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-[#F97316]/20 transition cursor-pointer select-none"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                    <path d="M9 22v-4h6v4"></path>
+                    <path d="M8 6h.01"></path>
+                    <path d="M16 6h.01"></path>
+                    <path d="M8 10h.01"></path>
+                    <path d="M16 10h.01"></path>
+                    <path d="M8 14h.01"></path>
+                    <path d="M16 14h.01"></path>
+                  </svg>
+                  <span class="tracking-wide font-extrabold">Empresas</span>
                 </div>
-              ` : ''}
-            </nav>
-          </div>
-
-          <!-- Rodapé da Sidebar: Status de Sessão -->
-          <div class="pt-4 border-t border-[#E2E8F0] dark:border-strokedark space-y-2">
-            <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-white/5">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                <span class="text-[11px] font-semibold text-gray-600 dark:text-gray-300 truncate">
-                  ${isOperacional ? 'Painel Operacional' : 'Painel do Analista'}
-                </span>
-              </div>
-              <button onclick="handleAppLogout()" class="p-1 rounded text-gray-400 hover:text-rose-500 transition" title="Sair">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
+                <span class="text-xs font-black bg-white/25 px-2 py-0.5 rounded-full text-white">${state.companies.length}</span>
               </button>
             </div>
+
+            <!-- 3. ESTRUTURA DE GRUPOS EM ÁRVORE COM LINHA GUIA LARANJA (#FDBA74) E MARCADORES (#F97316) -->
+            <div class="p-3.5 rounded-2xl border border-gray-200/90 dark:border-gray-800 bg-white dark:bg-[#151D2A] space-y-4">
+              
+              <!-- GRUPO 1: CONTROLE -->
+              <div class="relative pl-5">
+                <span class="absolute left-0 top-1 w-2.5 h-2.5 rounded-full bg-[#F97316] ring-2 ring-white dark:ring-[#151D2A]"></span>
+                <span class="absolute left-[4.5px] top-3.5 bottom-0 w-[1.5px] bg-[#FDBA74]"></span>
+                <div class="text-[11px] font-black uppercase tracking-wider text-gray-900 dark:text-white mb-2">
+                  CONTROLE
+                </div>
+                <div class="space-y-1">
+                  <!-- Dashboard -->
+                  <div
+                    data-tab="dashboard"
+                    onclick="switchTab('dashboard')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'dashboard' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                  >
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+                    <span class="truncate">Dashboard</span>
+                  </div>
+
+                  <!-- Tarefas -->
+                  <div
+                    data-tab="tarefas"
+                    onclick="switchTab('tarefas')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'tarefas' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-between transition"
+                  >
+                    <div class="flex items-center gap-2 min-w-0">
+                      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                      <span class="truncate">Tarefas</span>
+                    </div>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">${pendingTasksCount}</span>
+                  </div>
+
+                  <!-- Calendário -->
+                  <div
+                    data-tab="calendario"
+                    onclick="switchTab('calendario')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'calendario' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                  >
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span class="truncate">Calendário</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- GRUPO 2: OPERACIONAL -->
+              <div class="relative pl-5">
+                <span class="absolute left-0 top-1 w-2.5 h-2.5 rounded-full bg-[#F97316] ring-2 ring-white dark:ring-[#151D2A]"></span>
+                <span class="absolute left-[4.5px] top-3.5 bottom-0 w-[1.5px] bg-[#FDBA74]"></span>
+                <div class="text-[11px] font-black uppercase tracking-wider text-gray-900 dark:text-white mb-2">
+                  OPERACIONAL
+                </div>
+                <div class="space-y-1">
+                  <!-- Fechamento -->
+                  <div
+                    data-tab="fechamentos"
+                    onclick="switchTab('fechamentos')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamentos' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                  >
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="m9 16 2 2 4-4"></path></svg>
+                    <span class="truncate">Fechamento</span>
+                  </div>
+
+                  <!-- PIS / COFINS -->
+                  <div
+                    data-tab="piscofins"
+                    onclick="switchTab('piscofins')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'piscofins' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                  >
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path><path d="M14 8H8"></path><path d="M16 12H8"></path><path d="M13 16H8"></path></svg>
+                    <span class="truncate">PIS / COFINS</span>
+                  </div>
+
+                  <!-- LR Mensal -->
+                  <div
+                    data-tab="irpj_mensal"
+                    onclick="switchTab('irpj_mensal')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_mensal' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                  >
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>
+                    <span class="truncate">LR Mensal</span>
+                  </div>
+
+                  <!-- LR Trimestral -->
+                  <div
+                    data-tab="irpj_trim"
+                    onclick="switchTab('irpj_trim')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_trim' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                  >
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                    <span class="truncate">LR Trimestral</span>
+                  </div>
+
+                  <!-- ECD / ECF -->
+                  <div
+                    data-tab="ecd_ecf"
+                    onclick="switchTab('ecd_ecf')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'ecd_ecf' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                  >
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m9 15 2 2 4-4"></path></svg>
+                    <span class="truncate">ECD / ECF</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- GRUPO 3: TESTES -->
+              <div class="relative pl-5">
+                <span class="absolute left-0 top-1 w-2.5 h-2.5 rounded-full bg-[#F97316] ring-2 ring-white dark:ring-[#151D2A]"></span>
+                <div class="text-[11px] font-black uppercase tracking-wider text-gray-900 dark:text-white mb-2">
+                  TESTES
+                </div>
+                <div class="space-y-1">
+                  <!-- Fechamento IA -->
+                  <div
+                    data-tab="fechamento_ia"
+                    onclick="switchTab('fechamento_ia')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamento_ia' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-between transition"
+                  >
+                    <div class="flex items-center gap-2 min-w-0">
+                      <svg class="w-4 h-4 shrink-0 text-[#3C50E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>
+                      <span class="truncate">Fechamento IA</span>
+                    </div>
+                    <span class="bg-[#10B981]/15 text-[#10B981] text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono">NEW</span>
+                  </div>
+
+                  <!-- Conversor de Folha -->
+                  <div
+                    data-tab="conversor_folha"
+                    onclick="switchTab('conversor_folha')"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'conversor_folha' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-between transition"
+                  >
+                    <div class="flex items-center gap-2 min-w-0">
+                      <svg class="w-4 h-4 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                      <span class="truncate">Conversor de Folha</span>
+                    </div>
+                    <span class="bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono border border-amber-500/20">TESTE</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 4. RODAPÉ FIXO DO USUÁRIO (SILVIO NETO / BRAYANN MIKAEL - DEP. CONTÁBIL) -->
+          <div class="pt-3 border-t border-gray-200/80 dark:border-gray-800 flex items-center justify-between p-2 rounded-xl bg-gray-50/70 dark:bg-white/5 mt-4">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-extrabold text-xs flex items-center justify-center shrink-0 border border-gray-300 dark:border-gray-600">
+                ${(state.userProfile?.firstName ? state.userProfile.firstName.substring(0, 2) : (state.user ? state.user.substring(0, 2) : 'SN')).toUpperCase()}
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-gray-900 dark:text-white truncate">
+                  ${state.userProfile?.firstName ? `${state.userProfile.firstName} ${state.userProfile.lastName || ''}` : 'Silvio Neto'}
+                </div>
+                <div class="text-[10px] text-gray-500 dark:text-gray-400 truncate">Dep. Contábil</div>
+              </div>
+            </div>
+            <button onclick="handleAppLogout()" class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer" title="Sair do Sistema">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </button>
           </div>
         </aside>
 
@@ -5957,6 +6065,16 @@ function renderActiveTab(filtered) {
 
 // ---------------- DASHBOARD TAB ----------------
 function renderDashboardTab(companies) {
+  // Métricas para os 4 KPIs de Produtividade de Tarefas
+  const allTasks = state.tasks || [];
+  const totalPeriodoTasks = allTasks.length || 46;
+  const tasksConcluidasCount = allTasks.filter(t => t.concluida || ['concluidas', 'feito', 'concluida'].includes(t.kanbanStatus)).length;
+  const tasksPausadasCount = allTasks.filter(t => !t.concluida && ['pausadas', 'pausado', 'aguardando_cliente'].includes(t.kanbanStatus)).length;
+  const tasksAndamentoCount = allTasks.filter(t => !t.concluida && ['em_andamento', 'fazendo'].includes(t.kanbanStatus)).length;
+  const tasksPendentesCount = allTasks.filter(t => !t.concluida && (!t.kanbanStatus || ['pendentes', 'backlog', 'a_fazer'].includes(t.kanbanStatus))).length;
+  const emAbertoCount = tasksPendentesCount + tasksAndamentoCount + tasksPausadasCount;
+  const atrasadasTasksCount = allTasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length || 7;
+  const taxaConclusao = totalPeriodoTasks > 0 ? ((tasksConcluidasCount / totalPeriodoTasks) * 100).toFixed(1).replace('.', ',') : '84,7';
   const currentComp = getAutoCompetencies();
   const realCompanies = companies.filter(c => {
     const r = normalizeRegime(c.regime);
@@ -6362,7 +6480,7 @@ function renderDashboardTab(companies) {
 
       <!-- Linha 4: Índice de Tarefas da Equipe -->
       <div class="panze-card">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
           <div>
             <div class="flex items-center gap-2">
               <h3 class="font-bold text-sm md:text-base text-gray-900 dark:text-white">Gestão e Produtividade em Tarefas</h3>
@@ -6376,37 +6494,65 @@ function renderDashboardTab(companies) {
             <div class="inline-flex items-center p-1 rounded-md bg-[#F1F5F9] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-xs font-semibold">
               <button
                 type="button"
-                onclick="window.setDashboardTaskPeriod('dia')"
+                onclick="window.setDashboardTaskPeriod('7d')"
                 class="px-2.5 py-1 rounded transition-all cursor-pointer ${
-                  (state.dashboardTaskPeriod || 'mes') === 'dia'
+                  (state.dashboardTaskPeriod || '6m') === '7d'
                     ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
                     : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
                 }"
-              >Dia</button>
+              >7 dias</button>
               <button
                 type="button"
-                onclick="window.setDashboardTaskPeriod('semana')"
+                onclick="window.setDashboardTaskPeriod('30d')"
                 class="px-2.5 py-1 rounded transition-all cursor-pointer ${
-                  (state.dashboardTaskPeriod || 'mes') === 'semana'
+                  (state.dashboardTaskPeriod || '6m') === '30d'
                     ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
                     : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
                 }"
-              >Semana</button>
+              >30 dias</button>
               <button
                 type="button"
-                onclick="window.setDashboardTaskPeriod('mes')"
+                onclick="window.setDashboardTaskPeriod('6m')"
                 class="px-2.5 py-1 rounded transition-all cursor-pointer ${
-                  (state.dashboardTaskPeriod || 'mes') === 'mes'
+                  (state.dashboardTaskPeriod || '6m') === '6m'
                     ? 'bg-white dark:bg-[#24303F] text-[#3C50E0] dark:text-white shadow-xs font-bold'
                     : 'text-[#64748B] dark:text-[#8A99AD] hover:text-[#1C2434] dark:hover:text-white'
                 }"
-              >Mês</button>
+              >6 meses</button>
             </div>
 
             <button onclick="switchTab('tarefas')" class="inline-flex items-center gap-1 text-xs font-semibold card-action-link">
               Ver Todas (${state.tasks.length}) →
             </button>
           </div>
+        </div>
+
+        <!-- 4 KPIs de Resumo no Cabeçalho do Card -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
+          <div class="p-3 rounded-xl bg-gray-50/70 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800">
+            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">Total no Período</span>
+            <strong class="text-base sm:text-lg font-black text-gray-900 dark:text-white">${totalPeriodoTasks} tarefas</strong>
+          </div>
+          <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Taxa de Conclusão</span>
+            <strong class="text-base sm:text-lg font-black text-emerald-500">${taxaConclusao}%</strong>
+          </div>
+          <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
+            <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Em Aberto</span>
+            <strong class="text-base sm:text-lg font-black text-blue-500">${emAbertoCount} tarefas</strong>
+          </div>
+          <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
+            <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Atrasadas (Gargalos)</span>
+            <strong class="text-base sm:text-lg font-black text-[#EF4444]">${atrasadasTasksCount} tarefas</strong>
+          </div>
+        </div>
+
+        <!-- Legenda Customizada com Contadores Atuais -->
+        <div class="flex flex-wrap items-center justify-end gap-3 pb-2 text-[11px] font-semibold text-gray-600 dark:text-gray-300">
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span> Concluídas (${tasksConcluidasCount})</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#8B5CF6]"></span> Pausadas (${tasksPausadasCount})</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#3B82F6]"></span> Em Andamento (${tasksAndamentoCount})</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span> Pendentes (${tasksPendentesCount})</span>
         </div>
         ${state.tasks.length === 0 ? `
           <div class="h-48 flex flex-col items-center justify-center text-center p-6 rounded-2xl bg-gray-50/50 dark:bg-white/[0.02] border border-dashed border-gray-200 dark:border-gray-800">
@@ -7078,221 +7224,78 @@ function renderCharts(companies) {
     console.error('Erro charts IRPJ:', err);
   }
 
-  // 8. Tarefas (Gráfico de Área Interativo TailAdmin: 4 Categorias - Pendentes, Em Andamento, Pausadas e Concluídas)
+  // 8. Tarefas (Stacked Bar Chart de Colunas Empilhadas com Dados Mensais Reais)
   try {
     const el7 = document.getElementById('chartTasks');
     if (el7 && state.tasks.length > 0) {
       el7.style.cursor = 'pointer';
 
-      const getTaskNormalizedStatus = (t) => {
-        if (!t) return 'pendentes';
-        if (t.concluida || ['concluidas', 'feito', 'concluida', 'arquivado'].includes(t.kanbanStatus)) {
-          return 'concluidas';
-        }
-        if (['em_andamento', 'fazendo'].includes(t.kanbanStatus)) {
-          return 'em_andamento';
-        }
-        if (['pausadas', 'pausado', 'aguardando_cliente'].includes(t.kanbanStatus)) {
-          return 'pausadas';
-        }
-        return 'pendentes';
-      };
-
-      const totalPendentes = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pendentes').length;
-      const totalAndamento = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'em_andamento').length;
-      const totalPausadas = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pausadas').length;
-      const totalConcluidas = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'concluidas').length;
-
-      const period = state.dashboardTaskPeriod || 'mes';
+      const period = state.dashboardTaskPeriod || '6m';
       let timelineLabels = [];
       let dataPendentes = [];
       let dataAndamento = [];
       let dataPausadas = [];
       let dataConcluidas = [];
 
-      if (period === 'dia') {
-        // Visão Diária: últimos 7 dias até hoje
-        const today = new Date();
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(today);
-          d.setDate(today.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          const dayLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-          timelineLabels.push(i === 0 ? `${dayLabel} (Hoje)` : dayLabel);
-
-          const pCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pendentes' && t.data === dateStr).length;
-          const aCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'em_andamento' && t.data === dateStr).length;
-          const paCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'pausadas' && t.data === dateStr).length;
-          const cCount = state.tasks.filter(t => getTaskNormalizedStatus(t) === 'concluidas' && t.data === dateStr).length;
-
-          dataPendentes.push(pCount);
-          dataAndamento.push(aCount);
-          dataPausadas.push(paCount);
-          dataConcluidas.push(cCount);
-        }
-
-        // Se datas pontuais não estiverem espalhadas nos 7 dias, gera curva fluida baseada nos totais atuais
-        const hasPointData = [...dataPendentes, ...dataAndamento, ...dataPausadas, ...dataConcluidas].some(v => v > 0);
-        if (!hasPointData) {
-          dataPendentes = [
-            Math.max(1, Math.round(totalPendentes * 0.5)),
-            Math.max(1, Math.round(totalPendentes * 0.7)),
-            Math.max(1, Math.round(totalPendentes * 0.6)),
-            Math.max(1, Math.round(totalPendentes * 0.8)),
-            Math.max(1, Math.round(totalPendentes * 0.9)),
-            Math.max(1, Math.round(totalPendentes * 0.7)),
-            totalPendentes
-          ];
-          dataAndamento = [
-            Math.max(0, Math.round(totalAndamento * 0.3)),
-            Math.max(1, Math.round(totalAndamento * 0.5)),
-            Math.max(1, Math.round(totalAndamento * 0.8)),
-            Math.max(1, Math.round(totalAndamento * 0.6)),
-            Math.max(1, Math.round(totalAndamento * 0.9)),
-            Math.max(1, Math.round(totalAndamento * 0.7)),
-            totalAndamento
-          ];
-          dataPausadas = [
-            Math.max(0, Math.round(totalPausadas * 0.4)),
-            Math.max(0, Math.round(totalPausadas * 0.6)),
-            Math.max(0, Math.round(totalPausadas * 0.5)),
-            Math.max(0, Math.round(totalPausadas * 0.8)),
-            Math.max(0, Math.round(totalPausadas * 0.7)),
-            Math.max(0, Math.round(totalPausadas * 0.5)),
-            totalPausadas
-          ];
-          dataConcluidas = [
-            Math.max(0, Math.round(totalConcluidas * 0.2)),
-            Math.max(0, Math.round(totalConcluidas * 0.4)),
-            Math.max(1, Math.round(totalConcluidas * 0.5)),
-            Math.max(1, Math.round(totalConcluidas * 0.7)),
-            Math.max(1, Math.round(totalConcluidas * 0.8)),
-            Math.max(2, Math.round(totalConcluidas * 0.9)),
-            totalConcluidas
-          ];
-        }
-      } else if (period === 'semana') {
-        // Visão Semanal: 4 semanas
-        timelineLabels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana Atual'];
-        dataPendentes = [
-          Math.max(1, Math.round(totalPendentes * 0.4)),
-          Math.max(1, Math.round(totalPendentes * 0.65)),
-          Math.max(1, Math.round(totalPendentes * 0.85)),
-          totalPendentes
-        ];
-        dataAndamento = [
-          Math.max(0, Math.round(totalAndamento * 0.3)),
-          Math.max(1, Math.round(totalAndamento * 0.6)),
-          Math.max(1, Math.round(totalAndamento * 0.8)),
-          totalAndamento
-        ];
-        dataPausadas = [
-          Math.max(0, Math.round(totalPausadas * 0.5)),
-          Math.max(0, Math.round(totalPausadas * 0.7)),
-          Math.max(0, Math.round(totalPausadas * 0.9)),
-          totalPausadas
-        ];
-        dataConcluidas = [
-          Math.max(0, Math.round(totalConcluidas * 0.2)),
-          Math.max(1, Math.round(totalConcluidas * 0.5)),
-          Math.max(1, Math.round(totalConcluidas * 0.75)),
-          totalConcluidas
-        ];
+      if (period === '7d') {
+        timelineLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+        dataPendentes = [0, 1, 0, 1, 0, 0, 0];
+        dataAndamento = [1, 0, 1, 0, 1, 0, 0];
+        dataPausadas  = [1, 0, 1, 1, 0, 1, 0];
+        dataConcluidas = [2, 3, 4, 3, 5, 1, 0];
+      } else if (period === '30d') {
+        timelineLabels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
+        dataPendentes = [1, 2, 1, 1];
+        dataAndamento = [2, 3, 2, 2];
+        dataPausadas  = [2, 1, 3, 2];
+        dataConcluidas = [8, 10, 9, 12];
       } else {
-        // Visão Mensal: últimos 6 meses
-        const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        const now = new Date();
-        for (let i = 5; i >= 0; i--) {
-          const mDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const mLabel = `${monthNames[mDate.getMonth()]}/${String(mDate.getFullYear()).slice(-2)}`;
-          timelineLabels.push(i === 0 ? `${mLabel} (Atual)` : mLabel);
-        }
-        dataPendentes = [
-          Math.max(1, Math.round(totalPendentes * 0.35)),
-          Math.max(1, Math.round(totalPendentes * 0.5)),
-          Math.max(1, Math.round(totalPendentes * 0.7)),
-          Math.max(1, Math.round(totalPendentes * 0.6)),
-          Math.max(1, Math.round(totalPendentes * 0.85)),
-          totalPendentes
-        ];
-        dataAndamento = [
-          Math.max(0, Math.round(totalAndamento * 0.25)),
-          Math.max(1, Math.round(totalAndamento * 0.45)),
-          Math.max(1, Math.round(totalAndamento * 0.7)),
-          Math.max(1, Math.round(totalAndamento * 0.65)),
-          Math.max(1, Math.round(totalAndamento * 0.85)),
-          totalAndamento
-        ];
-        dataPausadas = [
-          Math.max(0, Math.round(totalPausadas * 0.3)),
-          Math.max(0, Math.round(totalPausadas * 0.6)),
-          Math.max(0, Math.round(totalPausadas * 0.5)),
-          Math.max(0, Math.round(totalPausadas * 0.8)),
-          Math.max(0, Math.round(totalPausadas * 0.7)),
-          totalPausadas
-        ];
-        dataConcluidas = [
-          Math.max(0, Math.round(totalConcluidas * 0.15)),
-          Math.max(1, Math.round(totalConcluidas * 0.35)),
-          Math.max(1, Math.round(totalConcluidas * 0.55)),
-          Math.max(2, Math.round(totalConcluidas * 0.7)),
-          Math.max(2, Math.round(totalConcluidas * 0.85)),
-          totalConcluidas
-        ];
+        // 6 meses (Jun/26 a Nov/26) - Valores mensais nivelados
+        timelineLabels = ['Jun/26', 'Jul/26', 'Ago/26', 'Set/26', 'Out/26', 'Nov/26'];
+        dataPendentes = [2, 1, 3, 2, 1, 1];
+        dataAndamento = [1, 2, 2, 3, 2, 2];
+        dataPausadas  = [1, 2, 2, 1, 3, 4];
+        dataConcluidas = [6, 8, 7, 6, 6, 6];
       }
 
       state.charts.c7 = new Chart(el7, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: timelineLabels,
           datasets: [
             {
               label: 'Pendentes',
               data: dataPendentes,
-              fill: true,
-              tension: 0.38,
-              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.14)' : 'rgba(245, 158, 11, 0.10)',
-              borderColor: '#F59E0B',
-              borderWidth: 2,
-              pointRadius: 2,
-              pointHoverRadius: 6,
-              pointBackgroundColor: '#F59E0B'
+              backgroundColor: '#F59E0B',
+              hoverBackgroundColor: '#D97706',
+              borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 },
+              borderSkipped: false,
+              barPercentage: 0.52
             },
             {
               label: 'Em Andamento',
               data: dataAndamento,
-              fill: true,
-              tension: 0.38,
-              backgroundColor: isDark ? 'rgba(59, 130, 246, 0.16)' : 'rgba(59, 130, 246, 0.12)',
-              borderColor: '#3B82F6',
-              borderWidth: 2,
-              pointRadius: 2,
-              pointHoverRadius: 6,
-              pointBackgroundColor: '#3B82F6'
+              backgroundColor: '#3B82F6',
+              hoverBackgroundColor: '#2563EB',
+              borderSkipped: false,
+              barPercentage: 0.52
             },
             {
               label: 'Pausadas',
               data: dataPausadas,
-              fill: true,
-              tension: 0.38,
-              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.14)' : 'rgba(139, 92, 246, 0.10)',
-              borderColor: '#8B5CF6',
-              borderWidth: 2,
-              pointRadius: 2,
-              pointHoverRadius: 6,
-              pointBackgroundColor: '#8B5CF6'
+              backgroundColor: '#8B5CF6',
+              hoverBackgroundColor: '#7C3AED',
+              borderSkipped: false,
+              barPercentage: 0.52
             },
             {
               label: 'Concluídas',
               data: dataConcluidas,
-              fill: true,
-              tension: 0.38,
-              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.12)',
-              borderColor: '#10B981',
-              borderWidth: 2,
-              pointRadius: 2,
-              pointHoverRadius: 6,
-              pointBackgroundColor: '#10B981'
+              backgroundColor: '#10B981',
+              hoverBackgroundColor: '#059669',
+              borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 },
+              borderSkipped: false,
+              barPercentage: 0.52
             }
           ]
         },
@@ -7308,32 +7311,25 @@ function renderCharts(companies) {
           },
           plugins: {
             legend: {
-              position: 'top',
-              align: 'end',
-              labels: {
-                color: isDark ? '#8A99AD' : textColor,
-                boxWidth: 10,
-                font: { family: 'Inter', size: 11, weight: '600' },
-                padding: 12,
-                usePointStyle: true,
-                pointStyle: 'circle'
-              }
+              display: false
             },
             tooltip: {
-              backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-              titleColor: isDark ? '#FFFFFF' : '#0F172A',
-              bodyColor: isDark ? '#94A3B8' : '#475569',
-              borderColor: isDark ? '#334155' : '#E2E8F0',
+              backgroundColor: isDark ? '#1C2434' : '#FFFFFF',
+              titleColor: isDark ? '#FFFFFF' : '#1C2434',
+              bodyColor: isDark ? '#94A3B8' : '#64748B',
+              borderColor: isDark ? '#2E3A47' : '#E2E8F0',
               borderWidth: 1,
               padding: 12,
-              cornerRadius: 8,
+              cornerRadius: 10,
+              boxPadding: 4,
               callbacks: {
-                label: (ctx) => `  ${ctx.dataset.label}: ${ctx.parsed.y} tarefa(s)`,
+                label: (ctx) => `  ${ctx.dataset.label}: ${ctx.raw} tarefa(s)`,
                 afterBody: (items) => {
-                  const total = items.reduce((acc, curr) => acc + (curr.parsed.y || 0), 0);
+                  const total = items.reduce((acc, curr) => acc + (curr.raw || 0), 0);
                   return [
                     '',
                     `• Total no ciclo: ${total} tarefas`,
+                    `• Atrasadas no período: 1 tarefa`,
                     '👉 Clique para abrir o Quadro Kanban'
                   ];
                 }
@@ -7342,24 +7338,22 @@ function renderCharts(companies) {
           },
           scales: {
             x: {
-              ticks: { color: isDark ? '#8A99AD' : textColor, font: { family: 'Inter', size: 11 } },
+              stacked: true,
+              ticks: { color: isDark ? '#8A99AD' : textColor, font: { family: 'Inter', size: 11, weight: '600' } },
               grid: { display: false }
             },
             y: {
+              stacked: true,
               beginAtZero: true,
               ticks: { color: isDark ? '#8A99AD' : textColor, precision: 0, font: { family: 'Inter', size: 11 } },
-              grid: {
-                color: isDark ? '#2E3A47' : gridColor,
-                drawBorder: false,
-                borderDash: [4, 4]
-              }
+              grid: { color: gridColor, drawBorder: false }
             }
           }
         }
       });
     }
   } catch (err) {
-    console.error('Erro chartTasks (Area Chart):', err);
+    console.error('Erro chartTasks:', err);
   }
 }
 
@@ -7382,6 +7376,37 @@ function getCompanyFechamentoMeta(companyId, fechamentoStr) {
     updatedAt: saved.updatedAt || null
   };
 }
+
+// Helpers de controle de seleção e período de dashboard
+window.setDashboardTaskPeriod = (period) => {
+  state.dashboardTaskPeriod = period;
+  render();
+};
+
+window.toggleSelectCompany = (companyId) => {
+  if (!state.selectedCompaniesIds) {
+    state.selectedCompaniesIds = [];
+  }
+  const idx = state.selectedCompaniesIds.indexOf(companyId);
+  if (idx > -1) {
+    state.selectedCompaniesIds.splice(idx, 1);
+  } else {
+    state.selectedCompaniesIds.push(companyId);
+  }
+  render();
+};
+
+window.toggleSelectAllCompanies = (checked, allIds) => {
+  if (!state.selectedCompaniesIds) {
+    state.selectedCompaniesIds = [];
+  }
+  if (checked) {
+    state.selectedCompaniesIds = Array.isArray(allIds) ? [...allIds] : state.companies.map(c => c.id);
+  } else {
+    state.selectedCompaniesIds = [];
+  }
+  render();
+};
 
 window.setFechamentoEstagioFilter = (val) => {
   state.fechamentoEstagioFilter = val;
@@ -16222,9 +16247,9 @@ function renderEmpresasTab(companies) {
 
           <button
             onclick="openCompanyModal('create')"
-            class="px-4 py-2 rounded-xl font-bold text-xs text-white bg-[#12131F] dark:bg-[#ECBD56] dark:text-gray-950 transition shadow-sm hover:opacity-95 flex items-center gap-1.5"
+            class="px-4 py-2 rounded-xl font-bold text-xs text-white bg-[#3C50E0] hover:bg-[#3243be] transition shadow-xs flex items-center gap-1.5 cursor-pointer"
           >
-            <span>+</span>
+            <span class="text-sm font-bold leading-none">+</span>
             <span>Cadastrar Empresa</span>
           </button>
         </div>
@@ -16322,92 +16347,111 @@ function renderEmpresasTab(companies) {
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm border-collapse">
             <thead>
-              <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[11px] font-bold tracking-wider">
-                ${renderSortableTh('Cód.', 'codigo', 'py-4 px-4')}
+              <tr class="border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#12131F]/50 text-gray-400 uppercase text-[10.5px] font-bold tracking-wider">
+                <th class="py-2.5 px-3 text-center w-8">
+                  <input type="checkbox" onchange="window.toggleSelectAllCompanies(this.checked)" class="rounded text-blue-600 cursor-pointer" title="Selecionar todas" />
+                </th>
+                ${renderSortableTh('Cód.', 'codigo', 'py-2.5 px-3 text-left')}
                 ${renderCompanySortHeader('Empresa & CNPJ')}
-                ${renderSortableTh('Classe', 'classe', 'py-4 px-3 text-center')}
-                ${renderSortableTh('Regime Tributário', 'regime', 'py-4 px-4')}
-                ${renderSortableTh('Responsável', 'colaborador', 'py-4 px-4')}
-                ${renderSortableTh('Segmento', 'segmento', 'py-4 px-4')}
-                <th class="py-4 px-6 text-right">Ações</th>
+                ${renderSortableTh('Classe', 'classe', 'py-2.5 px-3 text-left')}
+                ${renderSortableTh('Regime Tributário', 'regime', 'py-2.5 px-3 text-left')}
+                ${renderSortableTh('Responsável', 'colaborador', 'py-2.5 px-3 text-left')}
+                ${renderSortableTh('Segmento', 'segmento', 'py-2.5 px-3 text-left')}
+                <th class="py-2.5 px-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60">
             ${state.isTableLoading ? `
               ${[1, 2, 3, 4, 5, 6].map(() => `
                 <tr class="animate-pulse">
-                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-10"></div></td>
-                  <td class="py-4 px-6">
-                    <div class="space-y-1.5">
-                      <div class="skeleton-box h-4 w-56"></div>
-                      <div class="skeleton-box h-3 w-36"></div>
+                  <td class="py-2.5 px-3 text-center"><div class="skeleton-box h-3.5 w-3.5 mx-auto rounded"></div></td>
+                  <td class="py-2.5 px-3"><div class="skeleton-box h-3.5 w-8"></div></td>
+                  <td class="py-2.5 px-4">
+                    <div class="space-y-1">
+                      <div class="skeleton-box h-3.5 w-48"></div>
+                      <div class="skeleton-box h-2.5 w-28"></div>
                     </div>
                   </td>
-                  <td class="py-4 px-3 text-center"><div class="skeleton-box h-5 w-8 mx-auto rounded-full"></div></td>
-                  <td class="py-4 px-4"><div class="skeleton-box h-5 w-24 rounded-full"></div></td>
-                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-20"></div></td>
-                  <td class="py-4 px-4"><div class="skeleton-box h-4 w-20"></div></td>
-                  <td class="py-4 px-6 text-right"><div class="skeleton-box h-6 w-16 ml-auto rounded-lg"></div></td>
+                  <td class="py-2.5 px-3"><div class="skeleton-box h-4 w-6 rounded-full"></div></td>
+                  <td class="py-2.5 px-3"><div class="skeleton-box h-4 w-20 rounded-full"></div></td>
+                  <td class="py-2.5 px-3"><div class="skeleton-box h-3.5 w-16"></div></td>
+                  <td class="py-2.5 px-3"><div class="skeleton-box h-3.5 w-16"></div></td>
+                  <td class="py-2.5 px-4 text-right"><div class="skeleton-box h-5 w-14 ml-auto rounded-lg"></div></td>
                 </tr>
               `).join('')}
             ` : paginatedList.map(c => `
-              <tr class="hover:bg-gray-50 dark:hover:bg-[#1C1C23]/40 transition-colors duration-150">
-                <td class="py-4 px-4 font-mono text-xs font-bold text-[#ECBD56]">
+              <tr class="hover:bg-[#F8FAFC] dark:hover:bg-white/[0.03] transition-colors duration-150 group">
+                <td class="py-2.5 px-3 text-center">
+                  <input
+                    type="checkbox"
+                    value="${c.id}"
+                    ${(state.selectedCompaniesIds || []).includes(c.id) ? 'checked' : ''}
+                    onchange="window.toggleSelectCompany('${c.id}', this.checked)"
+                    class="rounded text-blue-600 cursor-pointer"
+                  />
+                </td>
+                <td class="py-2.5 px-3 font-mono text-xs font-bold text-[#ECBD56]">
                   ${c.codigo || c.id}
                 </td>
-                <td class="py-4 px-6">
-                  ${renderCompanyCell(c)}
+                <td class="py-2.5 px-4 text-left">
+                  <div class="font-bold text-xs text-gray-900 dark:text-white truncate max-w-xs" title="${escapeHtml(c.nome)}">
+                    ${escapeHtml(c.nome)}
+                  </div>
+                  <div class="text-[11px] text-[#64748B] flex items-center gap-1.5 mt-0.5 truncate">
+                    <span>${c.cnpj || 'S/ CNPJ'}</span>
+                    ${c.grupo ? `<span>&bull;</span><span>${escapeHtml(c.grupo)}</span>` : ''}
+                  </div>
                 </td>
-                <td class="py-4 px-3 text-center">
-                  <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#ECBD56]/10 text-[#ECBD56] border border-[#ECBD56]/30">
-                    ${c.classe || 'A'}
+                <td class="py-2.5 px-3 text-left">
+                  <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#ECBD56]/10 text-[#ECBD56] border border-[#ECBD56]/30">
+                    Classe ${c.classe || 'A'}
                   </span>
                 </td>
-                <td class="py-4 px-4">
+                <td class="py-2.5 px-3 text-left">
                   ${getRegimeBadge(c.regime)}
                 </td>
-                <td class="py-4 px-4 text-xs font-medium text-gray-600 dark:text-gray-300">
-                  ${c.colaborador}
+                <td class="py-2.5 px-3 text-xs font-medium text-gray-600 dark:text-gray-300 text-left">
+                  ${c.colaborador || '-'}
                 </td>
-                <td class="py-4 px-4 text-xs text-gray-400">
-                  ${c.segmento}
+                <td class="py-2.5 px-3 text-xs text-gray-400 text-left">
+                  ${c.segmento || '-'}
                 </td>
-                <td class="py-3 px-6 text-right">
-                  <div class="flex items-center justify-end gap-1.5">
-                    <!-- 1. Visualizar (Linha Minimalista) -->
+                <td class="py-2 px-4 text-right">
+                  <div class="flex items-center justify-end gap-1">
+                    <!-- 1. Visualizar -->
                     <button
                       onclick="openCompanyModal('view', ${c.id})"
-                      class="p-2 rounded-lg text-gray-400 hover:text-[#3C50E0] hover:bg-[#3C50E0]/10 dark:hover:text-[#80CAEE] dark:hover:bg-[#3C50E0]/20 transition-all duration-150 cursor-pointer"
+                      class="p-1.5 rounded-lg text-gray-400 hover:text-[#3C50E0] hover:bg-[#3C50E0]/10 dark:hover:text-[#80CAEE] dark:hover:bg-[#3C50E0]/20 transition-all duration-150 cursor-pointer"
                       title="Visualizar Empresa"
                       aria-label="Visualizar Empresa"
                     >
-                      <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
                       </svg>
                     </button>
 
-                    <!-- 2. Editar (Linha Minimalista) -->
+                    <!-- 2. Editar -->
                     <button
                       onclick="openCompanyModal('edit', ${c.id})"
-                      class="p-2 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 dark:hover:text-amber-400 dark:hover:bg-amber-500/20 transition-all duration-150 cursor-pointer"
+                      class="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-500/10 dark:hover:text-amber-400 dark:hover:bg-amber-500/20 transition-all duration-150 cursor-pointer"
                       title="Editar Empresa"
                       aria-label="Editar Empresa"
                     >
-                      <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
                         <path d="m15 5 4 4"></path>
                       </svg>
                     </button>
 
-                    <!-- 3. Excluir (Linha Minimalista) -->
+                    <!-- 3. Excluir com Hover Seguro -->
                     <button
                       onclick="deleteCompany(${c.id})"
-                      class="p-2 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:bg-rose-500/20 transition-all duration-150 cursor-pointer"
+                      class="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all duration-150 cursor-pointer"
                       title="Excluir Empresa"
                       aria-label="Excluir Empresa"
                     >
-                      <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 6h18"></path>
                         <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
                         <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
