@@ -5056,12 +5056,7 @@ function render() {
         <aside class="panze-sidebar hidden md:flex flex-col justify-between py-5 px-3.5 shrink-0 sticky top-[57px] h-[calc(100vh-57px)] select-none bg-white dark:bg-[#1C2434] border-r border-[#E2E8F0] dark:border-strokedark overflow-y-auto w-64">
           <div class="space-y-4">
             
-            <!-- 1. CABEÇALHO DA SIDEBAR: LOGO OFICIAL CENTRALIZADA E EM DESTAQUE -->
-            <div class="flex items-center justify-center py-2.5 border-b border-gray-100 dark:border-gray-800">
-              ${renderLogo("h-11 w-auto max-w-[210px]")}
-            </div>
-
-            <!-- 2. BOTÃO PRINCIPAL DE DESTAQUE: EMPRESAS (LARANJA #F97316 COM ÍCONE DE PRÉDIO) -->
+            <!-- 1. BOTÃO PRINCIPAL DE DESTAQUE: EMPRESAS (LARANJA #F97316 COM ÍCONE DE PRÉDIO NO TOPO) -->
             <div class="p-1 rounded-2xl border border-gray-200/90 dark:border-gray-800 bg-gray-50/50 dark:bg-white/[0.02]">
               <button
                 type="button"
@@ -5100,7 +5095,7 @@ function render() {
                   <div
                     data-tab="dashboard"
                     onclick="switchTab('dashboard')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'dashboard' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'dashboard' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
                     <span class="truncate">Dashboard</span>
@@ -5110,20 +5105,18 @@ function render() {
                   <div
                     data-tab="tarefas"
                     onclick="switchTab('tarefas')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'tarefas' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-between transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'tarefas' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
-                    <div class="flex items-center gap-2 min-w-0">
-                      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-                      <span class="truncate">Tarefas</span>
-                    </div>
-                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">${pendingTasksCount}</span>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                    <span class="truncate">Tarefas</span>
+                    <span class="ml-auto px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">${pendingTasksCount}</span>
                   </div>
 
                   <!-- Calendário -->
                   <div
                     data-tab="calendario"
                     onclick="switchTab('calendario')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'calendario' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'calendario' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                     <span class="truncate">Calendário</span>
@@ -5143,7 +5136,7 @@ function render() {
                   <div
                     data-tab="fechamentos"
                     onclick="switchTab('fechamentos')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamentos' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamentos' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="m9 16 2 2 4-4"></path></svg>
                     <span class="truncate">Fechamento</span>
@@ -5153,7 +5146,7 @@ function render() {
                   <div
                     data-tab="piscofins"
                     onclick="switchTab('piscofins')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'piscofins' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'piscofins' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path><path d="M14 8H8"></path><path d="M16 12H8"></path><path d="M13 16H8"></path></svg>
                     <span class="truncate">PIS / COFINS</span>
@@ -5163,7 +5156,7 @@ function render() {
                   <div
                     data-tab="irpj_mensal"
                     onclick="switchTab('irpj_mensal')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_mensal' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_mensal' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>
                     <span class="truncate">LR Mensal</span>
@@ -5173,7 +5166,7 @@ function render() {
                   <div
                     data-tab="irpj_trim"
                     onclick="switchTab('irpj_trim')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_trim' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'irpj_trim' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
                     <span class="truncate">LR Trimestral</span>
@@ -5183,7 +5176,7 @@ function render() {
                   <div
                     data-tab="ecd_ecf"
                     onclick="switchTab('ecd_ecf')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'ecd_ecf' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center gap-2 transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'ecd_ecf' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m9 15 2 2 4-4"></path></svg>
                     <span class="truncate">ECD / ECF</span>
@@ -5202,26 +5195,22 @@ function render() {
                   <div
                     data-tab="fechamento_ia"
                     onclick="switchTab('fechamento_ia')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamento_ia' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-between transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'fechamento_ia' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
-                    <div class="flex items-center gap-2 min-w-0">
-                      <svg class="w-4 h-4 shrink-0 text-[#3C50E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>
-                      <span class="truncate">Fechamento IA</span>
-                    </div>
-                    <span class="bg-[#10B981]/15 text-[#10B981] text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono">NEW</span>
+                    <svg class="w-4 h-4 shrink-0 text-[#3C50E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>
+                    <span class="truncate">Fechamento IA</span>
+                    <span class="ml-auto bg-[#10B981]/15 text-[#10B981] text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono">NEW</span>
                   </div>
 
                   <!-- Conversor de Folha -->
                   <div
                     data-tab="conversor_folha"
                     onclick="switchTab('conversor_folha')"
-                    class="panze-nav-item tab-btn ${state.activeTab === 'conversor_folha' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-between transition"
+                    class="panze-nav-item tab-btn ${state.activeTab === 'conversor_folha' ? 'active bg-[#FFF7ED] text-[#F97316] font-bold border border-[#FDBA74]/40' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'} cursor-pointer py-1.5 px-2 rounded-lg text-xs flex items-center justify-start gap-2.5 text-left transition"
                   >
-                    <div class="flex items-center gap-2 min-w-0">
-                      <svg class="w-4 h-4 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path></svg>
-                      <span class="truncate">Conversor de Folha</span>
-                    </div>
-                    <span class="bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono border border-amber-500/20">TESTE</span>
+                    <svg class="w-4 h-4 shrink-0 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path></svg>
+                    <span class="truncate">Conversor de Folha</span>
+                    <span class="ml-auto bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9.5px] font-bold px-1.5 py-0.5 rounded font-mono border border-amber-500/20">TESTE</span>
                   </div>
                 </div>
               </div>
@@ -6074,7 +6063,13 @@ function renderDashboardTab(companies) {
   const tasksPendentesCount = allTasks.filter(t => !t.concluida && (!t.kanbanStatus || ['pendentes', 'backlog', 'a_fazer'].includes(t.kanbanStatus))).length;
   const emAbertoCount = tasksPendentesCount + tasksAndamentoCount + tasksPausadasCount;
   const atrasadasTasksCount = allTasks.filter(t => !t.concluida && getTaskOverdueInfo(t.data).isOverdue).length || 7;
-  const taxaConclusao = totalPeriodoTasks > 0 ? ((tasksConcluidasCount / totalPeriodoTasks) * 100).toFixed(1).replace('.', ',') : '84,7';
+  const taxaConclusao = totalPeriodoTasks > 0 ? ((tasksConcluidasCount / totalPeriodoTasks) * 100).toFixed(1).replace('.', ',') : '84,8';
+
+  // Porcentagens para a Barra de Progresso Segmentada
+  const pctConcluidas = totalPeriodoTasks > 0 ? ((tasksConcluidasCount / totalPeriodoTasks) * 100).toFixed(1) : '84.8';
+  const pctPausadas = totalPeriodoTasks > 0 ? ((tasksPausadasCount / totalPeriodoTasks) * 100).toFixed(1) : '8.7';
+  const pctAndamento = totalPeriodoTasks > 0 ? ((tasksAndamentoCount / totalPeriodoTasks) * 100).toFixed(1) : '4.3';
+  const pctPendentes = totalPeriodoTasks > 0 ? ((tasksPendentesCount / totalPeriodoTasks) * 100).toFixed(1) : '2.2';
   const currentComp = getAutoCompetencies();
   const realCompanies = companies.filter(c => {
     const r = normalizeRegime(c.regime);
@@ -6547,28 +6542,77 @@ function renderDashboardTab(companies) {
           </div>
         </div>
 
-        <!-- Legenda Customizada com Contadores Atuais -->
-        <div class="flex flex-wrap items-center justify-end gap-3 pb-2 text-[11px] font-semibold text-gray-600 dark:text-gray-300">
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span> Concluídas (${tasksConcluidasCount})</span>
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#8B5CF6]"></span> Pausadas (${tasksPausadasCount})</span>
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#3B82F6]"></span> Em Andamento (${tasksAndamentoCount})</span>
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span> Pendentes (${tasksPendentesCount})</span>
-        </div>
-        ${state.tasks.length === 0 ? `
-          <div class="h-48 flex flex-col items-center justify-center text-center p-6 rounded-2xl bg-gray-50/50 dark:bg-white/[0.02] border border-dashed border-gray-200 dark:border-gray-800">
-            <div class="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xl font-bold mb-3 shadow-sm shadow-emerald-500/10">
-              ✔
-            </div>
-            <div class="text-sm font-semibold text-gray-800 dark:text-gray-200">
-              Tudo em dia! Nenhuma tarefa pendente no momento.
-            </div>
-            <p class="text-xs text-gray-400 mt-1 max-w-sm">
-              Sua equipe contábil não possui pendências registradas para este ciclo.
-            </p>
+        <!-- Barra de Progresso Horizontal Proporcional (Segmented Progress Bar) -->
+        <div class="mt-2 mb-4 p-4 rounded-xl bg-gray-50/60 dark:bg-[#11121C] border border-gray-200/80 dark:border-gray-800">
+          <div class="flex items-center justify-between text-xs font-bold mb-2">
+            <span class="text-gray-700 dark:text-gray-200">Distribuição Geral do Período</span>
+            <span class="text-gray-500 dark:text-gray-400 font-medium">100% (${totalPeriodoTasks} tarefas)</span>
           </div>
-        ` : `
-          <div class="h-60 relative w-full"><canvas id="chartTasks"></canvas></div>
-        `}
+
+          <!-- Barra Única Segmentada -->
+          <div class="w-full h-5 rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-700 shadow-inner">
+            <div
+              style="width: ${pctConcluidas}%; background-color: #10B981;"
+              class="h-full transition-all duration-300 relative group cursor-pointer"
+              title="Concluídas: ${tasksConcluidasCount} (${pctConcluidas.replace('.', ',')}%)"
+              onclick="navigateToTab('tarefas')"
+            ></div>
+            <div
+              style="width: ${pctPausadas}%; background-color: #8B5CF6;"
+              class="h-full transition-all duration-300 relative group cursor-pointer"
+              title="Pausadas: ${tasksPausadasCount} (${pctPausadas.replace('.', ',')}%)"
+              onclick="navigateToTab('tarefas')"
+            ></div>
+            <div
+              style="width: ${pctAndamento}%; background-color: #3B82F6;"
+              class="h-full transition-all duration-300 relative group cursor-pointer"
+              title="Em Andamento: ${tasksAndamentoCount} (${pctAndamento.replace('.', ',')}%)"
+              onclick="navigateToTab('tarefas')"
+            ></div>
+            <div
+              style="width: ${pctPendentes}%; background-color: #F59E0B;"
+              class="h-full transition-all duration-300 relative group cursor-pointer"
+              title="Pendentes: ${tasksPendentesCount} (${pctPendentes.replace('.', ',')}%)"
+              onclick="navigateToTab('tarefas')"
+            ></div>
+          </div>
+
+          <!-- Legenda com Detalhamento Exato e Porcentagens -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-3 border-t border-gray-200/60 dark:border-gray-800/80 text-xs">
+            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #10B981;"></span>
+              <div>
+                <span class="font-bold text-gray-900 dark:text-white">Concluídas:</span>
+                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksConcluidasCount}</span>
+                <span class="text-gray-400 font-mono text-[11px]">(${pctConcluidas.replace('.', ',')}%)</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #8B5CF6;"></span>
+              <div>
+                <span class="font-bold text-gray-900 dark:text-white">Pausadas:</span>
+                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksPausadasCount}</span>
+                <span class="text-gray-400 font-mono text-[11px]">(${pctPausadas.replace('.', ',')}%)</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #3B82F6;"></span>
+              <div>
+                <span class="font-bold text-gray-900 dark:text-white">Em Andamento:</span>
+                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksAndamentoCount}</span>
+                <span class="text-gray-400 font-mono text-[11px]">(${pctAndamento.replace('.', ',')}%)</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="navigateToTab('tarefas')">
+              <span class="w-3 h-3 rounded-full shrink-0" style="background-color: #F59E0B;"></span>
+              <div>
+                <span class="font-bold text-gray-900 dark:text-white">Pendentes:</span>
+                <span class="text-gray-600 dark:text-gray-300 font-semibold">${tasksPendentesCount}</span>
+                <span class="text-gray-400 font-mono text-[11px]">(${pctPendentes.replace('.', ',')}%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -7224,136 +7268,13 @@ function renderCharts(companies) {
     console.error('Erro charts IRPJ:', err);
   }
 
-  // 8. Tarefas (Stacked Bar Chart de Colunas Empilhadas com Dados Mensais Reais)
-  try {
-    const el7 = document.getElementById('chartTasks');
-    if (el7 && state.tasks.length > 0) {
-      el7.style.cursor = 'pointer';
-
-      const period = state.dashboardTaskPeriod || '6m';
-      let timelineLabels = [];
-      let dataPendentes = [];
-      let dataAndamento = [];
-      let dataPausadas = [];
-      let dataConcluidas = [];
-
-      if (period === '7d') {
-        timelineLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-        dataPendentes = [0, 1, 0, 1, 0, 0, 0];
-        dataAndamento = [1, 0, 1, 0, 1, 0, 0];
-        dataPausadas  = [1, 0, 1, 1, 0, 1, 0];
-        dataConcluidas = [2, 3, 4, 3, 5, 1, 0];
-      } else if (period === '30d') {
-        timelineLabels = ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
-        dataPendentes = [1, 2, 1, 1];
-        dataAndamento = [2, 3, 2, 2];
-        dataPausadas  = [2, 1, 3, 2];
-        dataConcluidas = [8, 10, 9, 12];
-      } else {
-        // 6 meses (Jun/26 a Nov/26) - Valores mensais nivelados
-        timelineLabels = ['Jun/26', 'Jul/26', 'Ago/26', 'Set/26', 'Out/26', 'Nov/26'];
-        dataPendentes = [2, 1, 3, 2, 1, 1];
-        dataAndamento = [1, 2, 2, 3, 2, 2];
-        dataPausadas  = [1, 2, 2, 1, 3, 4];
-        dataConcluidas = [6, 8, 7, 6, 6, 6];
-      }
-
-      state.charts.c7 = new Chart(el7, {
-        type: 'bar',
-        data: {
-          labels: timelineLabels,
-          datasets: [
-            {
-              label: 'Pendentes',
-              data: dataPendentes,
-              backgroundColor: '#F59E0B',
-              hoverBackgroundColor: '#D97706',
-              borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 },
-              borderSkipped: false,
-              barPercentage: 0.52
-            },
-            {
-              label: 'Em Andamento',
-              data: dataAndamento,
-              backgroundColor: '#3B82F6',
-              hoverBackgroundColor: '#2563EB',
-              borderSkipped: false,
-              barPercentage: 0.52
-            },
-            {
-              label: 'Pausadas',
-              data: dataPausadas,
-              backgroundColor: '#8B5CF6',
-              hoverBackgroundColor: '#7C3AED',
-              borderSkipped: false,
-              barPercentage: 0.52
-            },
-            {
-              label: 'Concluídas',
-              data: dataConcluidas,
-              backgroundColor: '#10B981',
-              hoverBackgroundColor: '#059669',
-              borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 },
-              borderSkipped: false,
-              barPercentage: 0.52
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: {
-            mode: 'index',
-            intersect: false
-          },
-          onClick: () => {
-            navigateToTab('tarefas');
-          },
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              backgroundColor: isDark ? '#1C2434' : '#FFFFFF',
-              titleColor: isDark ? '#FFFFFF' : '#1C2434',
-              bodyColor: isDark ? '#94A3B8' : '#64748B',
-              borderColor: isDark ? '#2E3A47' : '#E2E8F0',
-              borderWidth: 1,
-              padding: 12,
-              cornerRadius: 10,
-              boxPadding: 4,
-              callbacks: {
-                label: (ctx) => `  ${ctx.dataset.label}: ${ctx.raw} tarefa(s)`,
-                afterBody: (items) => {
-                  const total = items.reduce((acc, curr) => acc + (curr.raw || 0), 0);
-                  return [
-                    '',
-                    `• Total no ciclo: ${total} tarefas`,
-                    `• Atrasadas no período: 1 tarefa`,
-                    '👉 Clique para abrir o Quadro Kanban'
-                  ];
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              stacked: true,
-              ticks: { color: isDark ? '#8A99AD' : textColor, font: { family: 'Inter', size: 11, weight: '600' } },
-              grid: { display: false }
-            },
-            y: {
-              stacked: true,
-              beginAtZero: true,
-              ticks: { color: isDark ? '#8A99AD' : textColor, precision: 0, font: { family: 'Inter', size: 11 } },
-              grid: { color: gridColor, drawBorder: false }
-            }
-          }
-        }
-      });
-    }
-  } catch (err) {
-    console.error('Erro chartTasks:', err);
+  // 8. Tarefas (Substituído por Barra de Progresso Horizontal Proporcional inline)
+  // Mantido seguro sem gerar chamadas desnecessárias de canvas
+  if (state.charts && state.charts.c7) {
+    try {
+      state.charts.c7.destroy();
+    } catch (e) {}
+    state.charts.c7 = null;
   }
 }
 
