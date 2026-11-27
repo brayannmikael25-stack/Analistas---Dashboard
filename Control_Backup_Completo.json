@@ -1,0 +1,1830 @@
+{
+  "version": "3.0",
+  "schemaVersion": 2,
+  "timestamp": "2026-11-25T20:34:52.856Z",
+  "user_id": "1",
+  "user": "brayann",
+  "users": [
+    {
+      "id": 1,
+      "usuario": "brayann",
+      "email": "brayann@controlcontabilidade.com.br",
+      "senha": "bra@7288",
+      "nome": "Brayann Mikael",
+      "role": "analista",
+      "userProfile": {
+        "firstName": "Brayann",
+        "lastName": "Mikael",
+        "role": "Analista",
+        "location": "Brasil",
+        "email": "brayannmikael@controlcontabilidade.com",
+        "phone": "+55 85 98765-4321",
+        "bio": "Responsável operacional pelo acompanhamento de tarefas e rotinas contábeis de clientes.",
+        "social": {
+          "facebook": "#",
+          "twitter": "#",
+          "linkedin": "#",
+          "instagram": "#"
+        },
+        "address": {
+          "country": "Brasil",
+          "cityState": "Fortaleza-CE",
+          "postalCode": "60170-002",
+          "taxId": "21.423.156/0001-55"
+        },
+        "twoFactorEnabled": false
+      }
+    }
+  ],
+  "companies": [
+    {
+      "id": 492316057,
+      "codigo": "226",
+      "grupo": "DMOURA",
+      "nome": "S A CRUZ COMERCIAL DE MEDICAMENTOS LTDA",
+      "cnpj": "51.567.009/0001-10",
+      "classe": "C",
+      "regime": "Lucro Presumido",
+      "colaborador": "ERICA",
+      "segmento": "Comércio",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 948819430,
+      "codigo": "231",
+      "grupo": "M. Landim",
+      "nome": "WM CONSTRUCOES LTDA",
+      "cnpj": "02.364.381/0001-13",
+      "classe": "C",
+      "regime": "Lucro Presumido",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 948750840,
+      "codigo": "216",
+      "grupo": "M. Landim",
+      "nome": "RG2 TERRAPLENAGEM LTDA",
+      "cnpj": "10.417.584/0001-59",
+      "classe": "C",
+      "regime": "Lucro Presumido",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2026-02"
+    },
+    {
+      "id": 948709233,
+      "codigo": "9468",
+      "grupo": "M. Landim",
+      "nome": "SOLIDA ENGENHARIA LTDA",
+      "cnpj": "14.108.584/0001-28",
+      "classe": "C",
+      "regime": "Lucro Presumido",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2026-02"
+    },
+    {
+      "id": 945532378,
+      "codigo": "4523",
+      "grupo": "UNIQUIMICA",
+      "nome": "UNIQUIMICA LTDA",
+      "cnpj": "28.279.873/0001-02",
+      "classe": "A",
+      "regime": "Lucro Real Mensal",
+      "colaborador": "AMANDA",
+      "segmento": "Outros",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532379,
+      "codigo": "391",
+      "grupo": "GREEN",
+      "nome": "GREEN X SUSTENTABILIDADE E INSTALACOES ELETRICAS LTDA",
+      "cnpj": "05.095.843/0001-32",
+      "classe": "A",
+      "regime": "Lucro Real Mensal",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2026-08"
+    },
+    {
+      "id": 945532380,
+      "codigo": "336",
+      "grupo": "LUNAR",
+      "nome": "LUNAR SERVICOS TERRAPLENAGEM E LOCACAO LTDA",
+      "cnpj": "55.402.470/0001-73",
+      "classe": "A",
+      "regime": "Lucro Presumido",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2026-10"
+    },
+    {
+      "id": 945532381,
+      "codigo": "68",
+      "grupo": "68",
+      "nome": "K TEK SOLUCOES DE ENGENHARIA LTDA",
+      "cnpj": "29.871.297/0001-42",
+      "classe": "A",
+      "regime": "Lucro Real Mensal",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532382,
+      "codigo": "254",
+      "grupo": "CONNECT",
+      "nome": "CONNECT SERVICOS LTDA",
+      "cnpj": "11.553.714/0001-43",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "AMANDA",
+      "segmento": "Serviços de Limpesa",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532383,
+      "codigo": "406",
+      "grupo": "ACRIMAX",
+      "nome": "MARIA LUCIANA FERREIRA PAULINO LTDA",
+      "cnpj": "03.021.917/0001-60",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "AMANDA",
+      "segmento": "Industria / Comércio",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 945532384,
+      "codigo": "566",
+      "grupo": "DION",
+      "nome": "M A COMERCIAL DE MEDICAMENTOS LTDA",
+      "cnpj": "21.593.391/0001-75",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "AMANDA",
+      "segmento": "Comércio",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 945532385,
+      "codigo": "9440",
+      "grupo": "SENA",
+      "nome": "M J DE SENA & CIA LTDA",
+      "cnpj": "10.483.915/0001-59",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "AMANDA",
+      "segmento": "Comércio",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532386,
+      "codigo": "9732",
+      "grupo": "JUNIOR",
+      "nome": "ANTONIO LEOCADIO LIMA FILHO",
+      "cnpj": "07.028.193/0001-38",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "ZHENNIA",
+      "segmento": "Gás e Combustíveis",
+      "fechamento": "2026-10"
+    },
+    {
+      "id": 945532387,
+      "codigo": "139",
+      "grupo": "ADAIU",
+      "nome": "CARLOS ADAIU DE LIMA LTDA",
+      "cnpj": "33.917.166/0001-26",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "AMANDA",
+      "segmento": "Comércio",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532388,
+      "codigo": "252",
+      "grupo": "CONNECT",
+      "nome": "CONNECT EMPREENDIMENTOS LTDA",
+      "cnpj": "32.146.336/0001-53",
+      "classe": "C",
+      "regime": "Simples Nacional",
+      "colaborador": "AMANDA",
+      "segmento": "Serviços de Limpesa",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 945532389,
+      "codigo": "253",
+      "grupo": "CONNECT",
+      "nome": "CONNECT TERCEIRIZACAO LTDA",
+      "cnpj": "13.737.597/0001-01",
+      "classe": "C",
+      "regime": "Simples Nacional",
+      "colaborador": "AMANDA",
+      "segmento": "Serviços de Limpesa",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 945532391,
+      "codigo": "2101",
+      "grupo": "JUNIOR",
+      "nome": "VAI GAS COMERCIO DE GAS LTDA",
+      "cnpj": "32.113.341/0001-60",
+      "classe": "C",
+      "regime": "Lucro Presumido",
+      "colaborador": "ZHENNIA",
+      "segmento": "Gás e Combustíveis",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 945532392,
+      "codigo": "9733",
+      "grupo": "JUNIOR",
+      "nome": "ALLF COMERCIO DE GAS EIRELI",
+      "cnpj": "22.674.941/0001-43",
+      "classe": "C",
+      "regime": "Lucro Presumido",
+      "colaborador": "ZHENNIA",
+      "segmento": "Gás e Combustíveis",
+      "fechamento": "2026-06"
+    },
+    {
+      "id": 945532393,
+      "codigo": "18",
+      "grupo": "501",
+      "nome": "---",
+      "cnpj": "TECH E INFRAESTRUTURA E TECNOLOGIA LTDA",
+      "classe": "D",
+      "regime": "Simples Nacional",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2025-12"
+    },
+    {
+      "id": 945532394,
+      "codigo": "393",
+      "grupo": "GREEN",
+      "nome": "GREENCAVALCANTE & CAVALCANTE S/S LTDA",
+      "cnpj": "05.498.575/0001-08",
+      "classe": "D",
+      "regime": "Simples Nacional",
+      "colaborador": "AMANDA",
+      "segmento": "Outros",
+      "fechamento": "2025-12"
+    },
+    {
+      "id": 945532395,
+      "codigo": "392",
+      "grupo": "GREEN",
+      "nome": "TECI INFRAESTRUTURA",
+      "cnpj": "06.559.884/0001-03",
+      "classe": "C",
+      "regime": "Simples Nacional",
+      "colaborador": "AMANDA",
+      "segmento": "Outros",
+      "fechamento": "2025-12"
+    },
+    {
+      "id": 945532396,
+      "codigo": "364",
+      "grupo": "EDUARDO",
+      "nome": "LUCCA BACELAR ENGENHARIA LTDA",
+      "cnpj": "57.168.799/0001-47",
+      "classe": "D",
+      "regime": "Lucro Presumido",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2025-12"
+    },
+    {
+      "id": 945532397,
+      "codigo": "503",
+      "grupo": "FGW",
+      "nome": "FGW CONSTRUTORA LTDA",
+      "cnpj": "40.950.673/0001-27",
+      "classe": "C",
+      "regime": "Lucro Presumido",
+      "colaborador": "AMANDA",
+      "segmento": "Construtora",
+      "fechamento": "2025-12"
+    },
+    {
+      "id": 945532398,
+      "codigo": "197",
+      "grupo": "IBIFARMA",
+      "nome": "IBIFARMA COMERCIO",
+      "cnpj": "40.839.940/0001-93",
+      "classe": "E",
+      "regime": "Lucro Presumido",
+      "colaborador": "AMANDA",
+      "segmento": "Farmácia",
+      "fechamento": "2026-08"
+    },
+    {
+      "id": 945532399,
+      "codigo": "87",
+      "grupo": "PRIORIDADE",
+      "nome": "PRIORIDADE SEGURANCA LTDA",
+      "cnpj": "44.343.328/0001-86",
+      "classe": "A",
+      "regime": "Lucro Real Mensal",
+      "colaborador": "DEBORA",
+      "segmento": "Serviços",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532400,
+      "codigo": "99",
+      "grupo": "PRIORIDADE",
+      "nome": "PRIORIDADE SERVICOS TERCEIRIZADOS LTDA",
+      "cnpj": "45.543.801/0001-31",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "DEBORA",
+      "segmento": "Serviços",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532402,
+      "codigo": "53",
+      "grupo": "GRAÇA",
+      "nome": "MARIA DAS GRACAS MELO PALHARES LTDA",
+      "cnpj": "03.391.598/0001-85",
+      "classe": "A",
+      "regime": "Lucro Real Mensal",
+      "colaborador": "ERICA",
+      "segmento": "Comércio",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532403,
+      "codigo": "182",
+      "grupo": "RICARDUS",
+      "nome": "MEDICALL BRASIL COMERCIO E SERVICOS LTDA",
+      "cnpj": "29.245.742/0001-69",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "ERICA",
+      "segmento": "Comércio",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532404,
+      "codigo": "275",
+      "grupo": "RICARDUS",
+      "nome": "SP COMERCIO FARMACEUTICO LTDA",
+      "cnpj": "63.926.386/0001-87",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "ERICA",
+      "segmento": "Farmácia",
+      "fechamento": "2026-09"
+    },
+    {
+      "id": 945532405,
+      "codigo": "106",
+      "grupo": "DMOURA",
+      "nome": "DMOURA & S A CRUZ LTDA",
+      "cnpj": "46.382.272/0001-02",
+      "classe": "B",
+      "regime": "Lucro Real Trimestral",
+      "colaborador": "ERICA",
+      "segmento": "Farmácia",
+      "fechamento": "2026-09"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1756152403,
+      "titulo": "Fechamento mensal - Prioridade Segurança",
+      "descricao": "Fechamento 10/2026",
+      "empresaId": 945532399,
+      "data": "2026-11-25",
+      "urgencia": "Alta",
+      "concluida": false,
+      "kanbanStatus": "em_andamento",
+      "createdAt": "2026-11-25",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1754667567,
+      "titulo": "Fechamento Maria das Graças",
+      "descricao": "Mara das Graças - 10/2026",
+      "empresaId": null,
+      "data": "2026-11-25",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-23",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1750970450,
+      "titulo": "Importação Fiscal - IBIFARMA",
+      "descricao": "Conferir importação fiscal ibifarma - 09/2026",
+      "empresaId": null,
+      "data": "2026-11-24",
+      "urgencia": "Media",
+      "concluida": false,
+      "kanbanStatus": "pendentes",
+      "createdAt": "2026-11-19",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1749485610,
+      "titulo": "Cobrança de prazo - PIS e COFIS",
+      "descricao": "Cobrar prazo de pis e cofinss, com o setor fiscal",
+      "empresaId": null,
+      "data": "2026-11-18",
+      "urgencia": "Media",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-17",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1749484497,
+      "titulo": "Fechamento Lunar Serviços - 10/2026",
+      "descricao": "",
+      "empresaId": 945532380,
+      "data": "2026-11-18",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-17",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1745153476,
+      "titulo": "Marcus consultor -Teci",
+      "descricao": "Falar com marcus da simulação da Teci",
+      "empresaId": 945532395,
+      "data": "2026-11-13",
+      "urgencia": "Alta",
+      "concluida": false,
+      "kanbanStatus": "pausadas",
+      "createdAt": "2026-11-12",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1744890747,
+      "titulo": "PERD/COMP INSS - Connect Serviços",
+      "descricao": "Fazer e enviar PERD/COMP",
+      "empresaId": null,
+      "data": "2026-11-13",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-12",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1743332758,
+      "titulo": "Enviar relatórios - 3º trim connect serviços",
+      "descricao": "Balanço, DRE, Créditos e saldo restante + PERD/COMPs",
+      "empresaId": null,
+      "data": "2026-11-10",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-10",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1743195425,
+      "titulo": "Conferir despesas - WM",
+      "descricao": "Conferir as contas de alerta da WM em despesas/custos - relatório lucas",
+      "empresaId": null,
+      "data": "2026-11-11",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-10",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1737177345,
+      "titulo": "Remarcar reunião green",
+      "descricao": "para 16hs ou sexta dia 06/11",
+      "empresaId": null,
+      "data": "2026-11-03",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-03",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "05/11/2026, 09:20:27",
+          "acao": "Marcada como Concluída"
+        }
+      ]
+    },
+    {
+      "id": 1737039070,
+      "titulo": "Simulação tributária - Grupo Green",
+      "descricao": "Preparar simulação tributária Green X e Teci",
+      "empresaId": null,
+      "data": "2026-11-04",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-03",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1737045967,
+      "titulo": "DARF enviado: 2ª Quota IRPJ/CSLL (3º Trim 2026) - M J DE SENA & CIA LTDA",
+      "descricao": "Lembrete de conferência e envio da 2ª Quota mensal de IRPJ e CSLL referente ao parcelamento do 3º Trim 2026 (Competência 11/2026). [QUOTA_IRPJ_945532385_3º Trim 2026_Q2]",
+      "empresaId": 945532385,
+      "data": "2026-11-30",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-03",
+      "isAutoQuotaReminder": true,
+      "quotaMeta": {
+        "companyId": 945532385,
+        "trimStr": "3º Trim 2026",
+        "quotaNum": 2
+      },
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1737037366,
+      "titulo": "DARF enviado: 2ª Quota IRPJ/CSLL (3º Trim 2026) - M A COMERCIAL DE MEDICAMENTOS LTDA",
+      "descricao": "Lembrete de conferência e envio da 2ª Quota mensal de IRPJ e CSLL referente ao parcelamento do 3º Trim 2026 (Competência 11/2026). [QUOTA_IRPJ_945532384_3º Trim 2026_Q2]",
+      "empresaId": 945532384,
+      "data": "2026-11-30",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-03",
+      "isAutoQuotaReminder": true,
+      "quotaMeta": {
+        "companyId": 945532384,
+        "trimStr": "3º Trim 2026",
+        "quotaNum": 2
+      },
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1737039189,
+      "titulo": "DARF enviado: 2ª Quota IRPJ/CSLL (3º Trim 2026) - MARIA LUCIANA FERREIRA PAULINO LTDA",
+      "descricao": "Lembrete de conferência e envio da 2ª Quota mensal de IRPJ e CSLL referente ao parcelamento do 3º Trim 2026 (Competência 11/2026). [QUOTA_IRPJ_945532383_3º Trim 2026_Q2]",
+      "empresaId": 945532383,
+      "data": "2026-11-30",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-11-03",
+      "isAutoQuotaReminder": true,
+      "quotaMeta": {
+        "companyId": 945532383,
+        "trimStr": "3º Trim 2026",
+        "quotaNum": 2
+      },
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1733596510,
+      "titulo": "Fechamentos grupo Prioridade",
+      "descricao": "Fechamento contabil - grupo Prioridade",
+      "empresaId": null,
+      "data": "2026-11-06",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-30",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732964278,
+      "titulo": "DARF enviado: 1ª Quota IRPJ/CSLL (3º Trim 2026) - M J DE SENA & CIA LTDA",
+      "descricao": "Lembrete de conferência e envio da 1ª Quota mensal de IRPJ e CSLL referente ao parcelamento do 3º Trim 2026 (Competência 10/2026). [QUOTA_IRPJ_945532385_3º Trim 2026_Q1]",
+      "empresaId": 945532385,
+      "data": "2026-10-31",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-29",
+      "isAutoQuotaReminder": true,
+      "quotaMeta": {
+        "companyId": 945532385,
+        "trimStr": "3º Trim 2026",
+        "quotaNum": 1
+      },
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732902989,
+      "titulo": "WM fechamento - 1º semestre",
+      "descricao": "Conferir WM construções jan a jun 2026",
+      "empresaId": null,
+      "data": "2026-10-30",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-29",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732840161,
+      "titulo": "Rever despesas - K tek",
+      "descricao": "Conferir contas de despeas e custos usadas na k tek",
+      "empresaId": 945532381,
+      "data": "2026-11-11",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Media",
+      "concluida": false,
+      "kanbanStatus": "em_andamento",
+      "createdAt": "2026-10-29",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732757238,
+      "titulo": "Apuração imposto - Maria Luciana",
+      "descricao": "enviar como é feito o calculo do imposto lucro real para Minerrah",
+      "empresaId": 945532383,
+      "data": "2026-10-29",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-29",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732761100,
+      "titulo": "DARF enviado: 1ª Quota IRPJ/CSLL (3º Trim 2026) - MARIA LUCIANA FERREIRA PAULINO LTDA",
+      "descricao": "Lembrete de conferência e envio da 1ª Quota mensal de IRPJ e CSLL referente ao parcelamento do 3º Trim 2026 (Competência 10/2026). [QUOTA_IRPJ_945532383_3º Trim 2026_Q1]",
+      "empresaId": 945532383,
+      "data": "2026-10-31",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-29",
+      "isAutoQuotaReminder": true,
+      "quotaMeta": {
+        "companyId": 945532383,
+        "trimStr": "3º Trim 2026",
+        "quotaNum": 1
+      },
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732738936,
+      "titulo": "Fechamento Maria Luciana",
+      "descricao": "Conferir resultado 2º trimestre e 3º trimestre",
+      "empresaId": null,
+      "data": "2026-10-30",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Media",
+      "concluida": false,
+      "kanbanStatus": "pausadas",
+      "createdAt": "2026-10-29",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732128061,
+      "titulo": "Lalur Prioridade Segurança",
+      "descricao": "Parametrizar Lalur, diferença mensal após impostos a pagar abatidos com imposto retido",
+      "empresaId": 945532399,
+      "data": "2026-10-30",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Media",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-28",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "30/10/2026, 15:10:25",
+          "acao": "Data alterada no calendário para 06/11/2026"
+        },
+        {
+          "data": "30/10/2026, 15:10:34",
+          "acao": "Data alterada no calendário para 06/11/2026"
+        }
+      ]
+    },
+    {
+      "id": 1732125451,
+      "titulo": "DARF enviado: 1ª Quota IRPJ/CSLL (3º Trim 2026) - M A COMERCIAL DE MEDICAMENTOS LTDA",
+      "descricao": "Lembrete de conferência e envio da 1ª Quota mensal de IRPJ e CSLL referente ao parcelamento do 3º Trim 2026 (Competência 10/2026). [QUOTA_IRPJ_945532384_3º Trim 2026_Q1]",
+      "empresaId": 945532384,
+      "data": "2026-10-31",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-28",
+      "isAutoQuotaReminder": true,
+      "quotaMeta": {
+        "companyId": 945532384,
+        "trimStr": "3º Trim 2026",
+        "quotaNum": 1
+      },
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1732060595,
+      "titulo": "Reunião MJ de Sena",
+      "descricao": "Reunião trimestre MJ de SENA",
+      "empresaId": 945532385,
+      "data": "2026-10-29",
+      "horaInicio": "14:00",
+      "horaFim": "15:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-28",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1731866633,
+      "titulo": "Remarcar reuniões",
+      "descricao": "Grupo Green e MJ de Sena",
+      "empresaId": null,
+      "data": "2026-10-28",
+      "horaInicio": "09:00",
+      "horaFim": "10:00",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-28",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 1727874461,
+      "titulo": "Financiamento - MJ de Sena",
+      "descricao": "Conciliar pagamento de financiamento caixa MJ de Sena - 09/2026",
+      "empresaId": 945532385,
+      "data": "2026-10-26",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-23",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "29/10/2026, 13:12:33",
+          "acao": "Marcada como Concluída"
+        }
+      ]
+    },
+    {
+      "id": 1727821225,
+      "titulo": "Reajuste de despesas - Connect Serviços",
+      "descricao": "Lançado valor de R$ 29.349,47 na Connect Serviços 3º tri, lançar reajuste no 4º tri",
+      "empresaId": 945532382,
+      "data": "2026-11-30",
+      "urgencia": "Media",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-23",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "23/10/2026, 17:30:55",
+          "acao": "Movida para coluna: concluida"
+        },
+        {
+          "data": "23/10/2026, 17:31:18",
+          "acao": "Movida para coluna: a_fazer"
+        }
+      ]
+    },
+    {
+      "id": 1726972375,
+      "titulo": "Fechamento - SP comercio e Medicall",
+      "descricao": "",
+      "empresaId": null,
+      "data": "2026-10-23",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluida",
+      "createdAt": "2026-10-22",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "23/10/2026, 17:30:47",
+          "acao": "Movida para coluna: concluida"
+        }
+      ]
+    },
+    {
+      "id": 1726944664,
+      "titulo": "Reunião G. Green",
+      "descricao": "Simulação tributária Teci",
+      "empresaId": 945532379,
+      "data": "2026-11-04",
+      "horaInicio": "14:00",
+      "horaFim": "15:30",
+      "urgencia": "Alta",
+      "concluida": true,
+      "kanbanStatus": "concluidas",
+      "createdAt": "2026-10-22",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "05/11/2026, 09:20:43",
+          "acao": "Data alterada no calendário para 10/11/2026"
+        }
+      ]
+    },
+    {
+      "id": 175203715,
+      "titulo": "Lançar ajuste na D.R.E - Connect Serviços",
+      "descricao": "Ajuste de resultado na D.R.E - comp 09/2026",
+      "data": "2026-10-20",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-16",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:40:04",
+          "acao": "Movida para coluna: em_andamento"
+        },
+        {
+          "data": "23/10/2026, 17:30:42",
+          "acao": "Movida para coluna: concluida"
+        }
+      ]
+    },
+    {
+      "id": 97491310,
+      "titulo": "Atualizações de Sistema com ControlHUB",
+      "descricao": "",
+      "data": "2026-11-06",
+      "urgencia": "Media",
+      "concluida": true,
+      "createdAt": "2026-10-15",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:40:18",
+          "acao": "Movida para coluna: concluida"
+        }
+      ]
+    },
+    {
+      "id": 96873512,
+      "titulo": "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL",
+      "descricao": "",
+      "data": "2026-10-19",
+      "urgencia": "Media",
+      "concluida": true,
+      "createdAt": "2026-10-15",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:40:14",
+          "acao": "Movida para coluna: concluida"
+        }
+      ]
+    },
+    {
+      "id": 96845705,
+      "titulo": "EXCLUSÃO CONTAS DE CLIENTES - M A COMERCIAL",
+      "descricao": "",
+      "data": "2026-10-18",
+      "urgencia": "Baixa",
+      "concluida": true,
+      "createdAt": "2026-10-15",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 96821200,
+      "titulo": "PERD/COMP - CONNECT SERVIÇOS",
+      "descricao": "",
+      "data": "2026-10-16",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-15",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 470607574,
+      "titulo": "Fechamento - Lunar Serviços",
+      "descricao": "Fechamento Lunar - 09/2026",
+      "data": "2026-10-08",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-08",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 466827501,
+      "titulo": "Fechamento Connect Serviços",
+      "descricao": "Fechamento mês 7 e 8",
+      "data": "2026-10-08",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-08",
+      "empresaId": 945532382,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:39:55",
+          "acao": "Movida para coluna: em_andamento"
+        },
+        {
+          "data": "23/10/2026, 17:30:36",
+          "acao": "Movida para coluna: concluida"
+        }
+      ]
+    },
+    {
+      "id": 383253712,
+      "titulo": "Fechamentos - Pendentes",
+      "descricao": "Concluir fechamentos de balanços",
+      "data": "2026-10-08",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-08",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 383223457,
+      "titulo": "K tek - aumento de capital social",
+      "descricao": "",
+      "data": "2026-10-31",
+      "urgencia": "Baixa",
+      "concluida": true,
+      "createdAt": "2026-10-31",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 205267693,
+      "titulo": "Documentação TECI - Marcus consultor",
+      "descricao": "Enviar doc BPO para o Marcos de Junho para frente, grupo Green",
+      "data": "2026-10-05",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-05",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 204663158,
+      "titulo": "Reunião Frigotop e MJ de Sena",
+      "descricao": "Marcar reunião fechamento trimestral - Marcus Consultor",
+      "data": "2026-10-21",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-16",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:40:11",
+          "acao": "Movida para coluna: concluida"
+        }
+      ]
+    },
+    {
+      "id": 969232414,
+      "titulo": "Connect Terceirização",
+      "descricao": "Empréstimo Finame",
+      "data": "2026-11-05",
+      "urgencia": "Media",
+      "concluida": false,
+      "createdAt": "2026-11-05",
+      "empresaId": 945532389,
+      "kanbanStatus": "pausadas",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 957847529,
+      "titulo": "Connect Terceirização - IRPJ ganho de capital",
+      "descricao": "Imposto sobre venda de imóveis detalhado no e-mail, imposto competência 09/2026",
+      "data": "2026-11-06",
+      "urgencia": "Media",
+      "concluida": false,
+      "createdAt": "2026-11-06",
+      "empresaId": null,
+      "kanbanStatus": "pausadas",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 949339646,
+      "titulo": "Fechamento M A COMERCIAL 06/2026",
+      "descricao": "Fechamento M A COMERCIAL 06/2026",
+      "data": "2026-10-16",
+      "urgencia": "Alta",
+      "concluida": false,
+      "createdAt": "2026-10-16",
+      "empresaId": null,
+      "kanbanStatus": "pausadas",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:39:58",
+          "acao": "Movida para coluna: em_andamento"
+        },
+        {
+          "data": "23/10/2026, 17:52:45",
+          "acao": "Movida para coluna: aguardando_cliente"
+        },
+        {
+          "data": "23/10/2026, 17:52:47",
+          "acao": "Movida para coluna: a_fazer"
+        },
+        {
+          "data": "23/10/2026, 17:52:49",
+          "acao": "Movida para coluna: em_andamento"
+        }
+      ]
+    },
+    {
+      "id": 947975020,
+      "titulo": "Lunar - Empréstimos",
+      "descricao": "Provisionar longo e curto prazo de novos empréstimos",
+      "data": "2026-11-06",
+      "urgencia": "Media",
+      "concluida": true,
+      "createdAt": "2026-11-06",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:40:21",
+          "acao": "Movida para coluna: concluida"
+        }
+      ]
+    },
+    {
+      "id": 947931740,
+      "titulo": "Folha - Grupo Prioridade",
+      "descricao": "Lançar folhas grupo prioridade",
+      "data": "2026-10-16",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-16",
+      "empresaId": null,
+      "kanbanStatus": "concluidas",
+      "comentarios": [],
+      "historico": [
+        {
+          "data": "22/10/2026, 15:40:00",
+          "acao": "Movida para coluna: em_andamento"
+        }
+      ]
+    },
+    {
+      "id": 947901077,
+      "titulo": "K tek - atualização 08/2026",
+      "descricao": "Notas canceladas 08/2026",
+      "data": "2026-10-09",
+      "urgencia": "Alta",
+      "concluida": true,
+      "createdAt": "2026-10-09",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    },
+    {
+      "id": 947528461,
+      "titulo": "Teci 03/2026",
+      "descricao": "Ajuste de saldo inicial e fechamento 03/2026",
+      "data": "2026-11-30",
+      "urgencia": "Baixa",
+      "concluida": true,
+      "createdAt": "2026-11-30",
+      "empresaId": null,
+      "kanbanStatus": "concluida",
+      "comentarios": [],
+      "historico": []
+    }
+  ],
+  "pisCofinsData": {
+    "705702736_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702737_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702738_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702740_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702741_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702742_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702736_08/2026": {
+      "status": "Concluída",
+      "darfEnviado": true
+    },
+    "705702737_08/2026": {
+      "status": "Concluída",
+      "darfEnviado": true
+    },
+    "705702739_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702743_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702744_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702745_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702746_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702747_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702748_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702749_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702750_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702751_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702752_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702753_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702754_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702755_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702756_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702757_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702758_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702759_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702760_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702761_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702762_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702763_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702764_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702765_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702766_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702767_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702768_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702769_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702770_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702771_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702772_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702773_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702774_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702775_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702776_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702777_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702778_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702779_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702780_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702781_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702782_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "705702783_09/2026": {
+      "status": "Pendente",
+      "darfEnviado": false
+    },
+    "945532378_09/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "saldoCredor": true,
+      "updatedAt": "20/10 às 08:20"
+    },
+    "945532386_09/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "updatedAt": "19/10 às 16:15",
+      "saldoCredor": true
+    },
+    "945532382_09/2026": {
+      "status": "Concluída",
+      "darfEnviado": true
+    },
+    "945532381_09/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "saldoCredor": true,
+      "updatedAt": "22/10 às 15:21"
+    },
+    "945532383_09/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "saldoCredor": true,
+      "updatedAt": "20/10 às 08:37"
+    },
+    "945532379_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "20/10 às 08:37"
+    },
+    "945532384_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "22/10 às 15:12"
+    },
+    "945532385_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "22/10 às 15:12"
+    },
+    "945532387_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "22/10 às 15:12"
+    },
+    "945532400_09/2026": {
+      "status": "Concluída",
+      "darfEnviado": true,
+      "updatedAt": "22/10 às 15:12"
+    },
+    "945532399_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "22/10 às 15:12"
+    },
+    "945532402_09/2026": {
+      "status": "Concluída",
+      "darfEnviado": true,
+      "updatedAt": "22/10 às 15:12"
+    },
+    "945532403_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "22/10 às 15:13"
+    },
+    "945532404_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "22/10 às 15:13"
+    },
+    "945532405_09/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "22/10 às 15:13"
+    },
+    "945532382_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": true,
+      "updatedAt": "23/11 às 08:58"
+    },
+    "945532399_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": true,
+      "updatedAt": "23/11 às 14:55"
+    },
+    "945532378_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "updatedAt": "23/11 às 14:55",
+      "saldoCredor": true
+    },
+    "945532381_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "updatedAt": "24/11 às 11:32",
+      "saldoCredor": true
+    },
+    "945532383_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "updatedAt": "24/11 às 08:21",
+      "saldoCredor": true
+    },
+    "945532400_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "updatedAt": "24/11 às 14:42",
+      "saldoCredor": true
+    },
+    "945532379_10/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "23/11 às 14:11"
+    },
+    "945532386_10/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "23/11 às 14:11"
+    },
+    "945532402_10/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "23/11 às 15:39"
+    },
+    "945532387_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "updatedAt": "23/11 às 15:41",
+      "saldoCredor": true
+    },
+    "945532385_10/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "23/11 às 16:40"
+    },
+    "945532384_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": false,
+      "updatedAt": "25/11 às 11:15",
+      "saldoCredor": true
+    },
+    "945532403_10/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "24/11 às 09:27"
+    },
+    "945532404_10/2026": {
+      "saldoCredor": true,
+      "darfEnviado": false,
+      "status": "Concluída",
+      "updatedAt": "24/11 às 09:28"
+    },
+    "945532405_10/2026": {
+      "status": "Concluída",
+      "darfEnviado": true,
+      "updatedAt": "24/11 às 10:50"
+    }
+  },
+  "irpjTrimData": {
+    "705702742_3º Trim 2026": {
+      "prejuizo": false,
+      "quotaUnica": true,
+      "darfUnica": false
+    },
+    "705702742_2º Trim 2026": {
+      "darfUnica": true,
+      "prejuizo": true
+    },
+    "945532382_3º Trim 2026": {
+      "darfUnica": true,
+      "quotaUnica": true
+    },
+    "945532403_3º Trim 2026": {
+      "prejuizo": true,
+      "updatedAt": "23/10 às 15:38"
+    },
+    "945532404_3º Trim 2026": {
+      "prejuizo": true,
+      "updatedAt": "23/10 às 15:38"
+    },
+    "945532386_3º Trim 2026": {
+      "prejuizo": true,
+      "updatedAt": "26/10 às 15:41"
+    },
+    "945532405_3º Trim 2026": {
+      "darfUnica": true,
+      "updatedAt": "28/10 às 10:28",
+      "quotaUnica": true
+    },
+    "945532387_3º Trim 2026": {
+      "darfUnica": true,
+      "updatedAt": "28/10 às 14:26",
+      "quotaUnica": true
+    },
+    "945532400_3º Trim 2026": {
+      "prejuizo": true,
+      "updatedAt": "28/10 às 14:38"
+    },
+    "945532384_3º Trim 2026": {
+      "quotaUnica": false,
+      "updatedAt": "24/11 às 11:33",
+      "p1": true,
+      "p2": true
+    },
+    "945532383_3º Trim 2026": {
+      "quotaUnica": false,
+      "updatedAt": "24/11 às 11:33",
+      "p1": true,
+      "p2": true
+    },
+    "945532385_3º Trim 2026": {
+      "quotaUnica": false,
+      "updatedAt": "24/11 às 11:33",
+      "p1": true,
+      "p2": true,
+      "p3": true
+    }
+  },
+  "irpjMensalData": {
+    "705702736_09/2026": {
+      "prejuizo": false,
+      "status": "Pendente"
+    },
+    "705702736_08/2026": {
+      "status": "Concluída",
+      "prejuizo": true
+    },
+    "705702737_08/2026": {
+      "prejuizo": true,
+      "status": "Concluída"
+    },
+    "705702738_08/2026": {
+      "prejuizo": true,
+      "status": "Concluída"
+    },
+    "705702740_08/2026": {
+      "prejuizo": true,
+      "status": "Concluída"
+    },
+    "705702741_08/2026": {
+      "prejuizo": true,
+      "status": "Concluída"
+    },
+    "705702737_09/2026": {
+      "prejuizo": false,
+      "status": "Pendente"
+    },
+    "705702738_09/2026": {
+      "prejuizo": false,
+      "status": "Pendente"
+    },
+    "705702740_09/2026": {
+      "prejuizo": false,
+      "status": "Pendente"
+    },
+    "705702741_09/2026": {
+      "prejuizo": false,
+      "status": "Pendente"
+    },
+    "945532378_09/2026": {
+      "status": "Concluída",
+      "prejuizo": true,
+      "updatedAt": "23/10 às 17:31"
+    },
+    "945532402_09/2026": {
+      "prejuizo": true,
+      "status": "Concluída",
+      "updatedAt": "23/10 às 15:06"
+    },
+    "945532379_09/2026": {
+      "prejuizo": true,
+      "status": "Concluída",
+      "updatedAt": "26/10 às 08:34"
+    },
+    "945532399_09/2026": {
+      "prejuizo": true,
+      "status": "Concluída",
+      "updatedAt": "28/10 às 13:06"
+    },
+    "945532381_09/2026": {
+      "prejuizo": true,
+      "status": "Concluída",
+      "updatedAt": "26/10 às 15:39"
+    },
+    "945532402_10/2026": {
+      "prejuizo": true,
+      "status": "Concluída",
+      "updatedAt": "24/11 às 09:16"
+    },
+    "945532379_10/2026": {
+      "prejuizo": true,
+      "status": "Concluída",
+      "updatedAt": "24/11 às 11:47"
+    }
+  },
+  "fechamentosMeta": {
+    "945532378": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    },
+    "945532381": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    },
+    "945532382": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    },
+    "945532385": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    },
+    "945532399": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    },
+    "945532402": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    },
+    "945532403": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    },
+    "945532404": {
+      "estagio": "Em Revisão",
+      "updatedAt": "23/10, 09:13"
+    }
+  },
+  "ecdEcfData": {},
+  "ecdEcfExtraIds": [],
+  "fechamentoIAData": {
+    "492316057_10/2026": {
+      "empresaId": 492316057,
+      "competencia": "10/2026",
+      "status": "EM_ABERTO",
+      "scoreAuditoria": 0,
+      "arquivosUpload": {
+        "balancete": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "dre": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "extrato": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "contasPagas": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "fiscal": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "folha": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "contasReceber": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "emprestimos": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "lalur": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        },
+        "guias": {
+          "enviado": false,
+          "naoSeAplica": false,
+          "nome": null,
+          "data": null
+        }
+      },
+      "financeiro": {
+        "lucroLiquido": 0,
+        "lucroAnterior": 0,
+        "variacaoMoMLucro": 0,
+        "receitaBruta": 0,
+        "receitaAnterior": 0,
+        "variacaoMoMReceita": 0,
+        "margemLiquida": 0
+      },
+      "itensAuditoria": [],
+      "dreLinhas": []
+    }
+  },
+  "customLogo": null
+}
